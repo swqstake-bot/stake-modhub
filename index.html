@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stake Mod Hub</title>
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0f212e" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="stake-theme">
+  <header class="topbar">
+    <div>
+      <h1>Stake Mod Hub</h1>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.3</span></p>
+    </div>
+    <div class="topbar-right">
+      <span class="badge" id="modUserBadge">Nicht eingeloggt</span>
+      <span class="badge muted" id="liveStatus">Live: aus</span>
+      <span class="badge" id="wsModeBadge">WS: —</span>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="hub">Hub</button>
+    <button class="tab" data-tab="rh">Rollhunt</button>
+    <button class="tab" data-tab="wetten">Wetten</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </nav>
+
+  <main class="tab-panels">
+    <section id="panel-hub" class="panel-view active">
+      <div class="hub-toolbar row-inline">
+        <button type="button" id="btnShowBrowser" class="sm">Browser anzeigen</button>
+        <button type="button" id="btnAllMsg" class="sm">Allmsg</button>
+        <button type="button" id="btnUndoMark" class="sm">Undo mark</button>
+        <button type="button" id="btnAltCheck" class="sm">Alt-Check IP</button>
+        <label class="check-inline"><input type="checkbox" id="autoscroll" checked /> Autoscroll</label>
+      </div>
+      <div class="hub-layout">
+        <div class="hub-left">
+          <div class="panel-head">
+            <h2>Live Chat</h2>
+            <button type="button" id="btnClearLive" class="sm">Clear</button>
+          </div>
+          <div id="liveChat" class="chat-box chat-box-live"></div>
+          <div class="hub-subcols">
+            <div class="subcol">
+              <h4 class="subcol-title" title="Wer dich @ erwähnt hat · Zeit · Nachricht">Tagged</h4>
+              <div id="tagIndex" class="index-list"></div>
+            </div>
+            <div class="subcol">
+              <h4 class="subcol-title">Rains</h4>
+              <div id="rainIndex" class="index-list"></div>
+            </div>
+            <div class="subcol">
+              <div class="subcol-head">
+                <h4>Recent (API)</h4>
+                <button type="button" id="btnApiRecent" class="sm" disabled>API</button>
+              </div>
+              <div id="recentPanel" class="index-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="hub-right">
+          <div class="panel compact hub-mod-panel">
+            <div class="hub-mod-grid">
+              <h3 class="span-all">Mod</h3>
+              <div class="span-all hub-validate-row">
+                <input id="validateUsername" type="text" placeholder="Username" />
+                <button type="button" id="btnValidate" class="primary sm">Validate</button>
+              </div>
+              <p id="validateStatus" class="status-line span-all">—</p>
+              <div class="btn-grid span-all hub-action-grid">
+                <button type="button" id="btnMute" disabled>Mute</button>
+                <button type="button" id="btnUnmute" disabled>Unmute</button>
+                <button type="button" id="btnWarn" disabled>Warn</button>
+                <button type="button" id="btnUserHash" disabled>IP Hash</button>
+                <button type="button" id="btnAddVeri2" disabled>Veri2</button>
+                <button type="button" id="btnMutedList" disabled>Muted</button>
+                <button type="button" id="btnWarnedList" disabled>Warned</button>
+                <button type="button" id="btnChatHist" disabled>Chat Hist</button>
+                <button type="button" id="btnTipHist" disabled>Tips</button>
+                <button type="button" id="btnMuteHist" disabled>Mutes</button>
+              </div>
+              <label class="compact-label">Mute-Zeit <select id="mutePeriod"></select></label>
+              <label class="compact-label">Mute-BP <select id="cbMuteBlueprints"><option value="">—</option></select></label>
+              <label class="compact-label span-all">Mute-Text <input id="muteMessage" type="text" /></label>
+              <label class="compact-label">Warn-BP <select id="cbWarnBlueprints"><option value="">—</option></select></label>
+              <label class="compact-label">Chat-BP <select id="cbChatBlueprints"><option value="">—</option></select></label>
+              <label class="compact-label span-all">Warn-Text <input id="warnMessage" type="text" /></label>
+              <label class="compact-label span-all">Chat-Text <input id="chatMessage" type="text" /></label>
+              <div class="span-all row-inline hub-bp-row">
+                <button type="button" id="btnAddMuteBp" class="sm">+ Mute</button>
+                <button type="button" id="btnAddWarnBp" class="sm">+ Warn</button>
+                <button type="button" id="btnAddChatBp" class="sm">+ Chat</button>
+                <button type="button" id="btnSendChat" class="primary sm" disabled>Senden</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-rh" class="panel-view">
+      <div class="rh-layout">
+        <div class="rh-config panel">
+          <h2>Rollhunt Scanner</h2>
+          <div class="grid-2">
+            <label>Spiel <select id="rhGame"></select></label>
+            <label id="rhMinMultiWrap">Ab Multi (x)
+              <input id="rhMinMulti" type="number" step="0.01" min="0" value="1000" />
+            </label>
+            <label id="rhCrashDeadlineWrap" class="hidden rh-timer-wrap">Countdown (Crash/Slide)
+              <div class="rh-timer-fields">
+                <input id="rhTimerMinutes" type="number" min="0" max="600" step="1" value="60" />
+                <span class="timer-unit">min</span>
+                <input id="rhTimerSeconds" type="number" min="0" max="59" step="1" value="0" />
+                <span class="timer-unit">sek</span>
+              </div>
+            </label>
+          </div>
+          <p id="rhModeHint" class="hint rh-mode-hint"></p>
+          <div class="row-inline">
+            <button type="button" id="btnRhStart" class="primary">RH Start</button>
+            <button type="button" id="btnRhStop" class="stake-stop" disabled>🛑 Stop RH</button>
+            <button type="button" id="btnRhClear" class="danger sm">Clear</button>
+          </div>
+          <p id="rhRecordStatus" class="status-line">Session inaktiv</p>
+          <div class="rh-bp-block">
+            <h4>RH Chat</h4>
+            <label class="compact-label">RH-BP <select id="cbRhBlueprints"><option value="">—</option></select></label>
+            <label class="compact-label">Nachricht <input id="rhChatMessage" type="text" placeholder="Rollhunt-Ankündigung…" /></label>
+            <div class="row-inline rh-chat-actions">
+              <button type="button" id="btnAddRhBp" class="sm">+ RH BP</button>
+              <button type="button" id="btnRhSendChat" class="primary sm" disabled>RH | Message</button>
+              <button type="button" id="btnRhStopAnnounce" class="stake-stop sm" disabled>🛑 Stop RH</button>
+            </div>
+          </div>
+        </div>
+        <div class="rh-stack pane">
+          <section class="rh-pane-section">
+            <div class="panel-head"><h3>Live Chat (RH)</h3></div>
+            <div id="rhLiveChat" class="chat-box chat-box-rh-chat"></div>
+          </section>
+          <section class="rh-pane-section">
+            <div class="panel-head"><h3>Wetten (aufsteigend)</h3></div>
+            <div id="rhBetLog" class="chat-box chat-box-rh-bets bet-log"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-wetten" class="panel-view">
+      <div class="wetten-layout panel">
+        <div class="panel-head">
+          <h2>Wetten</h2>
+          <div class="row-inline">
+            <button type="button" id="btnBetsReload" class="sm">Neu laden</button>
+            <button type="button" id="btnBetsRefresh" class="sm">Lookup neu</button>
+            <button type="button" id="btnBetsClear" class="sm danger">Liste leeren</button>
+          </div>
+        </div>
+        <p id="betsStatus" class="status-line hint">Erkannte Bet-IDs — gespeichert in <code>Datengrube/</code></p>
+        <div class="bets-filters grid-2">
+          <label>Datum von <input type="date" id="betsFilterDateFrom" /></label>
+          <label>Datum bis <input type="date" id="betsFilterDateTo" /></label>
+          <label>User <input type="text" id="betsFilterUser" placeholder="@name" autocomplete="off" /></label>
+          <label>Spiel <input type="text" id="betsFilterGame" placeholder="z. B. Plinko" autocomplete="off" /></label>
+          <label>Multi min (x) <input type="number" id="betsFilterMinMulti" step="0.01" min="0" placeholder="0" /></label>
+          <label>Multi max (x) <input type="number" id="betsFilterMaxMulti" step="0.01" min="0" placeholder="∞" /></label>
+          <div class="bets-filter-actions row-inline">
+            <button type="button" id="btnBetsResetFilters" class="sm">Filter zurücksetzen</button>
+          </div>
+        </div>
+        <div id="betsTableWrap" class="bets-table-wrap">
+          <table class="hist-table bets-table" id="betsTable">
+            <thead>
+              <tr>
+                <th class="bets-sort" data-sort="time" title="Sortieren">Zeit</th>
+                <th class="bets-sort" data-sort="user" title="Sortieren">User</th>
+                <th>Bet-ID</th>
+                <th class="bets-sort" data-sort="game" title="Sortieren">Spiel</th>
+                <th class="bets-sort" data-sort="multi" title="Sortieren">Multi</th>
+                <th>Einsatz</th>
+                <th>Auszahlung</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="betsTableBody">
+              <tr><td colspan="8" class="hint">Noch keine Wetten — Bet-IDs erscheinen automatisch im Chat.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-settings" class="panel-view">
+      <div class="panel settings-panel">
+        <h2>Einstellungen</h2>
+        <div class="grid-2">
+          <label>Stake Mirror (GraphQL) <select id="stakeDomain"></select></label>
+          <label>WS Host (Live-Chat) <input id="wsHost" type="text" value="stake.bet" placeholder="stake.bet" /></label>
+          <label>Chatroom <select id="prefChatroom"></select></label>
+          <label>API Key <input id="apiKey" type="password" autocomplete="off" /></label>
+          <label>Cookie-Methode
+            <select id="cookieMethod">
+              <option value="Non Permanent">Non Permanent (__cf_bm)</option>
+              <option value="Permanent">Permanent (cf_clearance)</option>
+            </select>
+          </label>
+          <label>CF Wert <input id="clearance" type="text" /></label>
+        </div>
+        <div class="row-inline">
+          <button type="button" id="btnPickPath">Datengrube öffnen</button>
+          <span id="dataPathLabel" class="status-line">—</span>
+        </div>
+        <label class="check"><input type="checkbox" id="logChat" checked /> Chat-Log (Text/Tip/Bot → Chat_de.csv, Rain → Rain_de.csv)</label>
+        <button type="button" id="btnSeedBlueprints" class="sm">Standard-Blueprints importieren</button>
+        <p class="hint">Alle Logs, Blueprints und CSVs liegen in <code>modhub-electron/Datengrube/</code>.</p>
+        <label class="check"><input type="checkbox" id="logHash" checked /> Auto IP-Hash (1×/Tag pro User)</label>
+        <label class="check"><input type="checkbox" id="useNativeWs" checked /> Native WebSocket (empfohlen)</label>
+        <div class="grid-2">
+          <label>Max Chat-Zeilen <input id="maxChatRows" type="number" min="100" max="5000" value="1000" /></label>
+          <label>Hash-Reset (Uhrzeit) <input id="autodelTime" type="time" value="23:59" /></label>
+        </div>
+        <div class="panel compact">
+          <h3>Updates (GitHub)</h3>
+          <p class="hint">Installierte App prüft Releases automatisch. Neue Versionen als GitHub-Release veröffentlichen.</p>
+          <div class="row-inline">
+            <button type="button" id="btnCheckUpdate" class="sm">Nach Updates suchen</button>
+            <span id="updateStatus" class="status-line">—</span>
+          </div>
+        </div>
+        <div class="auth-block panel compact">
+          <h3>Anmeldung</h3>
+          <p class="hint">API-Key + Login. Bei <strong>HTTP 403</strong> (VPN/Cloudflare): <strong>Cookies aktualisieren</strong> — Stake kurz im Fenster öffnen, einloggen, Fenster schließen, dann erneut Login.</p>
+          <div class="row-inline">
+            <button type="button" id="btnLogin" class="primary">Login</button>
+            <button type="button" id="btnSaveSettings">Speichern</button>
+          </div>
+          <button type="button" id="btnStakeLogin" class="sm">Cookies aktualisieren (optional)</button>
+          <p id="loginStatus" class="status-line">API-Key eintragen → Login</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="overlayBackdrop" class="overlay-backdrop hidden">
+    <div class="overlay panel">
+      <div class="panel-head">
+        <h3 id="overlayTitle">Overlay</h3>
+        <button type="button" id="btnCloseOverlay" class="sm">×</button>
+      </div>
+      <div id="overlayBody" class="overlay-body"></div>
+    </div>
+  </div>
+
+  <div id="betPanel" class="bet-panel hidden">
+    <div class="panel-head">
+      <h3>Bet Lookup</h3>
+      <button type="button" id="btnCloseBet" class="sm">×</button>
+    </div>
+    <div id="betPanelBody" class="bet-panel-body"></div>
+  </div>
+
+  <div id="mutePolicyModal" class="overlay-backdrop hidden">
+    <div class="overlay panel policy-modal">
+      <h3>Policy 2026 — Mute</h3>
+      <p id="policyUserLine" class="status-line"></p>
+      <label>Grund / Keywords
+        <input id="policyReason" type="text" placeholder="z.B. begging, toxic…" />
+      </label>
+      <p id="policySuggestion" class="status-line"></p>
+      <label>Kategorie <select id="policyCategory"></select></label>
+      <label>Dauer <select id="policyDuration"></select></label>
+      <label>Mute-Nachricht <input id="policyMuteMsg" type="text" /></label>
+      <div class="row-inline">
+        <button type="button" id="btnPolicyApply" class="primary">Mute ausführen</button>
+        <button type="button" id="btnPolicyCancel">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="login-bar">
+    <span id="wsDebug">WS: —</span>
+  </footer>
+
+  <script src="./renderer/constants.js"></script>
+  <script src="./renderer/bet-id-parse.js"></script>
+  <script src="./renderer/mod-policy.js"></script>
+  <script src="./renderer/history-format.js"></script>
+  <script src="./renderer/app.js"></script>
+</body>
+</html>

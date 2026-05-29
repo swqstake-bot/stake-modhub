@@ -1,0 +1,64 @@
+{
+  "name": "stake-modhub",
+  "version": "0.3.0",
+  "description": "Stake Mod Hub — Electron (ModHub + RH + Extension APIs)",
+  "main": "main.js",
+  "private": true,
+  "author": "swqstake-bot",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/swqstake-bot/stake-modhub.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dist": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-kollegen-paket.ps1",
+    "dist:publish": "electron-builder --win portable --publish always",
+    "dist:win": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.stake.modhub",
+    "productName": "Stake Mod Hub",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!versand/**",
+      "!node_modules/.cache/**",
+      "!Datengrube/**",
+      "!**/.git/**"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Stake-ModHub-${version}-Windows.${ext}"
+    },
+    "portable": {
+      "artifactName": "Stake-ModHub-${version}-Windows.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "swqstake-bot",
+        "repo": "stake-modhub"
+      }
+    ]
+  }
+}
