@@ -2,7 +2,8 @@
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $PSScriptRoot
 $AppName = 'Stake Mod Hub'
-$Version = '0.3.0'
+$pkg = Get-Content (Join-Path $Root 'package.json') -Raw | ConvertFrom-Json
+$Version = $pkg.version
 $OutBase = Join-Path $Root 'dist'
 $Stage = Join-Path $OutBase '_stage'
 $PackOut = Join-Path $OutBase 'packager-out'

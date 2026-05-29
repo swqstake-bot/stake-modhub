@@ -17,18 +17,17 @@ npm run dist
 
 Ergebnis: `dist/Stake-ModHub-v0.3.0-Windows.zip`
 
-## Releases & Auto-Update
+## Releases (GitHub)
 
-Die installierte App nutzt [electron-updater](https://www.electron.build/auto-update) und lädt Updates von **GitHub Releases** (`swqstake-bot/stake-modhub`).
+**Kollegen laden das ZIP** von [Releases](https://github.com/swqstake-bot/stake-modhub/releases) — nicht die alte Einzel-EXE.
 
-1. Version in `package.json` erhöhen (z. B. `0.3.1`)
-2. Tag pushen: `git tag v0.3.1 && git push origin v0.3.1`
-3. GitHub Action baut Windows-Portable und veröffentlicht `latest.yml` + EXE
+1. ZIP entpacken  
+2. `START.bat` oder `Stake Mod Hub.exe` im Ordner starten  
 
-Manuell (mit `GH_TOKEN`):
+Neues Release bauen:
 
-```bash
-npm run dist:publish
-```
+1. Version in `package.json` erhöhen  
+2. `git tag v0.3.2 && git push origin v0.3.2`  
+3. GitHub Action erzeugt `Stake-ModHub-v…-Windows.zip`
 
-Kollegen: App starten → bei neuem Release erscheint ein Dialog; unter **Settings → Nach Updates suchen** manuell prüfen.
+Lokal: `npm run dist` → `dist/Stake-ModHub-v…-Windows.zip`
