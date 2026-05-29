@@ -57,7 +57,8 @@
       {
         "provider": "github",
         "owner": "swqstake-bot",
-        "repo": "stake-modhub"
+        "repo": "stake-modhub",
+        "releaseType": "release"
       }
     ]
   }
