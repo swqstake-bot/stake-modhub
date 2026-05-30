@@ -15,6 +15,8 @@ const state = {
   betCache: {},
   hitKeys: new Set(),
   convRates: {},
+  convRatesAt: 0,
+  hubClockTimer: null,
   veri2: new Set(),
   blueprints: { chat: [], mute: [], warn: [], rh: [] },
   tagged: [],
@@ -78,6 +80,42 @@ function parseBetFromText(text) {
 
 function stripAt(name) {
   return String(name || '').trim().replace(/^@+/, '');
+}
+
+function prependUserMentionForChat(message, username) {
+  const msg = String(message || '').trim();
+  const name = stripAt(username);
+  if (!name || !msg) return msg;
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (new RegExp(`@${esc}\\b`, 'i').test(msg)) return msg;
+  return `@${name} ${msg}`;
+}
+
+function copyBetId(text, statusEl) {
+  const t = String(text || '').trim();
+  if (!t) return;
+  const done = () => {
+    if (statusEl) {
+      const prev = statusEl.textContent;
+      statusEl.textContent = `Kopiert: ${t.length > 48 ? `${t.slice(0, 48)}…` : t}`;
+      setTimeout(() => {
+        if (statusEl.textContent.startsWith('Kopiert:')) statusEl.textContent = prev;
+      }, 1600);
+    }
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(t).then(done).catch(() => {});
+  }
+}
+
+function formatBetPosterCell(b) {
+  const first = esc(stripAt(b.username || '') || '—');
+  const last = stripAt(b.lastUsername || '');
+  const firstRaw = stripAt(b.username || '');
+  if (last && last !== firstRaw) {
+    return `@${first} <span class="bet-seen" title="Zuletzt im Chat gepostet">→ @${esc(last)}</span>`;
+  }
+  return `@${first}`;
 }
 
 function parseChatLine(username, message, kind, ts) {
@@ -278,6 +316,26 @@ function fmtCrypto(amount, currency) {
   return `${Number(amount).toFixed(8)} ${currency || ''}`.trim();
 }
 
+function fmtCryptoShort(amount, currency) {
+  if (amount == null) return '—';
+  const n = Number(amount);
+  if (Number.isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  const dec = abs >= 1 ? 4 : abs >= 0.01 ? 6 : 8;
+  const cur = String(currency || '').toUpperCase();
+  return cur ? `${n.toFixed(dec)} ${cur}` : n.toFixed(dec);
+}
+
+function fmtMoney(amount, currency) {
+  if (amount == null) return '—';
+  const crypto = esc(fmtCryptoShort(amount, currency));
+  const usd = toUsd(amount, currency);
+  if (usd != null) {
+    return `${crypto}<span class="bet-usd"> · ${esc(fmtUsd(usd))}</span>`;
+  }
+  return crypto;
+}
+
 function pushChatLine(line) {
   line.idx = state.chatLines.length;
   state.chatLines.push(line);
@@ -342,7 +400,7 @@ function renderRhBets() {
       .map((b) => {
         const multi = b.multiplier > 0 ? `${b.multiplier.toFixed(2)}x` : '?x';
         const leaderCls = leader && leader.betId === b.betId && leader.username === b.username ? ' bet-leader' : '';
-        return `<div class="bet-row${leaderCls}" data-copy="${esc(b.casinoId || '')}">${multi} — ${esc(b.game)} — ${esc(b.casinoId)} — @${esc(b.username)}</div>`;
+        return `<div class="bet-row${leaderCls}" data-copy="${esc(b.betId || '')}" title="Klick = Bet-ID kopieren">${multi} — ${esc(b.game)} — <span class="bet-id-label">${esc(b.betId || b.casinoId || '')}</span> — @${esc(b.username)}</div>`;
       })
       .join('') || '<div class="hint">Keine Wetten in dieser Session.</div>';
 }
@@ -462,6 +520,8 @@ function setModActionsEnabled(on) {
     'btnWarn',
     'btnUserHash',
     'btnSendChat',
+    'btnSendMute',
+    'btnSendWarn',
     'btnChatHist',
     'btnTipHist',
     'btnMuteHist',
@@ -574,12 +634,28 @@ async function refreshBlueprints() {
 
 async function refreshConvRates() {
   const res = await modHub.getConvRates();
-  if (res.ok && res.rates) state.convRates = res.rates;
+  if (res.ok && res.rates) {
+    state.convRates = res.rates;
+    state.convRatesAt = Date.now();
+    return true;
+  }
+  return false;
+}
+
+async function ensureConvRates(force = false) {
+  const stale = Date.now() - (state.convRatesAt || 0) > 5 * 60 * 1000;
+  const empty = !state.convRates || !Object.keys(state.convRates).length;
+  if (!force && !empty && !stale) return;
+  if (!state.loggedIn) return;
+  await refreshConvRates();
 }
 
 function fillBlueprint(selId, targetId) {
   const v = $(selId)?.value;
-  if (v) $(targetId).value = v;
+  if (!v) return;
+  const field = $(targetId);
+  if (!field) return;
+  field.value = state.validatedUser ? prependUserMentionForChat(v, state.validatedUser) : v;
 }
 
 async function loadSettingsUi() {
@@ -664,7 +740,10 @@ async function doLogin() {
   }
   state.loggedIn = true;
   state.modUser = stripAt(res.user) || res.user;
-  if (res.convRates) state.convRates = res.convRates;
+  if (res.convRates) {
+    state.convRates = res.convRates;
+    state.convRatesAt = Date.now();
+  }
   await refreshConvRates();
   retagModMentions();
   status.textContent = `Eingeloggt als ${state.modUser}. Live-Chat gestartet.`;
@@ -785,6 +864,7 @@ function upsertBetRecord(record) {
   else state.bets.unshift(record);
   state.betByKey[record.key] = record;
   renderBetsTable();
+  ensureConvRates().then(() => renderBetsTable());
 }
 
 function setBetsList(bets) {
@@ -794,6 +874,7 @@ function setBetsList(bets) {
     if (b?.key) state.betByKey[b.key] = b;
   }
   renderBetsTable();
+  ensureConvRates().then(() => renderBetsTable());
 }
 
 function renderBetsTable() {
@@ -803,10 +884,12 @@ function renderBetsTable() {
   const total = state.bets.length;
   const rows = getFilteredSortedBets();
   updateBetsSortHeaders();
+  const hasRates = state.convRates && Object.keys(state.convRates).length > 0;
   if (status) {
+    const usdHint = hasRates ? ' · USD via Stake-Kurse' : state.loggedIn ? ' · USD-Kurse laden…' : ' · Login für USD-Umrechnung';
     status.textContent = total
-      ? `${rows.length} / ${total} Wetten — Doppelklick = Bet-Panel · CSV in Datengrube/`
-      : 'Erkannte Bet-IDs werden in Datengrube/ gespeichert.';
+      ? `${rows.length} / ${total} Wetten — Klick auf ID = kopieren · Doppelklick = Bet-Panel${usdHint}`
+      : `Erkannte Bet-IDs werden in Datengrube/ gespeichert.${usdHint}`;
   }
   if (!rows.length) {
     body.innerHTML = `<tr><td colspan="8" class="hint">${
@@ -824,19 +907,19 @@ function renderBetsTable() {
       const st = b.lookupOk
         ? '<span class="bet-ok">OK</span>'
         : `<span class="bet-fail" title="${esc(b.lookupError || '')}">Fehler</span>`;
-      const amt = b.amount != null ? fmtCrypto(b.amount, b.currency) : '—';
-      const pay = b.payout != null ? fmtCrypto(b.payout, b.currency) : '—';
+      const amt = fmtMoney(b.amount, b.currency);
+      const pay = fmtMoney(b.payout, b.currency);
       const multi = b.multiplier > 0 ? `${b.multiplier.toFixed(2)}x` : '—';
-      const user = esc(b.lastUsername || b.username || '—');
+      const userCell = formatBetPosterCell(b);
       const seen = b.seenCount > 1 ? ` <span class="bet-seen">×${b.seenCount}</span>` : '';
       return `<tr class="bets-row${sel}" data-key="${esc(b.key)}" title="${esc(b.message || '')}">
         <td>${esc(ts)}</td>
-        <td>@${user}${seen}</td>
-        <td><code>${esc(b.betId)}</code></td>
+        <td>${userCell}${seen}</td>
+        <td><code class="bet-id-copy" title="Klick = ID kopieren">${esc(b.betId)}</code></td>
         <td>${esc(b.game || '—')}</td>
         <td>${esc(multi)}</td>
-        <td>${esc(amt)}</td>
-        <td>${esc(pay)}</td>
+        <td>${amt}</td>
+        <td>${pay}</td>
         <td>${st}</td>
       </tr>`;
     })
@@ -883,8 +966,10 @@ function wireBets() {
   });
 
   $('btnBetsReload')?.addEventListener('click', async () => {
+    await ensureConvRates(true);
     const res = await modHub.loadBets();
     if (res.ok) setBetsList(res.bets);
+    else renderBetsTable();
   });
 
   $('btnBetsClear')?.addEventListener('click', async () => {
@@ -906,8 +991,14 @@ function wireBets() {
   });
 
   $('betsTableBody')?.addEventListener('click', (e) => {
+    const code = e.target.closest('.bet-id-copy');
     const row = e.target.closest('.bets-row');
     if (!row) return;
+    const b = state.betByKey[row.getAttribute('data-key')];
+    if (code && b?.betId) {
+      copyBetId(b.betId, $('betsStatus'));
+      return;
+    }
     state.selectedBetKey = row.getAttribute('data-key');
     renderBetsTable();
   });
@@ -991,7 +1082,7 @@ async function openPolicyMute() {
   state.policyPending = { userId: state.validatedUserId, username: state.validatedUser };
   $('policyUserLine').textContent = `User: ${state.validatedUser}`;
   $('policyReason').value = $('muteMessage').value.trim();
-  $('policyMuteMsg').value = $('muteMessage').value.trim();
+  $('policyMuteMsg').value = prependUserMentionForChat($('muteMessage').value.trim(), state.validatedUser);
   const hist = await modHub.muteHistory(state.validatedUser);
   state.muteHistoryCache = hist.ok ? hist.data?.user?.community?.muteList || [] : [];
   updatePolicySuggestion();
@@ -1001,7 +1092,8 @@ async function openPolicyMute() {
 async function applyPolicyMute() {
   if (!state.policyPending) return;
   const expire = $('policyDuration').value || $('mutePeriod').value;
-  const message = $('policyMuteMsg').value.trim() || $('muteMessage').value.trim();
+  const rawMsg = $('policyMuteMsg').value.trim() || $('muteMessage').value.trim();
+  const message = prependUserMentionForChat(rawMsg, state.policyPending.username);
   const res = await modHub.muteUser({
     userId: state.policyPending.userId,
     expire,
@@ -1092,6 +1184,9 @@ function wireTabs() {
       document.querySelectorAll('.panel-view').forEach((p) => p.classList.remove('active'));
       btn.classList.add('active');
       $(`panel-${btn.dataset.tab}`).classList.add('active');
+      if (btn.dataset.tab === 'bets') {
+        ensureConvRates().then(() => renderBetsTable());
+      }
     });
   });
 }
@@ -1104,6 +1199,7 @@ function fillValidateUsernameFromChat(username) {
   field.value = u;
   field.focus();
   if (typeof field.select === 'function') field.select();
+  $('btnValidate')?.click();
 }
 
 function wireChatBoxDblClick(el) {
@@ -1200,29 +1296,43 @@ function wireHub() {
   });
 
   $('btnValidate')?.addEventListener('click', async () => {
-    const name = $('validateUsername').value.trim();
+    const name = stripAt($('validateUsername').value.trim());
     if (!name) return;
+    $('validateUsername').value = name;
     setValidateButtonState(false);
-    $('validateStatus').textContent = 'Prüfe…';
+    $('validateStatus').textContent = 'Prüfe über Stake-API…';
     $('validateStatus').style.color = '';
     const res = await modHub.validateUser(name);
-    if (res.ok && res.data?.user?.name === name) {
-      state.validatedUser = name;
-      state.validatedUserId = res.data.user.id;
-      const v2 = isVeri2(name) ? ' ★ Veri2' : '';
-      $('validateStatus').textContent = `OK: ${name}${v2}`;
+    const u = res.data?.user;
+    if (res.ok && u?.id) {
+      const canonical = stripAt(u.name) || name;
+      state.validatedUser = canonical;
+      state.validatedUserId = u.id;
+      $('validateUsername').value = canonical;
+      const v2 = isVeri2(canonical) ? ' ★ Veri2' : '';
+      $('validateStatus').textContent = `OK: ${canonical}${v2}`;
       $('validateStatus').style.color = '#00e701';
       setValidateButtonState(true);
       setUserActionsEnabled(true);
     } else {
       state.validatedUser = '';
       state.validatedUserId = '';
-      $('validateStatus').textContent = 'User nicht gefunden';
+      $('validateStatus').textContent =
+        res.error === 'user_not_found'
+          ? `User „${name}“ nicht gefunden (API)`
+          : `Fehler: ${res.error || 'Validate fehlgeschlagen'}`;
       $('validateStatus').style.color = '';
       setValidateButtonState(false);
       setUserActionsEnabled(false);
     }
     renderChats();
+  });
+
+  $('validateUsername')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      $('btnValidate')?.click();
+    }
   });
 
   $('validateUsername')?.addEventListener('input', () => {
@@ -1253,11 +1363,12 @@ function wireHub() {
 
   $('btnWarn')?.addEventListener('click', async () => {
     if (!state.validatedUser) return;
-    const msg = $('warnMessage').value.trim();
-    if (!msg) {
+    const rawMsg = $('warnMessage').value.trim();
+    if (!rawMsg) {
       $('validateStatus').textContent = 'Warn-Nachricht fehlt (Blueprint wählen).';
       return;
     }
+    const msg = prependUserMentionForChat(rawMsg, state.validatedUser);
     const res = await modHub.warnUser({ username: state.validatedUser, message: msg });
     $('validateStatus').textContent = res.ok
       ? `Warnung an @${state.validatedUser} gesendet`
@@ -1384,12 +1495,24 @@ function wireHub() {
     $('btnShowBrowser').textContent = state.browserVisible ? 'Browser verbergen' : 'Browser anzeigen';
   });
 
-  $('btnSendChat')?.addEventListener('click', async () => {
-    const msg = $('chatMessage').value.trim();
-    if (!msg) return;
+  async function sendModChatField(inputId, label) {
+    const raw = $(inputId)?.value?.trim();
+    if (!raw) {
+      $('validateStatus').textContent = `${label}: Text fehlt.`;
+      return;
+    }
+    if (!state.loggedIn) {
+      $('validateStatus').textContent = 'Zuerst einloggen.';
+      return;
+    }
+    const msg = state.validatedUser ? prependUserMentionForChat(raw, state.validatedUser) : raw;
     const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
-    $('validateStatus').textContent = res.ok ? 'Gesendet' : `Fehler: ${res.error}`;
-  });
+    $('validateStatus').textContent = res.ok ? `${label} gesendet` : `${label}: ${res.error}`;
+  }
+
+  $('btnSendMute')?.addEventListener('click', () => sendModChatField('muteMessage', 'Mute-Text'));
+  $('btnSendWarn')?.addEventListener('click', () => sendModChatField('warnMessage', 'Warn-Text'));
+  $('btnSendChat')?.addEventListener('click', () => sendModChatField('chatMessage', 'Chat-Text'));
 
   $('btnAddRhBp')?.addEventListener('click', async () => {
     const line = $('rhChatMessage').value.trim();
@@ -1559,7 +1682,7 @@ function wireRh() {
     const row = e.target.closest('.bet-row');
     if (!row) return;
     const t = row.getAttribute('data-copy');
-    if (t) navigator.clipboard.writeText(t).catch(() => {});
+    if (t) copyBetId(t, $('rhModeHint'));
   });
 }
 
@@ -1655,12 +1778,31 @@ function wireSettings() {
   });
 }
 
+function startHubClock() {
+  const el = $('hubClock');
+  if (!el) return;
+  const tick = () => {
+    const now = new Date();
+    const text = now.toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    el.textContent = text;
+    el.setAttribute('datetime', now.toISOString());
+  };
+  tick();
+  if (state.hubClockTimer) clearInterval(state.hubClockTimer);
+  state.hubClockTimer = setInterval(tick, 1000);
+}
+
 async function init() {
   if (!window.modHub) {
     document.body.innerHTML = '<p>modHub bridge missing — preload error</p>';
     return;
   }
   $('appVersion').textContent = modHub.version || '0.3';
+  startHubClock();
   initPolicyModal();
   wireTabs();
   wireHub();

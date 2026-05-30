@@ -553,7 +553,17 @@ function registerIpc() {
 
   ipcMain.handle('modhub-user-validate', async (_e, { name } = {}) => {
     try {
-      const data = await gql.getUserDetails(name);
+      const { normalizeUsername } = require('./lib/username');
+      const queryName = normalizeUsername(name);
+      if (!queryName) return { ok: false, error: 'username_required' };
+      let data = await gql.getUserDetails(queryName);
+      if (!data?.user?.id) {
+        const fallback = await gql.getUserHash(queryName);
+        if (fallback?.user?.id) data = fallback;
+      }
+      if (!data?.user?.id) {
+        return { ok: false, error: 'user_not_found', data: data || null };
+      }
       return { ok: true, data };
     } catch (e) {
       return { ok: false, error: e.message };
@@ -629,7 +639,16 @@ function registerIpc() {
     return { ok: true };
   });
 
-  ipcMain.handle('modhub-get-conv-rates', async () => ({ ok: true, rates: convRates }));
+  ipcMain.handle('modhub-get-conv-rates', async () => {
+    try {
+      if (!loggedInModUser) return { ok: false, error: 'not_logged_in', rates: convRates };
+      convRates = await gql.getCurrencyConversionRates();
+      chatWs.setConvRates(convRates);
+      return { ok: true, rates: convRates };
+    } catch (e) {
+      return { ok: false, error: e.message, rates: convRates };
+    }
+  });
 
   ipcMain.handle('modhub-toggle-browser', async (_e, { visible } = {}) => {
     try {
@@ -708,13 +727,14 @@ function registerIpc() {
     try {
       const { CHATROOMS } = require('./lib/stake-constants'); // eslint-disable-line global-require
       const s = loadSettings();
-      const user = String(username || '').trim();
+      const { prependUserMention, normalizeUsername } = require('./lib/username');
+      const user = normalizeUsername(username);
       const msg = String(message || '').trim();
       if (!user) return { ok: false, error: 'username_required' };
       if (!msg) return { ok: false, error: 'message_required' };
       const room = s.prefChatroom || 'German';
       const chatId = CHATROOMS[room] || CHATROOMS.German;
-      const text = `@${user} ${msg}`;
+      const text = prependUserMention(msg, user);
       await gql.sendMessage(chatId, text);
       fileLogs.appendWarned(dataDir(), user, text);
       return { ok: true };

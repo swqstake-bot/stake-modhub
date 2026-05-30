@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('modHub', {
-  version: '0.3.1',
+  version: '0.3.2',
   getSettings: () => ipcRenderer.invoke('modhub-settings-get'),
   saveSettings: (s) => ipcRenderer.invoke('modhub-settings-set', s || {}),
   pickDataPath: () => ipcRenderer.invoke('modhub-pick-data-path'),

@@ -253,6 +253,34 @@ body {
   font-size: 11px;
 }
 
+.hub-msg-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hub-msg-label {
+  font-size: 10px;
+  color: var(--stake-text-dim);
+}
+
+.hub-msg-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.hub-msg-input-row input {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.hub-msg-input-row button {
+  flex-shrink: 0;
+}
+
 .hub-bp-row {
   gap: 4px;
   flex-wrap: wrap;
@@ -368,6 +396,20 @@ body {
   color: var(--stake-text);
 }
 
+.panel-head-left {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.hub-clock {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--stake-text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 .chat-box {
   border: 1px solid var(--stake-border);
   border-radius: var(--stake-radius);
@@ -404,6 +446,33 @@ body {
   background: var(--stake-success-bg);
   border-left: 3px solid var(--stake-success);
   font-weight: 600;
+}
+
+.bet-log .bet-id-label {
+  color: var(--stake-accent);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.bets-table code.bet-id-copy {
+  cursor: pointer;
+  color: var(--stake-accent);
+}
+
+.bets-table code.bet-id-copy:hover {
+  color: var(--stake-success);
+}
+
+.bets-table .bet-usd {
+  color: var(--stake-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.bets-table .th-sub {
+  font-weight: 400;
+  color: var(--stake-text-muted);
+  font-size: 10px;
 }
 
 .rh-mode-hint {

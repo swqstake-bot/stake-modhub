@@ -40,7 +40,10 @@
       <div class="hub-layout">
         <div class="hub-left">
           <div class="panel-head">
-            <h2>Live Chat</h2>
+            <div class="panel-head-left">
+              <h2>Live Chat</h2>
+              <time id="hubClock" class="hub-clock" datetime="">--:--:--</time>
+            </div>
             <button type="button" id="btnClearLive" class="sm">Clear</button>
           </div>
           <div id="liveChat" class="chat-box chat-box-live"></div>
@@ -85,16 +88,33 @@
               </div>
               <label class="compact-label">Mute-Zeit <select id="mutePeriod"></select></label>
               <label class="compact-label">Mute-BP <select id="cbMuteBlueprints"><option value="">—</option></select></label>
-              <label class="compact-label span-all">Mute-Text <input id="muteMessage" type="text" /></label>
+              <label class="compact-label span-all hub-msg-row">
+                <span class="hub-msg-label">Mute-Text</span>
+                <div class="hub-msg-input-row">
+                  <input id="muteMessage" type="text" />
+                  <button type="button" id="btnSendMute" class="primary sm" disabled title="Mute-Text in den Chat senden">Senden</button>
+                </div>
+              </label>
               <label class="compact-label">Warn-BP <select id="cbWarnBlueprints"><option value="">—</option></select></label>
+              <label class="compact-label span-all hub-msg-row">
+                <span class="hub-msg-label">Warn-Text</span>
+                <div class="hub-msg-input-row">
+                  <input id="warnMessage" type="text" />
+                  <button type="button" id="btnSendWarn" class="primary sm" disabled title="Warn-Text in den Chat senden">Senden</button>
+                </div>
+              </label>
               <label class="compact-label">Chat-BP <select id="cbChatBlueprints"><option value="">—</option></select></label>
-              <label class="compact-label span-all">Warn-Text <input id="warnMessage" type="text" /></label>
-              <label class="compact-label span-all">Chat-Text <input id="chatMessage" type="text" /></label>
+              <label class="compact-label span-all hub-msg-row">
+                <span class="hub-msg-label">Chat-Text</span>
+                <div class="hub-msg-input-row">
+                  <input id="chatMessage" type="text" />
+                  <button type="button" id="btnSendChat" class="primary sm" disabled title="Chat-Text senden">Senden</button>
+                </div>
+              </label>
               <div class="span-all row-inline hub-bp-row">
-                <button type="button" id="btnAddMuteBp" class="sm">+ Mute</button>
-                <button type="button" id="btnAddWarnBp" class="sm">+ Warn</button>
-                <button type="button" id="btnAddChatBp" class="sm">+ Chat</button>
-                <button type="button" id="btnSendChat" class="primary sm" disabled>Senden</button>
+                <button type="button" id="btnAddMuteBp" class="sm">+ Mute BP</button>
+                <button type="button" id="btnAddWarnBp" class="sm">+ Warn BP</button>
+                <button type="button" id="btnAddChatBp" class="sm">+ Chat BP</button>
               </div>
             </div>
           </div>
@@ -182,8 +202,8 @@
                 <th>Bet-ID</th>
                 <th class="bets-sort" data-sort="game" title="Sortieren">Spiel</th>
                 <th class="bets-sort" data-sort="multi" title="Sortieren">Multi</th>
-                <th>Einsatz</th>
-                <th>Auszahlung</th>
+                <th>Einsatz <span class="th-sub">(USD)</span></th>
+                <th>Auszahlung <span class="th-sub">(USD)</span></th>
                 <th>Status</th>
               </tr>
             </thead>
