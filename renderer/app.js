@@ -213,6 +213,40 @@ function formatRhLeaderLine(leader) {
   return `@${leader.username} mit ${(leader.multiplier || 0).toFixed(2)}x`;
 }
 
+function formatRhCasinoTag(bet) {
+  const raw = String(bet?.betId || bet?.casinoId || '')
+    .replace(/^casino:/i, '')
+    .trim();
+  if (/^[a-f0-9-]{36}$/i.test(raw)) return `casino:${raw}`;
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '#—';
+  const parts = [];
+  for (let i = digits.length; i > 0; i -= 3) {
+    parts.unshift(digits.slice(Math.max(0, i - 3), i));
+  }
+  return `#${parts.join('.')}`;
+}
+
+function buildRhLeaderAnnounceMessage(bet) {
+  const user = stripAt(bet.username);
+  const multi = (bet.multiplier || 0).toFixed(2);
+  const game = String(bet.game || state.rhSession?.game || 'crash').toLowerCase();
+  const casino = formatRhCasinoTag(bet);
+  return `Den 🥇🥇höchsten Multi🥇🥇 hält @${user} mit ${multi}x — ${game} — Casino: ${casino}`;
+}
+
+async function postRhLeaderAnnounce(bet) {
+  if (!bet) return;
+  if (!state.loggedIn) {
+    $('rhModeHint').textContent = 'Zuerst einloggen.';
+    return;
+  }
+  const msg = buildRhLeaderAnnounceMessage(bet);
+  $('rhChatMessage').value = msg;
+  const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+  $('rhModeHint').textContent = res.ok ? 'Gewinner-Ankündigung gesendet' : `Fehler: ${res.error}`;
+}
+
 /** STOP-Zeile aus ChatBlueprints (🛑 bevorzugt, sonst 🔴). */
 function getRhStopBlueprintMessage() {
   const lines = state.blueprints.chat || [];
@@ -253,7 +287,7 @@ function updateRhGameModeUi() {
   const hint = $('rhModeHint');
   if (hint) {
     hint.textContent = crashMode
-      ? 'Crash/Slide: alle Treffer zählen — wenn der Timer abläuft, gewinnt der höchste Multi.'
+      ? 'Crash/Slide: Timer-Ende beendet RH ohne STOP im Chat. Grüne Zeile anklicken = Gewinner posten.'
       : 'Klassisch: nur Wetten ab dem eingestellten Multi zählen.';
   }
 }
@@ -297,6 +331,12 @@ function isMentionOfMod(message) {
   const esc = mod.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const re = new RegExp(`@${esc}\\b`, 'i');
   return re.test(String(message || ''));
+}
+
+function isOwnModChatUser(username) {
+  const mod = stripAt(state.modUser);
+  const u = stripAt(username);
+  return Boolean(mod && u && mod.toLowerCase() === u.toLowerCase());
 }
 
 function toUsd(amount, currency) {
@@ -399,8 +439,12 @@ function renderRhBets() {
     rows
       .map((b) => {
         const multi = b.multiplier > 0 ? `${b.multiplier.toFixed(2)}x` : '?x';
-        const leaderCls = leader && leader.betId === b.betId && leader.username === b.username ? ' bet-leader' : '';
-        return `<div class="bet-row${leaderCls}" data-copy="${esc(b.betId || '')}" title="Klick = Bet-ID kopieren">${multi} — ${esc(b.game)} — <span class="bet-id-label">${esc(b.betId || b.casinoId || '')}</span> — @${esc(b.username)}</div>`;
+        const isLeader = leader && leader.betId === b.betId && leader.username === b.username;
+        const leaderCls = isLeader ? ' bet-leader' : '';
+        const title = isLeader && state.rhSession?.active
+          ? 'Klick = Gewinner-Ankündigung in den Chat'
+          : 'Klick = Bet-ID kopieren';
+        return `<div class="bet-row${leaderCls}" data-bet-id="${esc(b.betId || '')}" data-copy="${esc(b.betId || '')}" title="${esc(title)}">${multi} — ${esc(b.game)} — <span class="bet-id-label">${esc(b.betId || b.casinoId || '')}</span> — @${esc(b.username)}</div>`;
       })
       .join('') || '<div class="hint">Keine Wetten in dieser Session.</div>';
 }
@@ -1106,6 +1150,7 @@ async function applyPolicyMute() {
 
 async function processBetForRh(line) {
   if (!state.rhSession?.active || !line.betId) return;
+  if (isOwnModChatUser(line.username)) return;
   const rhGame = state.rhSession.game;
   const minMulti = state.rhSession.minMulti;
   const cacheKey = line.betId.replace(/\./g, '');
@@ -1651,7 +1696,9 @@ function wireRh() {
         rhCrashTimerSeconds: Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0))
       });
       await modHub.appendLog(`--- RH START ${game} | höchster Multi | Timer ${deadlineLabel} ---`);
-      state.rhDeadlineTimer = setTimeout(() => finishRhSession('Timer abgelaufen'), durationMs);
+      state.rhDeadlineTimer = setTimeout(() => {
+        if (state.rhSession?.active) finishRhSession('Timer abgelaufen');
+      }, durationMs);
       state.rhStatusTimer = setInterval(refreshRhStatusLine, 1000);
       refreshRhStatusLine();
     } else {
@@ -1670,7 +1717,13 @@ function wireRh() {
     setRhStopButtonsEnabled(true);
   });
 
-  $('btnRhStop')?.addEventListener('click', () => stopRhWithAnnounce('manuell'));
+  $('btnRhStop')?.addEventListener('click', () => {
+    if (!state.rhSession?.active) {
+      $('rhRecordStatus').textContent = 'Keine aktive RH-Session.';
+      return;
+    }
+    finishRhSession('manuell');
+  });
   $('btnRhStopAnnounce')?.addEventListener('click', () => stopRhWithAnnounce('manuell'));
 
   $('btnRhClear')?.addEventListener('click', () => {
@@ -1678,9 +1731,15 @@ function wireRh() {
     renderRhBets();
   });
 
-  $('rhBetLog')?.addEventListener('click', (e) => {
+  $('rhBetLog')?.addEventListener('click', async (e) => {
     const row = e.target.closest('.bet-row');
     if (!row) return;
+    const betId = row.getAttribute('data-bet-id');
+    const bet = betId ? state.rhBets.find((b) => b.betId === betId) : null;
+    if (state.rhSession?.active && bet && row.classList.contains('bet-leader')) {
+      await postRhLeaderAnnounce(bet);
+      return;
+    }
     const t = row.getAttribute('data-copy');
     if (t) copyBetId(t, $('rhModeHint'));
   });

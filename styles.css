@@ -247,7 +247,10 @@ body {
 }
 
 .compact-label input,
-.compact-label select {
+.compact-label select,
+.compact-label textarea {
+  width: 100%;
+  box-sizing: border-box;
   margin-top: 2px;
   padding: 4px 6px;
   font-size: 11px;
@@ -299,10 +302,25 @@ body {
   color: var(--stake-text-muted);
 }
 
+.rh-config.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.rh-config.panel h2 {
+  flex-shrink: 0;
+}
+
 .rh-bp-block {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--stake-border);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .rh-bp-block h4 {
@@ -317,8 +335,9 @@ body {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(400px, 1.2fr) minmax(280px, 0.8fr);
+  gap: 10px;
+  align-items: stretch;
 }
 
 #panel-rh.panel-view.active .rh-layout {
@@ -328,10 +347,11 @@ body {
 .rh-stack.pane {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
   height: 100%;
-  padding: 10px;
+  max-width: 100%;
+  padding: 8px;
   background: var(--stake-bg-panel);
   border: 1px solid var(--stake-border);
   border-radius: var(--stake-radius-lg);
@@ -339,11 +359,12 @@ body {
 }
 
 .rh-pane-section {
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 45%;
+  min-height: 100px;
+  max-height: 36vh;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .rh-pane-section .panel-head {
@@ -358,6 +379,42 @@ body {
 .rh-pane-section .chat-box {
   flex: 1;
   min-height: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 6px;
+}
+
+.rh-bp-block .rh-msg-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-bottom: 0;
+}
+
+#rhChatMessage {
+  flex: 1;
+  min-height: 100px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+  font-family: inherit;
+  color: var(--stake-text);
+  background: var(--stake-bg-surface);
+  border: 1px solid var(--stake-border);
+  border-radius: var(--stake-radius);
+}
+
+#rhChatMessage:focus {
+  outline: none;
+  border-color: var(--stake-primary);
+}
+
+.rh-chat-actions {
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .panel,

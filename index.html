@@ -143,18 +143,20 @@
           <p id="rhModeHint" class="hint rh-mode-hint"></p>
           <div class="row-inline">
             <button type="button" id="btnRhStart" class="primary">RH Start</button>
-            <button type="button" id="btnRhStop" class="stake-stop" disabled>🛑 Stop RH</button>
+            <button type="button" id="btnRhStop" class="sm" disabled>RH beenden</button>
             <button type="button" id="btnRhClear" class="danger sm">Clear</button>
           </div>
           <p id="rhRecordStatus" class="status-line">Session inaktiv</p>
           <div class="rh-bp-block">
             <h4>RH Chat</h4>
             <label class="compact-label">RH-BP <select id="cbRhBlueprints"><option value="">—</option></select></label>
-            <label class="compact-label">Nachricht <input id="rhChatMessage" type="text" placeholder="Rollhunt-Ankündigung…" /></label>
+            <label class="compact-label rh-msg-label">Nachricht
+              <textarea id="rhChatMessage" rows="5" placeholder="Rollhunt-Ankündigung…"></textarea>
+            </label>
             <div class="row-inline rh-chat-actions">
               <button type="button" id="btnAddRhBp" class="sm">+ RH BP</button>
               <button type="button" id="btnRhSendChat" class="primary sm" disabled>RH | Message</button>
-              <button type="button" id="btnRhStopAnnounce" class="stake-stop sm" disabled>🛑 Stop RH</button>
+              <button type="button" id="btnRhStopAnnounce" class="stake-stop sm" disabled>🛑 STOP Chat</button>
             </div>
           </div>
         </div>
