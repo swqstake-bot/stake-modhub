@@ -694,12 +694,20 @@ async function ensureConvRates(force = false) {
   await refreshConvRates();
 }
 
+function clearValidatedUser() {
+  state.validatedUser = '';
+  state.validatedUserId = '';
+  setValidateButtonState(false);
+  setUserActionsEnabled(false);
+}
+
 function fillBlueprint(selId, targetId) {
   const v = $(selId)?.value;
   if (!v) return;
   const field = $(targetId);
   if (!field) return;
-  field.value = state.validatedUser ? prependUserMentionForChat(v, state.validatedUser) : v;
+  const withMention = (targetId === 'muteMessage' || targetId === 'warnMessage') && state.validatedUser;
+  field.value = withMention ? prependUserMentionForChat(v, state.validatedUser) : v;
 }
 
 async function loadSettingsUi() {
@@ -1381,9 +1389,15 @@ function wireHub() {
   });
 
   $('validateUsername')?.addEventListener('input', () => {
-    const name = $('validateUsername').value.trim();
-    if (name !== state.validatedUser) {
-      setValidateButtonState(false);
+    const name = stripAt($('validateUsername').value.trim());
+    if (!name) {
+      clearValidatedUser();
+      $('validateStatus').textContent = '—';
+      $('validateStatus').style.color = '';
+      return;
+    }
+    if (name.toLowerCase() !== stripAt(state.validatedUser).toLowerCase()) {
+      clearValidatedUser();
       if ($('validateStatus').textContent.startsWith('OK:')) {
         $('validateStatus').textContent = '—';
         $('validateStatus').style.color = '';
@@ -1540,7 +1554,7 @@ function wireHub() {
     $('btnShowBrowser').textContent = state.browserVisible ? 'Browser verbergen' : 'Browser anzeigen';
   });
 
-  async function sendModChatField(inputId, label) {
+  async function sendModChatField(inputId, label, { mentionUser = false } = {}) {
     const raw = $(inputId)?.value?.trim();
     if (!raw) {
       $('validateStatus').textContent = `${label}: Text fehlt.`;
@@ -1550,13 +1564,18 @@ function wireHub() {
       $('validateStatus').textContent = 'Zuerst einloggen.';
       return;
     }
-    const msg = state.validatedUser ? prependUserMentionForChat(raw, state.validatedUser) : raw;
+    const msg =
+      mentionUser && state.validatedUser ? prependUserMentionForChat(raw, state.validatedUser) : raw;
     const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
     $('validateStatus').textContent = res.ok ? `${label} gesendet` : `${label}: ${res.error}`;
   }
 
-  $('btnSendMute')?.addEventListener('click', () => sendModChatField('muteMessage', 'Mute-Text'));
-  $('btnSendWarn')?.addEventListener('click', () => sendModChatField('warnMessage', 'Warn-Text'));
+  $('btnSendMute')?.addEventListener('click', () =>
+    sendModChatField('muteMessage', 'Mute-Text', { mentionUser: true })
+  );
+  $('btnSendWarn')?.addEventListener('click', () =>
+    sendModChatField('warnMessage', 'Warn-Text', { mentionUser: true })
+  );
   $('btnSendChat')?.addEventListener('click', () => sendModChatField('chatMessage', 'Chat-Text'));
 
   $('btnAddRhBp')?.addEventListener('click', async () => {
