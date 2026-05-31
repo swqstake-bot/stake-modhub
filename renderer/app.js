@@ -266,6 +266,7 @@ function selectRhSession(id) {
   renderRhSessionsList();
   renderRhBets();
   refreshRhStatusLine();
+  syncRhBlueprintUi(getRhSession(id));
   setRhStopButtonsEnabled(!!getRhSession(id)?.active);
 }
 
@@ -283,6 +284,7 @@ function removeRhSession(id) {
   renderRhSessionsList();
   renderRhBets();
   refreshRhStatusLine();
+  syncRhBlueprintUi(getSelectedRhSession());
   setRhStopButtonsEnabled(!!getSelectedRhSession()?.active);
 }
 
@@ -456,6 +458,64 @@ function gameMatches(betGame, rhGame) {
     if (p.length >= 5 && bet.includes(p)) return true;
   }
   return false;
+}
+
+function rhGameSearchPatterns(game) {
+  return [
+    normalizeGameName(game),
+    ...((C.GAME_ALIASES && C.GAME_ALIASES[game]) || []).map((a) => normalizeGameName(a))
+  ].filter(Boolean);
+}
+
+function rhBlueprintMatchesGame(line, game) {
+  if (!line || !game) return false;
+  const text = normalizeGameName(line);
+  for (const p of rhGameSearchPatterns(game)) {
+    if (!p || p.length < 3) continue;
+    if (game === 'Dice' && p === 'dice' && text.includes('prime')) continue;
+    if (text.includes(p)) return true;
+  }
+  return false;
+}
+
+function findRhBlueprintForGame(game) {
+  const lines = state.blueprints.rh || [];
+  const candidates = lines.filter((l) => rhBlueprintMatchesGame(l, game));
+  const rhAnnounce = candidates.filter((l) => /llhunt|:coin:/i.test(l));
+  return rhAnnounce[0] || candidates[0] || null;
+}
+
+function applyRhBlueprintToUi(line) {
+  const sel = $('cbRhBlueprints');
+  const ta = $('rhChatMessage');
+  if (!line) {
+    if (sel) sel.value = '';
+    if (ta) ta.value = '';
+    return;
+  }
+  if (sel) {
+    const opt = [...sel.options].find((o) => o.value === line);
+    sel.value = opt ? line : '';
+  }
+  if (ta) ta.value = line;
+}
+
+function syncRhBlueprintUi(session) {
+  if (!session) {
+    applyRhBlueprintToUi('');
+    return;
+  }
+  let line = session.bpLine;
+  if (!line) {
+    line = findRhBlueprintForGame(session.game);
+    if (line) session.bpLine = line;
+  }
+  applyRhBlueprintToUi(line);
+}
+
+function saveRhBlueprintToSession(line) {
+  const session = getSelectedRhSession();
+  if (session && line) session.bpLine = line;
 }
 
 function isVeri2(name) {
@@ -852,7 +912,9 @@ function fillBlueprint(selId, targetId) {
   if (!v) return;
   const field = $(targetId);
   if (!field) return;
-  const withMention = (targetId === 'muteMessage' || targetId === 'warnMessage') && state.validatedUser;
+  const withMention =
+    (targetId === 'muteMessage' || targetId === 'warnMessage' || targetId === 'chatMessage') &&
+    state.validatedUser;
   field.value = withMention ? prependUserMentionForChat(v, state.validatedUser) : v;
 }
 
@@ -1482,7 +1544,10 @@ function wireHub() {
   $('cbChatBlueprints')?.addEventListener('change', () => fillBlueprint('cbChatBlueprints', 'chatMessage'));
   $('cbMuteBlueprints')?.addEventListener('change', () => fillBlueprint('cbMuteBlueprints', 'muteMessage'));
   $('cbWarnBlueprints')?.addEventListener('change', () => fillBlueprint('cbWarnBlueprints', 'warnMessage'));
-  $('cbRhBlueprints')?.addEventListener('change', () => fillBlueprint('cbRhBlueprints', 'rhChatMessage'));
+  $('cbRhBlueprints')?.addEventListener('change', () => {
+    fillBlueprint('cbRhBlueprints', 'rhChatMessage');
+    saveRhBlueprintToSession($('cbRhBlueprints')?.value);
+  });
 
   $('btnAddChatBp')?.addEventListener('click', async () => {
     const line = $('chatMessage').value.trim();
@@ -1527,6 +1592,10 @@ function wireHub() {
       $('validateStatus').style.color = '#00e701';
       setValidateButtonState(true);
       setUserActionsEnabled(true);
+      const chatField = $('chatMessage');
+      if (chatField?.value.trim()) {
+        chatField.value = prependUserMentionForChat(chatField.value.trim(), canonical);
+      }
     } else {
       state.validatedUser = '';
       state.validatedUserId = '';
@@ -1736,7 +1805,9 @@ function wireHub() {
   $('btnSendWarn')?.addEventListener('click', () =>
     sendModChatField('warnMessage', 'Warn-Text', { mentionUser: true })
   );
-  $('btnSendChat')?.addEventListener('click', () => sendModChatField('chatMessage', 'Chat-Text'));
+  $('btnSendChat')?.addEventListener('click', () =>
+    sendModChatField('chatMessage', 'Chat-Text', { mentionUser: true })
+  );
 
   $('btnAddRhBp')?.addEventListener('click', async () => {
     const line = $('rhChatMessage').value.trim();
@@ -1752,8 +1823,11 @@ function wireHub() {
       $('rhRecordStatus').textContent = 'RH-Nachricht fehlt.';
       return;
     }
+    saveRhBlueprintToSession($('cbRhBlueprints')?.value || msg);
+    const session = getSelectedRhSession();
+    const gameLabel = session?.game ? `${session.game} RH — ` : '';
     const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
-    $('rhRecordStatus').textContent = res.ok ? 'RH-Nachricht gesendet.' : `Fehler: ${res.error}`;
+    $('rhRecordStatus').textContent = res.ok ? `${gameLabel}RH-Nachricht gesendet.` : `${gameLabel}Fehler: ${res.error}`;
   });
 
   $('btnChatHist')?.addEventListener('click', async () => {
@@ -1805,17 +1879,18 @@ async function stopRhWithAnnounce(reason = 'manuell', sessionId = state.rhActive
     $('rhRecordStatus').textContent = 'Keine aktive RH für diese Auswahl.';
     return;
   }
+  const game = session.game;
   if (state.loggedIn) {
     const res = await sendRhStopBlueprintToChat();
     if (!res.ok) {
-      $('rhRecordStatus').textContent = `Stop-Nachricht fehlgeschlagen: ${res.error}`;
+      $('rhRecordStatus').textContent = `${game} RH — Stop-Nachricht fehlgeschlagen: ${res.error}`;
       return;
     }
   }
-  await finishRhSession(sessionId, reason);
+  await finishRhSession(sessionId, reason, { announced: true });
 }
 
-async function finishRhSession(sessionId, reason) {
+async function finishRhSession(sessionId, reason, opts = {}) {
   const session = getRhSession(sessionId);
   if (!session?.active) return;
   session.active = false;
@@ -1832,8 +1907,11 @@ async function finishRhSession(sessionId, reason) {
       `--- RH STOP ${session.game} höchster Multi | Timer ${session.deadlineLabel} | ${reason} | Gewinner: ${leader ? formatRhLeaderLine(leader) : '—'} ---`
     );
   } else {
-    summary = `${session.game} gestoppt. ${session.bets.length} Wetten geloggt.`;
+    summary = `${session.game} gestoppt (${reason}). ${session.bets.length} Wetten geloggt.`;
     await modHub.appendLog(`--- RH STOP ${session.game} >= ${session.minMulti}x (${session.bets.length} bets) ---`);
+  }
+  if (opts.announced) {
+    summary = `${session.game} RH — STOP gesendet · ${summary}`;
   }
 
   updateRhGameSelectOptions();
