@@ -126,6 +126,15 @@
       <div class="rh-layout">
         <div class="rh-config panel">
           <h2>Rollhunt Scanner</h2>
+          <div class="rh-sessions-block">
+            <div class="rh-sessions-head">
+              <h4>Aktive Rollhunts</h4>
+              <span id="rhSessionCount" class="hint">0 aktiv</span>
+            </div>
+            <div id="rhSessionsList" class="rh-sessions-list">
+              <p class="hint rh-sessions-empty">Noch keine RH — Spiel wählen und Start.</p>
+            </div>
+          </div>
           <div class="grid-2">
             <label>Spiel <select id="rhGame"></select></label>
             <label id="rhMinMultiWrap">Ab Multi (x)
@@ -166,7 +175,7 @@
             <div id="rhLiveChat" class="chat-box chat-box-rh-chat"></div>
           </section>
           <section class="rh-pane-section">
-            <div class="panel-head"><h3>Wetten (aufsteigend)</h3></div>
+            <div class="panel-head"><h3 id="rhBetLogTitle">Wetten (aufsteigend)</h3></div>
             <div id="rhBetLog" class="chat-box chat-box-rh-bets bet-log"></div>
           </section>
         </div>

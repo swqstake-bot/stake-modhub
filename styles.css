@@ -313,6 +313,94 @@ body {
   flex-shrink: 0;
 }
 
+.rh-sessions-block {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--stake-border);
+  flex-shrink: 0;
+}
+
+.rh-sessions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.rh-sessions-head h4 {
+  margin: 0;
+  font-size: 12px;
+  color: var(--stake-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rh-sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.rh-sessions-empty {
+  margin: 0;
+  font-size: 11px;
+}
+
+.rh-session-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.rh-session-row.selected .rh-session-item {
+  border-color: var(--stake-accent);
+  background: rgba(0, 231, 1, 0.08);
+}
+
+.rh-session-row.ended .rh-session-item {
+  opacity: 0.72;
+}
+
+.rh-session-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--stake-border);
+  border-radius: var(--stake-radius);
+  background: var(--stake-bg-input);
+  color: var(--stake-text);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.rh-session-item:hover {
+  border-color: var(--stake-accent-dim);
+}
+
+.rh-session-game {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.rh-session-meta {
+  font-size: 10px;
+  color: var(--stake-text-muted);
+  line-height: 1.3;
+}
+
+.rh-session-dismiss {
+  flex: 0 0 auto;
+  min-width: 28px;
+  padding: 0 6px;
+}
+
 .rh-bp-block {
   margin-top: 10px;
   padding-top: 10px;

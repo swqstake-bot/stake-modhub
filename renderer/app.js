@@ -10,8 +10,9 @@ const state = {
   validatedUser: '',
   validatedUserId: '',
   chatLines: [],
-  rhSession: null,
-  rhBets: [],
+  rhSessions: [],
+  rhActiveId: null,
+  rhNextId: 1,
   betCache: {},
   hitKeys: new Set(),
   convRates: {},
@@ -26,7 +27,6 @@ const state = {
   allmsgUser: '',
   modMarkUser: '',
   browserVisible: false,
-  rhDeadlineTimer: null,
   rhStatusTimer: null,
   policyPending: null,
   muteHistoryCache: [],
@@ -192,20 +192,141 @@ function rhTimerLabelFromMs(ms) {
   return `${sec} sek`;
 }
 
-function clearRhTimers() {
-  if (state.rhDeadlineTimer) {
-    clearTimeout(state.rhDeadlineTimer);
-    state.rhDeadlineTimer = null;
-  }
+function clearRhStatusTimer() {
   if (state.rhStatusTimer) {
     clearInterval(state.rhStatusTimer);
     state.rhStatusTimer = null;
   }
 }
 
-function getRhLeader() {
-  if (!state.rhBets.length) return null;
-  return state.rhBets.reduce((best, b) => ((b.multiplier || 0) > (best.multiplier || 0) ? b : best));
+function clearSessionDeadlineTimer(session) {
+  if (session?.deadlineTimer) {
+    clearTimeout(session.deadlineTimer);
+    session.deadlineTimer = null;
+  }
+}
+
+function nextRhId() {
+  const id = `rh-${state.rhNextId}`;
+  state.rhNextId += 1;
+  return id;
+}
+
+function getRhSession(id = state.rhActiveId) {
+  if (!id) return null;
+  return state.rhSessions.find((s) => s.id === id) || null;
+}
+
+function getSelectedRhSession() {
+  return getRhSession(state.rhActiveId);
+}
+
+function findActiveRhForGame(game) {
+  return state.rhSessions.find((s) => s.active && s.game === game) || null;
+}
+
+function getActiveRhSessions() {
+  return state.rhSessions.filter((s) => s.active);
+}
+
+function getRhLeader(session) {
+  if (!session?.bets?.length) return null;
+  return session.bets.reduce((best, b) => ((b.multiplier || 0) > (best.multiplier || 0) ? b : best));
+}
+
+function formatRhSessionMeta(session) {
+  if (!session) return '';
+  if (session.mode === 'highestMulti') {
+    const left = session.deadlineTs ? Math.max(0, session.deadlineTs - Date.now()) : 0;
+    const timer = session.active ? formatRhCountdown(left) : 'beendet';
+    const leader = getRhLeader(session);
+    const lead = leader ? formatRhLeaderLine(leader) : 'noch kein Treffer';
+    return `${timer} · ${lead} · ${session.bets.length} Wetten`;
+  }
+  return `ab ${session.minMulti}x · ${session.bets.length} Wetten`;
+}
+
+function updateRhGameSelectOptions() {
+  const sel = $('rhGame');
+  if (!sel) return;
+  const activeGames = new Set(getActiveRhSessions().map((s) => s.game));
+  [...sel.options].forEach((opt) => {
+    opt.disabled = activeGames.has(opt.value);
+  });
+  const cur = sel.value;
+  if (cur && activeGames.has(cur)) {
+    const free = [...sel.options].find((o) => !o.disabled);
+    if (free) sel.value = free.value;
+  }
+  updateRhGameModeUi();
+}
+
+function selectRhSession(id) {
+  state.rhActiveId = id;
+  renderRhSessionsList();
+  renderRhBets();
+  refreshRhStatusLine();
+  setRhStopButtonsEnabled(!!getRhSession(id)?.active);
+}
+
+function removeRhSession(id) {
+  const session = getRhSession(id);
+  if (!session) return;
+  if (session.active) return;
+  clearSessionDeadlineTimer(session);
+  state.rhSessions = state.rhSessions.filter((s) => s.id !== id);
+  if (state.rhActiveId === id) {
+    const next = state.rhSessions.find((s) => s.active) || state.rhSessions[0];
+    state.rhActiveId = next?.id || null;
+  }
+  updateRhGameSelectOptions();
+  renderRhSessionsList();
+  renderRhBets();
+  refreshRhStatusLine();
+  setRhStopButtonsEnabled(!!getSelectedRhSession()?.active);
+}
+
+function renderRhSessionsList() {
+  const box = $('rhSessionsList');
+  const countEl = $('rhSessionCount');
+  if (!box) return;
+  const activeCount = getActiveRhSessions().length;
+  if (countEl) countEl.textContent = `${activeCount} aktiv`;
+
+  if (!state.rhSessions.length) {
+    box.innerHTML = '<p class="hint rh-sessions-empty">Noch keine RH — Spiel wählen und Start.</p>';
+    return;
+  }
+
+  box.innerHTML = state.rhSessions
+    .map((s) => {
+      const selected = s.id === state.rhActiveId;
+      const rowCls = ['rh-session-row', s.active ? 'active' : 'ended', selected ? 'selected' : ''].filter(Boolean).join(' ');
+      const dismiss = s.active
+        ? ''
+        : `<button type="button" class="rh-session-dismiss sm" data-rh-dismiss="${esc(s.id)}" title="Aus Liste entfernen">×</button>`;
+      return `<div class="${rowCls}">
+        <button type="button" class="rh-session-item" data-rh-id="${esc(s.id)}">
+          <span class="rh-session-game">${esc(s.game)}</span>
+          <span class="rh-session-meta">${esc(formatRhSessionMeta(s))}</span>
+        </button>
+        ${dismiss}
+      </div>`;
+    })
+    .join('');
+}
+
+function syncRhStatusTimer() {
+  const needsTick = getActiveRhSessions().some((s) => s.mode === 'highestMulti');
+  if (!needsTick) {
+    clearRhStatusTimer();
+    return;
+  }
+  if (state.rhStatusTimer) return;
+  state.rhStatusTimer = setInterval(() => {
+    renderRhSessionsList();
+    refreshRhStatusLine();
+  }, 1000);
 }
 
 function formatRhLeaderLine(leader) {
@@ -227,21 +348,21 @@ function formatRhCasinoTag(bet) {
   return `#${parts.join('.')}`;
 }
 
-function buildRhLeaderAnnounceMessage(bet) {
+function buildRhLeaderAnnounceMessage(bet, session) {
   const user = stripAt(bet.username);
   const multi = (bet.multiplier || 0).toFixed(2);
-  const game = String(bet.game || state.rhSession?.game || 'crash').toLowerCase();
+  const game = String(bet.game || session?.game || 'crash').toLowerCase();
   const casino = formatRhCasinoTag(bet);
   return `Den 🥇🥇höchsten Multi🥇🥇 hält @${user} mit ${multi}x — ${game} — Casino: ${casino}`;
 }
 
-async function postRhLeaderAnnounce(bet) {
+async function postRhLeaderAnnounce(bet, session) {
   if (!bet) return;
   if (!state.loggedIn) {
     $('rhModeHint').textContent = 'Zuerst einloggen.';
     return;
   }
-  const msg = buildRhLeaderAnnounceMessage(bet);
+  const msg = buildRhLeaderAnnounceMessage(bet, session);
   $('rhChatMessage').value = msg;
   const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
   $('rhModeHint').textContent = res.ok ? 'Gewinner-Ankündigung gesendet' : `Fehler: ${res.error}`;
@@ -287,19 +408,35 @@ function updateRhGameModeUi() {
   const hint = $('rhModeHint');
   if (hint) {
     hint.textContent = crashMode
-      ? 'Crash/Slide: Timer-Ende beendet RH ohne STOP im Chat. Grüne Zeile anklicken = Gewinner posten.'
-      : 'Klassisch: nur Wetten ab dem eingestellten Multi zählen.';
+      ? 'Crash/Slide: Timer-Ende beendet RH ohne STOP im Chat. Mehrere Spiele parallel — max. 1 RH pro Spiel.'
+      : 'Klassisch: nur Wetten ab dem eingestellten Multi. Mehrere Spiele parallel — max. 1 RH pro Spiel.';
   }
 }
 
 function refreshRhStatusLine() {
   const el = $('rhRecordStatus');
-  if (!el || !state.rhSession?.active) return;
-  const s = state.rhSession;
+  if (!el) return;
+  const s = getSelectedRhSession();
+  if (!s) {
+    el.textContent = getActiveRhSessions().length
+      ? 'Rollhunt in der Liste auswählen.'
+      : 'Session inaktiv';
+    return;
+  }
+  if (!s.active) {
+    const leader = getRhLeader(s);
+    el.textContent =
+      s.mode === 'highestMulti'
+        ? `${s.game} beendet · Gewinner: ${leader ? formatRhLeaderLine(leader) : '—'} · ${s.bets.length} Wetten`
+        : `${s.game} beendet · ${s.bets.length} Wetten geloggt`;
+    return;
+  }
   if (s.mode === 'highestMulti') {
     const left = s.deadlineTs ? Math.max(0, s.deadlineTs - Date.now()) : 0;
     const timer = formatRhCountdown(left);
-    el.textContent = `${s.game} RH | Timer ${timer} | Führung: ${formatRhLeaderLine(getRhLeader())}`;
+    el.textContent = `${s.game} RH | Timer ${timer} | Führung: ${formatRhLeaderLine(getRhLeader(s))}`;
+  } else {
+    el.textContent = `Aktiv: ${s.game} ab ${s.minMulti}x · ${s.bets.length} Wetten`;
   }
 }
 
@@ -428,10 +565,19 @@ function renderChats() {
 
 function renderRhBets() {
   const box = $('rhBetLog');
+  const title = $('rhBetLogTitle');
+  const session = getSelectedRhSession();
+  if (title) {
+    title.textContent = session ? `Wetten — ${session.game}` : 'Wetten (aufsteigend)';
+  }
   if (!box) return;
-  const highestMode = state.rhSession?.mode === 'highestMulti';
-  const leader = highestMode ? getRhLeader() : null;
-  const rows = [...state.rhBets].sort((a, b) => {
+  if (!session) {
+    box.innerHTML = '<div class="hint">Rollhunt auswählen oder neue RH starten.</div>';
+    return;
+  }
+  const highestMode = session.mode === 'highestMulti';
+  const leader = highestMode ? getRhLeader(session) : null;
+  const rows = [...session.bets].sort((a, b) => {
     const diff = (a.multiplier || 0) - (b.multiplier || 0);
     return highestMode ? -diff : diff;
   });
@@ -441,10 +587,10 @@ function renderRhBets() {
         const multi = b.multiplier > 0 ? `${b.multiplier.toFixed(2)}x` : '?x';
         const isLeader = leader && leader.betId === b.betId && leader.username === b.username;
         const leaderCls = isLeader ? ' bet-leader' : '';
-        const title = isLeader && state.rhSession?.active
+        const titleAttr = isLeader && session.active
           ? 'Klick = Gewinner-Ankündigung in den Chat'
           : 'Klick = Bet-ID kopieren';
-        return `<div class="bet-row${leaderCls}" data-bet-id="${esc(b.betId || '')}" data-copy="${esc(b.betId || '')}" title="${esc(title)}">${multi} — ${esc(b.game)} — <span class="bet-id-label">${esc(b.betId || b.casinoId || '')}</span> — @${esc(b.username)}</div>`;
+        return `<div class="bet-row${leaderCls}" data-bet-id="${esc(b.betId || '')}" data-copy="${esc(b.betId || '')}" title="${esc(titleAttr)}">${multi} — ${esc(b.game)} — <span class="bet-id-label">${esc(b.betId || b.casinoId || '')}</span> — @${esc(b.username)}</div>`;
       })
       .join('') || '<div class="hint">Keine Wetten in dieser Session.</div>';
 }
@@ -740,6 +886,7 @@ async function loadSettingsUi() {
     $('rhTimerSeconds').value = String(s.rhCrashTimerSeconds ?? 0);
   }
   updateRhGameModeUi();
+  updateRhGameSelectOptions();
   await refreshBlueprints();
   if (
     state.blueprints.chat.length === 0 &&
@@ -1157,10 +1304,10 @@ async function applyPolicyMute() {
 }
 
 async function processBetForRh(line) {
-  if (!state.rhSession?.active || !line.betId) return;
+  const activeSessions = getActiveRhSessions();
+  if (!activeSessions.length || !line.betId) return;
   if (isOwnModChatUser(line.username)) return;
-  const rhGame = state.rhSession.game;
-  const minMulti = state.rhSession.minMulti;
+
   const cacheKey = line.betId.replace(/\./g, '');
 
   let game = '';
@@ -1178,23 +1325,36 @@ async function processBetForRh(line) {
     }
   }
 
-  if (!gameMatches(game, rhGame)) return;
-  const highestMode = state.rhSession.mode === 'highestMulti';
-  if (!highestMode && multiplier < minMulti) return;
-  if (highestMode && multiplier <= 0) return;
+  if (!game) return;
 
   const casinoId = /^[a-f0-9-]{36}$/i.test(line.betId) ? `casino:${line.betId}` : `casino:${line.betId.replace(/\./g, '')}`;
-  const bet = { username: line.username, betId: line.betId, game, multiplier, casinoId, ts: line.ts };
-  const dup = state.rhBets.some((x) => x.betId === bet.betId && x.username === bet.username);
-  if (dup) return;
-  state.rhBets.push(bet);
-  line.rhHit = true;
-  state.hitKeys.add(`${line.username}|${line.ts}`);
+  let anyHit = false;
 
-  const logLine = `${new Date().toLocaleString()} | ${multiplier.toFixed(2)}x | ${game} | ${casinoId} | @${line.username}`;
-  await modHub.appendLog(logLine);
-  renderRhBets();
-  if (state.rhSession?.mode === 'highestMulti') refreshRhStatusLine();
+  for (const session of activeSessions) {
+    if (!gameMatches(game, session.game)) continue;
+    const highestMode = session.mode === 'highestMulti';
+    if (!highestMode && multiplier < session.minMulti) continue;
+    if (highestMode && multiplier <= 0) continue;
+
+    const bet = { username: line.username, betId: line.betId, game, multiplier, casinoId, ts: line.ts };
+    const dup = session.bets.some((x) => x.betId === bet.betId && x.username === bet.username);
+    if (dup) continue;
+
+    session.bets.push(bet);
+    anyHit = true;
+
+    const logLine = `${new Date().toLocaleString()} | ${session.game} RH | ${multiplier.toFixed(2)}x | ${game} | ${casinoId} | @${line.username}`;
+    await modHub.appendLog(logLine);
+
+    if (session.id === state.rhActiveId) renderRhBets();
+  }
+
+  if (anyHit) {
+    line.rhHit = true;
+    state.hitKeys.add(`${line.username}|${line.ts}`);
+    renderRhSessionsList();
+    if (getSelectedRhSession()) refreshRhStatusLine();
+  }
 }
 
 async function onLiveMessage(m) {
@@ -1639,9 +1799,10 @@ function wireHub() {
   });
 }
 
-async function stopRhWithAnnounce(reason = 'manuell') {
-  if (!state.rhSession?.active) {
-    $('rhRecordStatus').textContent = 'Keine aktive RH-Session.';
+async function stopRhWithAnnounce(reason = 'manuell', sessionId = state.rhActiveId) {
+  const session = getRhSession(sessionId);
+  if (!session?.active) {
+    $('rhRecordStatus').textContent = 'Keine aktive RH für diese Auswahl.';
     return;
   }
   if (state.loggedIn) {
@@ -1651,35 +1812,51 @@ async function stopRhWithAnnounce(reason = 'manuell') {
       return;
     }
   }
-  await finishRhSession(reason);
+  await finishRhSession(sessionId, reason);
 }
 
-async function finishRhSession(reason) {
-  if (!state.rhSession) return;
-  state.rhSession.active = false;
-  clearRhTimers();
-  $('btnRhStart').disabled = false;
-  setRhStopButtonsEnabled(false);
-  const leader = getRhLeader();
-  const s = state.rhSession;
+async function finishRhSession(sessionId, reason) {
+  const session = getRhSession(sessionId);
+  if (!session?.active) return;
+  session.active = false;
+  clearSessionDeadlineTimer(session);
+  syncRhStatusTimer();
+
+  const leader = getRhLeader(session);
   let summary;
-  if (s.mode === 'highestMulti') {
+  if (session.mode === 'highestMulti') {
     summary = leader
-      ? `Beendet (${reason}). Gewinner: ${formatRhLeaderLine(leader)} — ${state.rhBets.length} Wetten.`
-      : `Beendet (${reason}). Keine Wetten — ${state.rhBets.length} Einträge.`;
+      ? `${session.game} beendet (${reason}). Gewinner: ${formatRhLeaderLine(leader)} — ${session.bets.length} Wetten.`
+      : `${session.game} beendet (${reason}). Keine Wetten — ${session.bets.length} Einträge.`;
     await modHub.appendLog(
-      `--- RH STOP ${s.game} höchster Multi | Timer ${s.deadlineLabel} | ${reason} | Gewinner: ${leader ? formatRhLeaderLine(leader) : '—'} ---`
+      `--- RH STOP ${session.game} höchster Multi | Timer ${session.deadlineLabel} | ${reason} | Gewinner: ${leader ? formatRhLeaderLine(leader) : '—'} ---`
     );
   } else {
-    summary = `Gestoppt. ${state.rhBets.length} Wetten geloggt.`;
-    await modHub.appendLog(`--- RH STOP ${s.game} >= ${s.minMulti}x (${state.rhBets.length} bets) ---`);
+    summary = `${session.game} gestoppt. ${session.bets.length} Wetten geloggt.`;
+    await modHub.appendLog(`--- RH STOP ${session.game} >= ${session.minMulti}x (${session.bets.length} bets) ---`);
   }
-  $('rhRecordStatus').textContent = summary;
-  renderRhBets();
+
+  updateRhGameSelectOptions();
+  renderRhSessionsList();
+  if (sessionId === state.rhActiveId) {
+    $('rhRecordStatus').textContent = summary;
+    setRhStopButtonsEnabled(false);
+    renderRhBets();
+  }
 }
 
 function wireRh() {
   $('rhGame')?.addEventListener('change', updateRhGameModeUi);
+
+  $('rhSessionsList')?.addEventListener('click', (e) => {
+    const dismiss = e.target.closest('[data-rh-dismiss]');
+    if (dismiss) {
+      removeRhSession(dismiss.getAttribute('data-rh-dismiss'));
+      return;
+    }
+    const item = e.target.closest('[data-rh-id]');
+    if (item) selectRhSession(item.getAttribute('data-rh-id'));
+  });
 
   $('btnRhStart')?.addEventListener('click', async () => {
     if (!state.loggedIn) {
@@ -1687,10 +1864,21 @@ function wireRh() {
       return;
     }
     const game = $('rhGame').value;
+    if (findActiveRhForGame(game)) {
+      $('rhRecordStatus').textContent = `${game} läuft bereits — max. 1 RH pro Spiel.`;
+      return;
+    }
+
     const highestMode = isHighestMultiRhGame(game);
-    clearRhTimers();
-    state.rhBets = [];
-    state.hitKeys.clear();
+    const session = {
+      id: nextRhId(),
+      active: true,
+      game,
+      mode: highestMode ? 'highestMulti' : 'minMulti',
+      minMulti: highestMode ? 0 : Number($('rhMinMulti').value) || 0,
+      bets: [],
+      startedAt: Date.now()
+    };
 
     if (highestMode) {
       const durationMs = readRhTimerDurationMs();
@@ -1698,65 +1886,56 @@ function wireRh() {
         $('rhRecordStatus').textContent = 'Timer: mindestens 1 Sekunde (Min/Sek) einstellen.';
         return;
       }
-      const deadlineLabel = rhTimerLabelFromMs(durationMs);
-      const deadlineTs = Date.now() + durationMs;
-      state.rhSession = {
-        active: true,
-        game,
-        mode: 'highestMulti',
-        minMulti: 0,
-        durationMs,
-        deadlineTs,
-        deadlineLabel,
-        startedAt: Date.now()
-      };
+      session.durationMs = durationMs;
+      session.deadlineLabel = rhTimerLabelFromMs(durationMs);
+      session.deadlineTs = Date.now() + durationMs;
       await modHub.saveSettings({
         rhCrashTimerMinutes: Math.max(0, Number($('rhTimerMinutes')?.value) || 0),
         rhCrashTimerSeconds: Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0))
       });
-      await modHub.appendLog(`--- RH START ${game} | höchster Multi | Timer ${deadlineLabel} ---`);
-      state.rhDeadlineTimer = setTimeout(() => {
-        if (state.rhSession?.active) finishRhSession('Timer abgelaufen');
+      await modHub.appendLog(`--- RH START ${game} | höchster Multi | Timer ${session.deadlineLabel} ---`);
+      session.deadlineTimer = setTimeout(() => {
+        if (getRhSession(session.id)?.active) finishRhSession(session.id, 'Timer abgelaufen');
       }, durationMs);
-      state.rhStatusTimer = setInterval(refreshRhStatusLine, 1000);
-      refreshRhStatusLine();
     } else {
-      state.rhSession = {
-        active: true,
-        game,
-        mode: 'minMulti',
-        minMulti: Number($('rhMinMulti').value) || 0,
-        startedAt: Date.now()
-      };
-      $('rhRecordStatus').textContent = `Aktiv: ${game} ab ${state.rhSession.minMulti}x`;
-      await modHub.appendLog(`--- RH START ${game} >= ${state.rhSession.minMulti}x ---`);
+      await modHub.appendLog(`--- RH START ${game} >= ${session.minMulti}x ---`);
     }
 
-    $('btnRhStart').disabled = true;
+    state.rhSessions.push(session);
+    selectRhSession(session.id);
+    updateRhGameSelectOptions();
+    syncRhStatusTimer();
+    refreshRhStatusLine();
     setRhStopButtonsEnabled(true);
   });
 
   $('btnRhStop')?.addEventListener('click', () => {
-    if (!state.rhSession?.active) {
-      $('rhRecordStatus').textContent = 'Keine aktive RH-Session.';
+    const session = getSelectedRhSession();
+    if (!session?.active) {
+      $('rhRecordStatus').textContent = 'Keine aktive RH für diese Auswahl.';
       return;
     }
-    finishRhSession('manuell');
+    finishRhSession(session.id, 'manuell');
   });
   $('btnRhStopAnnounce')?.addEventListener('click', () => stopRhWithAnnounce('manuell'));
 
   $('btnRhClear')?.addEventListener('click', () => {
-    state.rhBets = [];
+    const session = getSelectedRhSession();
+    if (!session) return;
+    session.bets = [];
     renderRhBets();
+    renderRhSessionsList();
+    refreshRhStatusLine();
   });
 
   $('rhBetLog')?.addEventListener('click', async (e) => {
     const row = e.target.closest('.bet-row');
     if (!row) return;
+    const session = getSelectedRhSession();
     const betId = row.getAttribute('data-bet-id');
-    const bet = betId ? state.rhBets.find((b) => b.betId === betId) : null;
-    if (state.rhSession?.active && bet && row.classList.contains('bet-leader')) {
-      await postRhLeaderAnnounce(bet);
+    const bet = betId && session ? session.bets.find((b) => b.betId === betId) : null;
+    if (session?.active && bet && row.classList.contains('bet-leader')) {
+      await postRhLeaderAnnounce(bet, session);
       return;
     }
     const t = row.getAttribute('data-copy');
