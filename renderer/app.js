@@ -82,13 +82,33 @@ function stripAt(name) {
   return String(name || '').trim().replace(/^@+/, '');
 }
 
+const MOD_MENTION_FIELDS = ['muteMessage', 'warnMessage', 'chatMessage'];
+
+/** Entfernt führende @-Erwähnungen (Mod-Hub setzt genau eine). */
+function stripLeadingUserMention(message) {
+  let msg = String(message || '').trim();
+  while (/^@+[\w][\w.-]*\s+/i.test(msg)) {
+    msg = msg.replace(/^@+[\w][\w.-]*\s+/i, '').trim();
+  }
+  return msg;
+}
+
 function prependUserMentionForChat(message, username) {
-  const msg = String(message || '').trim();
   const name = stripAt(username);
-  if (!name || !msg) return msg;
-  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (new RegExp(`@${esc}\\b`, 'i').test(msg)) return msg;
-  return `@${name} ${msg}`;
+  const body = stripLeadingUserMention(message);
+  if (!name) return body;
+  if (!body) return `@${name}`;
+  return `@${name} ${body}`;
+}
+
+function syncModMessageMentions(username) {
+  const name = stripAt(username);
+  for (const id of MOD_MENTION_FIELDS) {
+    const field = $(id);
+    if (!field) continue;
+    const body = stripLeadingUserMention(field.value);
+    field.value = name ? (body ? `@${name} ${body}` : `@${name}`) : body;
+  }
 }
 
 function copyBetId(text, statusEl) {
@@ -905,6 +925,7 @@ function clearValidatedUser() {
   state.validatedUserId = '';
   setValidateButtonState(false);
   setUserActionsEnabled(false);
+  syncModMessageMentions('');
 }
 
 function fillBlueprint(selId, targetId) {
@@ -1592,10 +1613,7 @@ function wireHub() {
       $('validateStatus').style.color = '#00e701';
       setValidateButtonState(true);
       setUserActionsEnabled(true);
-      const chatField = $('chatMessage');
-      if (chatField?.value.trim()) {
-        chatField.value = prependUserMentionForChat(chatField.value.trim(), canonical);
-      }
+      syncModMessageMentions(canonical);
     } else {
       state.validatedUser = '';
       state.validatedUserId = '';
