@@ -254,16 +254,35 @@ function getRhLeader(session) {
   return session.bets.reduce((best, b) => ((b.multiplier || 0) > (best.multiplier || 0) ? b : best));
 }
 
+function isRhBetHidden(amount) {
+  return amount === 0;
+}
+
 function formatRhSessionMeta(session) {
   if (!session) return '';
   if (session.mode === 'highestMulti') {
-    const left = session.deadlineTs ? Math.max(0, session.deadlineTs - Date.now()) : 0;
-    const timer = session.active ? formatRhCountdown(left) : 'beendet';
     const leader = getRhLeader(session);
     const lead = leader ? formatRhLeaderLine(leader) : 'noch kein Treffer';
-    return `${timer} · ${lead} · ${session.bets.length} Wetten`;
+    if (!session.active) return `beendet · ${lead} · ${session.bets.length} Wetten`;
+    if (session.overtime) {
+      const extra = formatRhCountdown(Math.max(0, Date.now() - (session.overtimeSince || Date.now())));
+      return `Verlängerung +${extra} · ${lead} · ${session.bets.length} Wetten`;
+    }
+    const left = session.deadlineTs ? Math.max(0, session.deadlineTs - Date.now()) : 0;
+    return `${formatRhCountdown(left)} · ${lead} · ${session.bets.length} Wetten`;
   }
   return `ab ${session.minMulti}x · ${session.bets.length} Wetten`;
+}
+
+async function enterRhOvertime(sessionId) {
+  const session = getRhSession(sessionId);
+  if (!session?.active || session.overtime) return;
+  clearSessionDeadlineTimer(session);
+  session.overtime = true;
+  session.overtimeSince = Date.now();
+  await modHub.appendLog(`--- RH ${session.game} | Timer abgelaufen → Verlängerung bis Stop ---`);
+  renderRhSessionsList();
+  if (sessionId === state.rhActiveId) refreshRhStatusLine();
 }
 
 function updateRhGameSelectOptions() {
@@ -323,7 +342,9 @@ function renderRhSessionsList() {
   box.innerHTML = state.rhSessions
     .map((s) => {
       const selected = s.id === state.rhActiveId;
-      const rowCls = ['rh-session-row', s.active ? 'active' : 'ended', selected ? 'selected' : ''].filter(Boolean).join(' ');
+      const rowCls = ['rh-session-row', s.active ? 'active' : 'ended', s.overtime ? 'overtime' : '', selected ? 'selected' : '']
+        .filter(Boolean)
+        .join(' ');
       const dismiss = s.active
         ? ''
         : `<button type="button" class="rh-session-dismiss sm" data-rh-dismiss="${esc(s.id)}" title="Aus Liste entfernen">×</button>`;
@@ -430,8 +451,8 @@ function updateRhGameModeUi() {
   const hint = $('rhModeHint');
   if (hint) {
     hint.textContent = crashMode
-      ? 'Crash/Slide: Timer-Ende beendet RH ohne STOP im Chat. Mehrere Spiele parallel — max. 1 RH pro Spiel.'
-      : 'Klassisch: nur Wetten ab dem eingestellten Multi. Mehrere Spiele parallel — max. 1 RH pro Spiel.';
+      ? 'Crash/Slide: Timer-Ende → Verlängerung (zählt weiter bis RH beenden). STOP nur per Button. Max. 1 RH pro Spiel. ● = versteckte Wette.'
+      : 'Klassisch: nur Wetten ab dem eingestellten Multi. Mehrere Spiele parallel — max. 1 RH pro Spiel. ● = versteckte Wette.';
   }
 }
 
@@ -454,9 +475,13 @@ function refreshRhStatusLine() {
     return;
   }
   if (s.mode === 'highestMulti') {
-    const left = s.deadlineTs ? Math.max(0, s.deadlineTs - Date.now()) : 0;
-    const timer = formatRhCountdown(left);
-    el.textContent = `${s.game} RH | Timer ${timer} | Führung: ${formatRhLeaderLine(getRhLeader(s))}`;
+    if (s.overtime) {
+      const extra = formatRhCountdown(Math.max(0, Date.now() - (s.overtimeSince || Date.now())));
+      el.textContent = `${s.game} RH | Verlängerung +${extra} (bis Stop) | Führung: ${formatRhLeaderLine(getRhLeader(s))}`;
+    } else {
+      const left = s.deadlineTs ? Math.max(0, s.deadlineTs - Date.now()) : 0;
+      el.textContent = `${s.game} RH | Timer ${formatRhCountdown(left)} | Führung: ${formatRhLeaderLine(getRhLeader(s))}`;
+    }
   } else {
     el.textContent = `Aktiv: ${s.game} ab ${s.minMulti}x · ${s.bets.length} Wetten`;
   }
@@ -667,10 +692,15 @@ function renderRhBets() {
         const multi = b.multiplier > 0 ? `${b.multiplier.toFixed(2)}x` : '?x';
         const isLeader = leader && leader.betId === b.betId && leader.username === b.username;
         const leaderCls = isLeader ? ' bet-leader' : '';
-        const titleAttr = isLeader && session.active
-          ? 'Klick = Gewinner-Ankündigung in den Chat'
-          : 'Klick = Bet-ID kopieren';
-        return `<div class="bet-row${leaderCls}" data-bet-id="${esc(b.betId || '')}" data-copy="${esc(b.betId || '')}" title="${esc(titleAttr)}">${multi} — ${esc(b.game)} — <span class="bet-id-label">${esc(b.betId || b.casinoId || '')}</span> — @${esc(b.username)}</div>`;
+        const hiddenCls = b.hidden ? ' bet-hidden' : '';
+        const hiddenMark = b.hidden ? '<span class="bet-hidden-mark" title="Versteckte Wette (0 Einsatz)">●</span> ' : '';
+        let titleAttr = 'Klick = Bet-ID kopieren';
+        if (b.hidden) titleAttr = 'Versteckte Wette (0 Einsatz) — Klick = Bet-ID kopieren';
+        if (isLeader && session.active) titleAttr = 'Klick = Gewinner-Ankündigung in den Chat';
+        if (b.hidden && isLeader && session.active) {
+          titleAttr = 'Versteckte Wette · Klick = Gewinner-Ankündigung';
+        }
+        return `<div class="bet-row${leaderCls}${hiddenCls}" data-bet-id="${esc(b.betId || '')}" data-copy="${esc(b.betId || '')}" title="${esc(titleAttr)}">${hiddenMark}${multi} — ${esc(b.game)} — <span class="bet-id-label">${esc(b.betId || b.casinoId || '')}</span> — @${esc(b.username)}</div>`;
       })
       .join('') || '<div class="hint">Keine Wetten in dieser Session.</div>';
 }
@@ -1395,16 +1425,19 @@ async function processBetForRh(line) {
 
   let game = '';
   let multiplier = line.multiplier || 0;
+  let amount = null;
   const cached = state.betCache[cacheKey];
   if (cached) {
     game = cached.game;
     multiplier = cached.multiplier;
+    amount = cached.amount;
   } else {
     const res = await modHub.betLookup(line.betId);
     if (res.ok && res.data) {
       game = res.data.game || '';
       multiplier = Number(res.data.multiplier) || multiplier;
-      state.betCache[cacheKey] = { game, multiplier };
+      amount = res.data.amount != null ? Number(res.data.amount) : null;
+      state.betCache[cacheKey] = { game, multiplier, amount };
     }
   }
 
@@ -1419,14 +1452,15 @@ async function processBetForRh(line) {
     if (!highestMode && multiplier < session.minMulti) continue;
     if (highestMode && multiplier <= 0) continue;
 
-    const bet = { username: line.username, betId: line.betId, game, multiplier, casinoId, ts: line.ts };
+    const hidden = isRhBetHidden(amount);
+    const bet = { username: line.username, betId: line.betId, game, multiplier, amount, hidden, casinoId, ts: line.ts };
     const dup = session.bets.some((x) => x.betId === bet.betId && x.username === bet.username);
     if (dup) continue;
 
     session.bets.push(bet);
     anyHit = true;
 
-    const logLine = `${new Date().toLocaleString()} | ${session.game} RH | ${multiplier.toFixed(2)}x | ${game} | ${casinoId} | @${line.username}`;
+    const logLine = `${new Date().toLocaleString()} | ${session.game} RH | ${hidden ? '[versteckt] ' : ''}${multiplier.toFixed(2)}x | ${game} | ${casinoId} | @${line.username}`;
     await modHub.appendLog(logLine);
 
     if (session.id === state.rhActiveId) renderRhBets();
@@ -1921,8 +1955,11 @@ async function finishRhSession(sessionId, reason, opts = {}) {
     summary = leader
       ? `${session.game} beendet (${reason}). Gewinner: ${formatRhLeaderLine(leader)} — ${session.bets.length} Wetten.`
       : `${session.game} beendet (${reason}). Keine Wetten — ${session.bets.length} Einträge.`;
+    const timerNote = session.overtime
+      ? `Timer ${session.deadlineLabel} + Verlängerung`
+      : `Timer ${session.deadlineLabel}`;
     await modHub.appendLog(
-      `--- RH STOP ${session.game} höchster Multi | Timer ${session.deadlineLabel} | ${reason} | Gewinner: ${leader ? formatRhLeaderLine(leader) : '—'} ---`
+      `--- RH STOP ${session.game} höchster Multi | ${timerNote} | ${reason} | Gewinner: ${leader ? formatRhLeaderLine(leader) : '—'} ---`
     );
   } else {
     summary = `${session.game} gestoppt (${reason}). ${session.bets.length} Wetten geloggt.`;
@@ -1991,7 +2028,7 @@ function wireRh() {
       });
       await modHub.appendLog(`--- RH START ${game} | höchster Multi | Timer ${session.deadlineLabel} ---`);
       session.deadlineTimer = setTimeout(() => {
-        if (getRhSession(session.id)?.active) finishRhSession(session.id, 'Timer abgelaufen');
+        if (getRhSession(session.id)?.active) enterRhOvertime(session.id);
       }, durationMs);
     } else {
       await modHub.appendLog(`--- RH START ${game} >= ${session.minMulti}x ---`);
