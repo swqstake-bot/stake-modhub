@@ -254,10 +254,6 @@ function getRhLeader(session) {
   return session.bets.reduce((best, b) => ((b.multiplier || 0) > (best.multiplier || 0) ? b : best));
 }
 
-function isRhBetHidden(amount) {
-  return amount === 0;
-}
-
 function formatRhSessionMeta(session) {
   if (!session) return '';
   if (session.mode === 'highestMulti') {
@@ -693,9 +689,9 @@ function renderRhBets() {
         const isLeader = leader && leader.betId === b.betId && leader.username === b.username;
         const leaderCls = isLeader ? ' bet-leader' : '';
         const hiddenCls = b.hidden ? ' bet-hidden' : '';
-        const hiddenMark = b.hidden ? '<span class="bet-hidden-mark" title="Versteckte Wette (0 Einsatz)">●</span> ' : '';
+        const hiddenMark = b.hidden ? '<span class="bet-hidden-mark" title="Versteckte Wette (Hidden)">●</span> ' : '';
         let titleAttr = 'Klick = Bet-ID kopieren';
-        if (b.hidden) titleAttr = 'Versteckte Wette (0 Einsatz) — Klick = Bet-ID kopieren';
+        if (b.hidden) titleAttr = 'Versteckte Wette (Hidden) — Klick = Bet-ID kopieren';
         if (isLeader && session.active) titleAttr = 'Klick = Gewinner-Ankündigung in den Chat';
         if (b.hidden && isLeader && session.active) {
           titleAttr = 'Versteckte Wette · Klick = Gewinner-Ankündigung';
@@ -1426,18 +1422,21 @@ async function processBetForRh(line) {
   let game = '';
   let multiplier = line.multiplier || 0;
   let amount = null;
+  let betHidden = false;
   const cached = state.betCache[cacheKey];
   if (cached) {
     game = cached.game;
     multiplier = cached.multiplier;
     amount = cached.amount;
+    betHidden = !!cached.hidden;
   } else {
     const res = await modHub.betLookup(line.betId);
     if (res.ok && res.data) {
       game = res.data.game || '';
       multiplier = Number(res.data.multiplier) || multiplier;
       amount = res.data.amount != null ? Number(res.data.amount) : null;
-      state.betCache[cacheKey] = { game, multiplier, amount };
+      betHidden = !!res.data.hidden;
+      state.betCache[cacheKey] = { game, multiplier, amount, hidden: betHidden };
     }
   }
 
@@ -1452,7 +1451,7 @@ async function processBetForRh(line) {
     if (!highestMode && multiplier < session.minMulti) continue;
     if (highestMode && multiplier <= 0) continue;
 
-    const hidden = isRhBetHidden(amount);
+    const hidden = betHidden;
     const bet = { username: line.username, betId: line.betId, game, multiplier, amount, hidden, casinoId, ts: line.ts };
     const dup = session.bets.some((x) => x.betId === bet.betId && x.username === bet.username);
     if (dup) continue;
