@@ -2065,6 +2065,10 @@ function wireHub() {
     const msg =
       mentionUser && state.validatedUser ? prependUserMentionForChat(raw, state.validatedUser) : raw;
     const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+    if (res.ok) {
+      const el = $(inputId);
+      if (el) el.value = '';
+    }
     $('validateStatus').textContent = res.ok ? `${label} gesendet` : `${label}: ${res.error}`;
   }
 
