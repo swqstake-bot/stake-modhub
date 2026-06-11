@@ -105,10 +105,10 @@
               </label>
               <label class="compact-label">Chat-BP <select id="cbChatBlueprints"><option value="">—</option></select></label>
               <label class="compact-label span-all hub-msg-row">
-                <span class="hub-msg-label">Chat-Text</span>
-                <div class="hub-msg-input-row">
-                  <input id="chatMessage" type="text" />
-                  <button type="button" id="btnSendChat" class="primary sm" disabled title="Chat-Text senden">Senden</button>
+                <span class="hub-msg-label">Chat-Text <span class="hint">(max. 160, Enter = Senden)</span></span>
+                <div class="hub-msg-input-row hub-msg-input-row--chat">
+                  <textarea id="chatMessage" rows="3" maxlength="160" placeholder="Chat-Nachricht…"></textarea>
+                  <button type="button" id="btnSendChat" class="primary sm" disabled title="Chat-Text senden (Enter)">Senden</button>
                 </div>
               </label>
               <div class="span-all row-inline hub-bp-row">

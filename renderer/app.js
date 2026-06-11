@@ -84,11 +84,14 @@ function stripAt(name) {
 
 const MOD_MENTION_FIELDS = ['muteMessage', 'warnMessage', 'chatMessage'];
 
-/** Entfernt führende @-Erwähnungen (Mod-Hub setzt genau eine). */
+/** Entfernt alle führenden @-Erwähnungen (auch mehrere hintereinander, z. B. @user1 @user2). */
 function stripLeadingUserMention(message) {
   let msg = String(message || '').trim();
-  while (/^@+[\w][\w.-]*\s+/i.test(msg)) {
-    msg = msg.replace(/^@+[\w][\w.-]*\s+/i, '').trim();
+  const mentionRe = /^@+[\w][\w.-]*\s*/i;
+  while (mentionRe.test(msg)) {
+    const next = msg.replace(mentionRe, '').trim();
+    if (next === msg) break;
+    msg = next;
   }
   return msg;
 }
@@ -1940,6 +1943,13 @@ function wireHub() {
   $('btnSendChat')?.addEventListener('click', () =>
     sendModChatField('chatMessage', 'Chat-Text', { mentionUser: true })
   );
+
+  $('chatMessage')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!$('btnSendChat')?.disabled) $('btnSendChat').click();
+    }
+  });
 
   $('btnAddRhBp')?.addEventListener('click', async () => {
     const line = $('rhChatMessage').value.trim();

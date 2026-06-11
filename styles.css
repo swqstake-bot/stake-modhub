@@ -284,6 +284,23 @@ body {
   flex-shrink: 0;
 }
 
+.hub-msg-input-row--chat {
+  align-items: flex-start;
+}
+
+.hub-msg-input-row--chat textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 4.2em;
+  max-height: 9em;
+  margin-top: 0;
+  padding: 8px 10px;
+  resize: vertical;
+  line-height: 1.35;
+  font-size: 12px;
+  font-family: inherit;
+}
+
 .hub-bp-row {
   gap: 4px;
   flex-wrap: wrap;
