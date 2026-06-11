@@ -268,6 +268,23 @@
           <label>Max Chat-Zeilen <input id="maxChatRows" type="number" min="100" max="5000" value="1000" /></label>
           <label>Hash-Reset (Uhrzeit) <input id="autodelTime" type="time" value="23:59" /></label>
         </div>
+        <div class="panel compact rule-post-panel">
+          <h3>Regelpost (Chat)</h3>
+          <label class="check"><input type="checkbox" id="rulePostEnabled" /> Automatisch posten</label>
+          <label>Intervall (Minuten)
+            <input id="rulePostIntervalMinutes" type="number" min="0" max="1440" step="5" value="60" />
+            <span class="hint">0 = nur manuell</span>
+          </label>
+          <label class="compact-label">Zusatz-Text (optional, vor dem Link)
+            <textarea id="rulePostExtra" rows="2" maxlength="80" placeholder="z. B. Bitte lest die Regeln!"></textarea>
+          </label>
+          <p class="hint rule-post-link-hint">Link: <span id="rulePostLinkPreview"></span> · max. 160 Zeichen gesamt</p>
+          <p id="rulePostPreview" class="hint rule-post-preview"></p>
+          <div class="row-inline">
+            <button type="button" id="btnRulePostNow" class="primary sm">Regelpost jetzt senden</button>
+            <span id="rulePostStatus" class="status-line">—</span>
+          </div>
+        </div>
         <div class="panel compact">
           <h3>Updates (GitHub)</h3>
           <p class="hint">Installierte App prüft Releases automatisch. Neue Versionen als GitHub-Release veröffentlichen.</p>

@@ -50,11 +50,20 @@
     const names = Array.isArray(rain.rainUsers)
       ? rain.rainUsers.map((ru) => ru?.user?.name).filter(Boolean)
       : [];
+    const total = amount !== '' && amount != null ? Number(amount) : null;
+    const perUser = total != null && names.length ? total / names.length : null;
+    const perLabel = perUser != null ? `${perUser} ${cur}`.trim() : '?';
+    const recipientList = names.map((username) => ({
+      username,
+      amount: perUser,
+      currency: cur,
+      amountLabel: perLabel
+    }));
     const recipients = names.join(', ');
-    const summary = `${giver} (${amount} ${cur}) — ${names.length} Empfänger`;
+    const summary = `${giver} (${amount} ${cur}) — ${names.length} Empfänger · je @user ${perLabel}`;
     return {
       summary,
-      rain: { giver, amount, currency: cur, recipientCount: names.length, recipients }
+      rain: { giver, amount, currency: cur, recipientCount: names.length, recipients, recipientList }
     };
   }
 

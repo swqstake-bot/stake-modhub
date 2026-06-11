@@ -18,6 +18,7 @@ const state = {
   convRates: {},
   convRatesAt: 0,
   hubClockTimer: null,
+  rulePostTimer: null,
   veri2: new Set(),
   blueprints: { chat: [], mute: [], warn: [], rh: [] },
   tagged: [],
@@ -785,6 +786,28 @@ function renderRhBets() {
   updateRhLeaderPostUi();
 }
 
+function formatRainShareLabel(amount, currency) {
+  if (amount == null || Number.isNaN(Number(amount))) return '?';
+  const usd = toUsd(amount, currency);
+  if (usd != null) return fmtUsd(usd);
+  return fmtCryptoShort(amount, currency);
+}
+
+function buildRainRecipientDisplay(rain, fallbackNames) {
+  if (Array.isArray(rain.recipientList) && rain.recipientList.length) {
+    return rain.recipientList.map((r) => ({
+      name: stripAt(r.username),
+      label: formatRainShareLabel(r.amount, r.currency || rain.currency)
+    }));
+  }
+  const names = fallbackNames || [];
+  const total = rain.amount != null ? Number(rain.amount) : null;
+  const cur = rain.currency || '';
+  const per = total != null && names.length ? total / names.length : null;
+  const label = formatRainShareLabel(per, cur);
+  return names.map((name) => ({ name, label }));
+}
+
 function buildRainIndexEntry(m, line) {
   const rain = m.rain && typeof m.rain === 'object' ? m.rain : {};
   const giver = stripAt(rain.giver || line.username || '');
@@ -803,14 +826,102 @@ function buildRainIndexEntry(m, line) {
     hour: '2-digit',
     minute: '2-digit'
   });
-  const recipientText = recipients.length ? recipients.join(', ') : String(line.message || '').trim();
+  const shares = buildRainRecipientDisplay(rain, recipients);
+  const recipientText = shares.length
+    ? shares.map((s) => `@${s.name}: ${s.label}`).join(' · ')
+    : String(line.message || '').trim();
+  const totalLabel =
+    rain.amount != null
+      ? `Gesamt: ${formatRainShareLabel(Number(rain.amount), rain.currency)} · ${shares.length || recipients.length} Empfänger`
+      : '';
   return {
+    kind: 'rain',
     username: giver,
     time,
     text: recipientText,
     preview: recipientText,
+    totalLabel,
+    shares,
     idx: line.idx
   };
+}
+
+function isModRainRecipient(name) {
+  const mod = stripAt(state.modUser).toLowerCase();
+  return !!mod && stripAt(name).toLowerCase() === mod;
+}
+
+function formatRainSharesHtml(shares) {
+  if (!shares?.length) return '';
+  return shares
+    .map((s) => {
+      const modHit = isModRainRecipient(s.name);
+      const cls = modHit ? 'rain-share index-rain-mod' : 'rain-share';
+      return `<span class="${cls}">@${esc(s.name)}: ${esc(s.label)}</span>`;
+    })
+    .join('<span class="rain-share-sep"> · </span>');
+}
+
+function buildRulePostMessage(extra) {
+  const link = C.RULE_POST_LINK || 'https://stakecommunity.com/topic/119796-📜deutsche-chatregeln📜/';
+  const linkPart = `📜 Chatregeln: ${link}`;
+  const extraTrim = String(extra ?? state.settings.rulePostExtra ?? '').trim();
+  if (!extraTrim) return linkPart.slice(0, RH_CHAT_MAX_LEN);
+  const sep = ' — ';
+  const combined = `${extraTrim}${sep}${linkPart}`;
+  if (combined.length <= RH_CHAT_MAX_LEN) return combined;
+  const maxExtra = RH_CHAT_MAX_LEN - sep.length - linkPart.length;
+  if (maxExtra > 4) return `${extraTrim.slice(0, maxExtra - 1)}…${sep}${linkPart}`;
+  return linkPart.slice(0, RH_CHAT_MAX_LEN);
+}
+
+function updateRulePostPreviewUi() {
+  const linkEl = $('rulePostLinkPreview');
+  if (linkEl) linkEl.textContent = C.RULE_POST_LINK || '';
+  const preview = $('rulePostPreview');
+  if (!preview) return;
+  const msg = buildRulePostMessage($('rulePostExtra')?.value ?? '');
+  preview.textContent = msg ? `Vorschau (${msg.length}/${RH_CHAT_MAX_LEN}): ${msg}` : '';
+}
+
+function clearRulePostTimer() {
+  if (state.rulePostTimer) {
+    clearInterval(state.rulePostTimer);
+    state.rulePostTimer = null;
+  }
+}
+
+function syncRulePostTimer() {
+  clearRulePostTimer();
+  const s = state.settings;
+  if (!state.loggedIn || !s.rulePostEnabled) return;
+  const min = Math.max(0, Number(s.rulePostIntervalMinutes) || 0);
+  if (min < 1) return;
+  state.rulePostTimer = setInterval(() => {
+    postRuleMessage({ auto: true });
+  }, min * 60 * 1000);
+}
+
+async function postRuleMessage({ auto = false } = {}) {
+  const status = $('rulePostStatus');
+  if (!state.loggedIn) {
+    if (status) status.textContent = 'Zuerst einloggen.';
+    return { ok: false };
+  }
+  const msg = buildRulePostMessage($('rulePostExtra')?.value ?? '');
+  if (!msg) {
+    if (status) status.textContent = 'Regelpost leer.';
+    return { ok: false };
+  }
+  const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+  if (status) {
+    status.textContent = res.ok
+      ? auto
+        ? `Auto-Regelpost gesendet (${msg.length} Zeichen).`
+        : `Regelpost gesendet (${msg.length} Zeichen).`
+      : `Fehler: ${res.error}`;
+  }
+  return res;
 }
 
 function setValidateButtonState(validated) {
@@ -827,12 +938,17 @@ function formatIndexItemHtml(it, i) {
   const fullTitle = [user, time, it.text || it.preview].filter(Boolean).join(' · ');
 
   if (user || time) {
-    return `<div class="index-item" data-i="${i}" title="${esc(fullTitle)}">
+    const modRainHit = it.kind === 'rain' && it.shares?.some((s) => isModRainRecipient(s.name));
+    const itemCls = ['index-item', modRainHit ? 'index-item-mod-rain' : ''].filter(Boolean).join(' ');
+    const sharesHtml = it.kind === 'rain' && it.shares?.length ? formatRainSharesHtml(it.shares) : '';
+    const bodyHtml = sharesHtml || (msg ? esc(msg) : '');
+    return `<div class="${itemCls}" data-i="${i}" title="${esc(fullTitle)}">
       <div class="index-item-meta">
         ${user ? `<span class="index-item-user">${esc(user)}</span>` : '<span></span>'}
         ${time ? `<span class="index-item-time">${esc(time)}</span>` : ''}
       </div>
-      ${msg ? `<div class="index-item-msg">${esc(msg)}</div>` : ''}
+      ${it.totalLabel ? `<div class="index-item-sub">${esc(it.totalLabel)}</div>` : ''}
+      ${bodyHtml ? `<div class="index-item-msg">${bodyHtml}</div>` : ''}
     </div>`;
   }
 
@@ -981,6 +1097,8 @@ function updateLoginUi() {
     live.textContent = 'Live: aus';
   }
   setModActionsEnabled(state.loggedIn);
+  syncRulePostTimer();
+  renderTaggedRainRecent();
 }
 
 async function refreshVeri2() {
@@ -1093,6 +1211,13 @@ async function loadSettingsUi() {
   if (s.dataPath || state.settings.dataPath) {
     await refreshVeri2();
   }
+  if ($('rulePostEnabled')) $('rulePostEnabled').checked = !!s.rulePostEnabled;
+  if ($('rulePostIntervalMinutes')) {
+    $('rulePostIntervalMinutes').value = String(s.rulePostIntervalMinutes ?? 60);
+  }
+  if ($('rulePostExtra')) $('rulePostExtra').value = s.rulePostExtra || '';
+  updateRulePostPreviewUi();
+  syncRulePostTimer();
 }
 
 async function saveSettingsFromForm() {
@@ -1113,9 +1238,14 @@ async function saveSettingsFromForm() {
     autodelHour: Number.isFinite(autodelHour) ? autodelHour : 23,
     autodelMinute: Number.isFinite(autodelMinute) ? autodelMinute : 59,
     rhCrashTimerMinutes: Math.max(0, Number($('rhTimerMinutes')?.value) || 0),
-    rhCrashTimerSeconds: Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0))
+    rhCrashTimerSeconds: Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0)),
+    rulePostEnabled: !!$('rulePostEnabled')?.checked,
+    rulePostIntervalMinutes: Math.max(0, Number($('rulePostIntervalMinutes')?.value) || 0),
+    rulePostExtra: ($('rulePostExtra')?.value || '').trim()
   });
   $('dataPathLabel').textContent = state.settings.dataPath || 'Datengrube/';
+  updateRulePostPreviewUi();
+  syncRulePostTimer();
 }
 
 async function doLogin() {
@@ -2198,6 +2328,9 @@ function wireUpdates() {
 }
 
 function wireSettings() {
+  $('rulePostExtra')?.addEventListener('input', () => updateRulePostPreviewUi());
+  $('btnRulePostNow')?.addEventListener('click', () => postRuleMessage({ auto: false }));
+
   $('btnSaveSettings')?.addEventListener('click', async () => {
     await saveSettingsFromForm();
     $('loginStatus').textContent = 'Einstellungen gespeichert.';

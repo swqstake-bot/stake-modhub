@@ -1,4 +1,5 @@
 window.MODHUB_CONST = {
+  RULE_POST_LINK: 'https://stakecommunity.com/topic/119796-📜deutsche-chatregeln📜/',
   STAKE_MIRRORS: [
     'stake.com',
     'stake.bet',
