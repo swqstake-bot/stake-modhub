@@ -155,8 +155,18 @@
             <button type="button" id="btnRhStop" class="sm" disabled>RH beenden</button>
             <button type="button" id="btnRhClear" class="danger sm">Clear</button>
           </div>
-          <div id="rhPostLeaderWrap" class="row-inline rh-post-leader-wrap hidden">
-            <button type="button" id="btnRhPostLeader" class="primary sm" disabled title="Aktuellen Führungs-Multi in den Chat posten (ohne versteckte Wetten)">🥇 Führung posten</button>
+          <div id="rhPostLeaderWrap" class="rh-post-leader-wrap hidden">
+            <div class="rh-place-post-row">
+              <label class="rh-place-label">Platz
+                <select id="rhPlaceSelect">
+                  <option value="1">1 🥇</option>
+                  <option value="2">2 🥈</option>
+                  <option value="3">3 🥉</option>
+                </select>
+              </label>
+              <button type="button" id="btnRhPostLeader" class="primary sm" disabled title="Gewählten Platz in den Chat posten (max. 160 Zeichen, ohne hidden)">Platz posten</button>
+            </div>
+            <p id="rhPlacePreview" class="hint rh-place-preview"></p>
           </div>
           <p id="rhRecordStatus" class="status-line">Session inaktiv</p>
           <div class="rh-bp-block">

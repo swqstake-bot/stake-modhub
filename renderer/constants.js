@@ -63,7 +63,6 @@ window.MODHUB_CONST = {
     'Dice',
     'Plinko',
     'Limbo',
-    'Blackjack',
     'Keno',
     'Chicken',
     'Crash',

@@ -614,10 +614,38 @@ body {
 
 .rh-post-leader-wrap {
   margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rh-place-post-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.rh-place-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  margin: 0;
+}
+
+.rh-place-label select {
+  display: block;
+  margin-top: 2px;
+  min-width: 72px;
 }
 
 #btnRhPostLeader {
-  width: 100%;
+  flex: 1;
+}
+
+.rh-place-preview {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 .bet-log .bet-id-label {

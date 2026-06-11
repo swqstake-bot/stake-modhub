@@ -254,10 +254,23 @@ function getRhLeaderBets(session) {
   return session.bets.filter((b) => !b.hidden);
 }
 
+const RH_CHAT_MAX_LEN = 160;
+
+function getRhRankedBets(session) {
+  return getRhLeaderBets(session).sort((a, b) => {
+    const diff = (b.multiplier || 0) - (a.multiplier || 0);
+    if (diff !== 0) return diff;
+    return (a.ts || 0) - (b.ts || 0);
+  });
+}
+
+function getRhPlaceBet(session, place) {
+  const ranked = getRhRankedBets(session);
+  return ranked[Math.max(1, place) - 1] || null;
+}
+
 function getRhLeader(session) {
-  const eligible = getRhLeaderBets(session);
-  if (!eligible.length) return null;
-  return eligible.reduce((best, b) => ((b.multiplier || 0) > (best.multiplier || 0) ? b : best));
+  return getRhPlaceBet(session, 1);
 }
 
 function formatRhSessionMeta(session) {
@@ -273,7 +286,9 @@ function formatRhSessionMeta(session) {
     const left = session.deadlineTs ? Math.max(0, session.deadlineTs - Date.now()) : 0;
     return `${formatRhCountdown(left)} · ${lead} · ${session.bets.length} Wetten`;
   }
-  return `ab ${session.minMulti}x · ${session.bets.length} Wetten`;
+  const leader = getRhLeader(session);
+  const lead = leader ? formatRhLeaderLine(leader) : 'noch kein Treffer';
+  return `ab ${session.minMulti}x · ${lead} · ${session.bets.length} Wetten`;
 }
 
 async function enterRhOvertime(sessionId) {
@@ -393,42 +408,61 @@ function formatRhCasinoTag(bet) {
   return `#${parts.join('.')}`;
 }
 
-function buildRhLeaderAnnounceMessage(bet, session) {
+function buildRhPlaceMessage(bet, session, place) {
+  const medal = { 1: '🥇', 2: '🥈', 3: '🥉' }[place] || '🏆';
   const user = stripAt(bet.username);
   const multi = (bet.multiplier || 0).toFixed(2);
-  const game = String(bet.game || session?.game || 'crash').toLowerCase();
+  const game = String(bet.game || session?.game || '').trim();
   const casino = formatRhCasinoTag(bet);
-  return `Den 🥇🥇höchsten Multi🥇🥇 hält @${user} mit ${multi}x — ${game} — Casino: ${casino}`;
+  const gameShort = game.length > 12 ? game.slice(0, 12) : game;
+  const variants = [
+    `${medal} @${user} ${multi}x — ${game} — ${casino}`,
+    `${medal} @${user} ${multi}x — ${gameShort} — ${casino}`,
+    `${medal} @${user} ${multi}x ${casino}`,
+    `${medal} @${user} ${multi}x`
+  ];
+  for (const msg of variants) {
+    if (msg.length <= RH_CHAT_MAX_LEN) return msg;
+  }
+  const shortUser = user.length > 10 ? `${user.slice(0, 10)}…` : user;
+  return `${medal} @${shortUser} ${multi}x`.slice(0, RH_CHAT_MAX_LEN);
 }
 
-async function postRhLeaderAnnounce(bet, session) {
+async function postRhPlaceAnnounce(bet, session, place) {
   if (!bet || !session) return { ok: false, error: 'Kein Treffer' };
   if (!state.loggedIn) {
     $('rhModeHint').textContent = 'Zuerst einloggen.';
     return { ok: false, error: 'Nicht eingeloggt' };
   }
-  const msg = buildRhLeaderAnnounceMessage(bet, session);
+  const msg = buildRhPlaceMessage(bet, session, place);
+  if (msg.length > RH_CHAT_MAX_LEN) {
+    $('rhModeHint').textContent = `Zu lang (${msg.length}/${RH_CHAT_MAX_LEN} Zeichen).`;
+    return { ok: false, error: 'Nachricht zu lang' };
+  }
   $('rhChatMessage').value = msg;
   const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
   const label = session.game ? `${session.game} RH — ` : '';
-  $('rhModeHint').textContent = res.ok ? `${label}Führung gepostet` : `${label}Fehler: ${res.error}`;
+  $('rhModeHint').textContent = res.ok
+    ? `${label}Platz ${place} gepostet (${msg.length}/${RH_CHAT_MAX_LEN})`
+    : `${label}Fehler: ${res.error}`;
   return res;
 }
 
-async function postCurrentRhLeader() {
+async function postCurrentRhPlace() {
   const session = getSelectedRhSession();
-  if (!session?.active || session.mode !== 'highestMulti') {
-    $('rhRecordStatus').textContent = 'Nur für aktive Crash/Slide-RH.';
+  if (!session?.active) {
+    $('rhRecordStatus').textContent = 'Keine aktive RH ausgewählt.';
     return;
   }
-  const leader = getRhLeader(session);
-  if (!leader) {
-    $('rhRecordStatus').textContent = `${session.game}: Keine zählbare Führung (nur nicht-versteckte Wetten).`;
+  const place = Number($('rhPlaceSelect')?.value) || 1;
+  const bet = getRhPlaceBet(session, place);
+  if (!bet) {
+    $('rhRecordStatus').textContent = `${session.game}: Platz ${place} — keine zählbare Wette (hidden zählt nicht).`;
     return;
   }
-  const res = await postRhLeaderAnnounce(leader, session);
+  const res = await postRhPlaceAnnounce(bet, session, place);
   if (res.ok) {
-    $('rhRecordStatus').textContent = `${session.game} RH | Führung gepostet: ${formatRhLeaderLine(leader)}`;
+    $('rhRecordStatus').textContent = `${session.game} RH | Platz ${place} gepostet: ${formatRhLeaderLine(bet)}`;
   }
 }
 
@@ -454,13 +488,24 @@ function setRhStopButtonsEnabled(on) {
 function updateRhLeaderPostUi() {
   const wrap = $('rhPostLeaderWrap');
   const btn = $('btnRhPostLeader');
+  const preview = $('rhPlacePreview');
   if (!btn) return;
   const session = getSelectedRhSession();
-  const show =
-    session?.mode === 'highestMulti' || isHighestMultiRhGame($('rhGame')?.value || '');
+  const show = !!session?.active;
   wrap?.classList.toggle('hidden', !show);
-  const leader = session?.active && session.mode === 'highestMulti' ? getRhLeader(session) : null;
-  btn.disabled = !state.loggedIn || !leader;
+  const place = Number($('rhPlaceSelect')?.value) || 1;
+  const bet = show ? getRhPlaceBet(session, place) : null;
+  btn.disabled = !state.loggedIn || !bet;
+  if (preview) {
+    if (!show) {
+      preview.textContent = '';
+    } else if (!bet) {
+      preview.textContent = `Platz ${place}: — (hidden zählt nicht)`;
+    } else {
+      const msg = buildRhPlaceMessage(bet, session, place);
+      preview.textContent = `${msg} (${msg.length}/${RH_CHAT_MAX_LEN})`;
+    }
+  }
 }
 
 async function sendRhStopBlueprintToChat() {
@@ -485,8 +530,8 @@ function updateRhGameModeUi() {
   const hint = $('rhModeHint');
   if (hint) {
     hint.textContent = crashMode
-      ? 'Crash/Slide: Timer → Verlängerung bis Stop. Führung per Button posten (versteckte Wetten zählen nicht). ● = hidden.'
-      : 'Klassisch: nur Wetten ab dem eingestellten Multi. Max. 1 RH pro Spiel. ● = hidden.';
+      ? 'Crash/Slide: Timer → Verlängerung bis Stop. Platz 1–3 posten (max. 160 Zeichen). ● = hidden.'
+      : 'Klassisch: Wetten ab Min-Multi. Platz 1–3 posten (max. 160 Zeichen). Max. 1 RH/Spiel. ● = hidden.';
   }
   updateRhLeaderPostUi();
 }
@@ -503,10 +548,7 @@ function refreshRhStatusLine() {
   }
   if (!s.active) {
     const leader = getRhLeader(s);
-    el.textContent =
-      s.mode === 'highestMulti'
-        ? `${s.game} beendet · Gewinner: ${leader ? formatRhLeaderLine(leader) : '—'} · ${s.bets.length} Wetten`
-        : `${s.game} beendet · ${s.bets.length} Wetten geloggt`;
+    el.textContent = `${s.game} beendet · Platz 1: ${leader ? formatRhLeaderLine(leader) : '—'} · ${s.bets.length} Wetten`;
     return;
   }
   if (s.mode === 'highestMulti') {
@@ -518,7 +560,7 @@ function refreshRhStatusLine() {
       el.textContent = `${s.game} RH | Timer ${formatRhCountdown(left)} | Führung: ${formatRhLeaderLine(getRhLeader(s))}`;
     }
   } else {
-    el.textContent = `Aktiv: ${s.game} ab ${s.minMulti}x · ${s.bets.length} Wetten`;
+    el.textContent = `Aktiv: ${s.game} ab ${s.minMulti}x · Führung: ${formatRhLeaderLine(getRhLeader(s))} · ${s.bets.length} Wetten`;
   }
 }
 
@@ -716,7 +758,7 @@ function renderRhBets() {
     return;
   }
   const highestMode = session.mode === 'highestMulti';
-  const leader = highestMode ? getRhLeader(session) : null;
+  const leader = getRhLeader(session);
   const rows = [...session.bets].sort((a, b) => {
     const diff = (a.multiplier || 0) - (b.multiplier || 0);
     return highestMode ? -diff : diff;
@@ -2090,7 +2132,8 @@ function wireRh() {
   });
   $('btnRhStopAnnounce')?.addEventListener('click', () => stopRhWithAnnounce('manuell'));
 
-  $('btnRhPostLeader')?.addEventListener('click', () => postCurrentRhLeader());
+  $('rhPlaceSelect')?.addEventListener('change', () => updateRhLeaderPostUi());
+  $('btnRhPostLeader')?.addEventListener('click', () => postCurrentRhPlace());
 
   $('btnRhClear')?.addEventListener('click', () => {
     const session = getSelectedRhSession();
