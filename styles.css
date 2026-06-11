@@ -70,6 +70,11 @@ body {
 .topbar-right {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.topbar-hide {
+  flex-shrink: 0;
 }
 
 .badge {

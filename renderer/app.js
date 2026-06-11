@@ -2048,6 +2048,10 @@ function wireHub() {
     $('btnShowBrowser').textContent = state.browserVisible ? 'Browser verbergen' : 'Browser anzeigen';
   });
 
+  $('btnHideToTray')?.addEventListener('click', () => {
+    modHub.hideToTray?.();
+  });
+
   async function sendModChatField(inputId, label, { mentionUser = false } = {}) {
     const raw = $(inputId)?.value?.trim();
     if (!raw) {

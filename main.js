@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, session, dialog, shell, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { StakeGraphQL } = require('./lib/stake-graphql');
@@ -26,6 +26,8 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let mainWin = null;
+let tray = null;
+let isQuitting = false;
 let stakeLoginWin = null;
 let stakeChatCaptureWin = null;
 let cachedCookieHeader = '';
@@ -206,18 +208,82 @@ async function sendChatMessageDom(message) {
   return { ok: true };
 }
 
+const APP_ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
+const TRAY_ICON_PATH = path.join(__dirname, 'assets', 'tray-icon.png');
+
+function loadAppIcon() {
+  if (!fs.existsSync(APP_ICON_PATH)) return null;
+  const img = nativeImage.createFromPath(APP_ICON_PATH);
+  return img.isEmpty() ? null : img;
+}
+
+function getTrayIcon() {
+  const iconPath = fs.existsSync(TRAY_ICON_PATH) ? TRAY_ICON_PATH : APP_ICON_PATH;
+  if (fs.existsSync(iconPath)) {
+    const img = nativeImage.createFromPath(iconPath);
+    if (!img.isEmpty()) {
+      const size = process.platform === 'win32' ? 32 : 22;
+      return img.resize({ width: size, height: size, quality: 'best' });
+    }
+  }
+  return nativeImage.createFromPath(process.execPath).resize({ width: 16, height: 16 });
+}
+
+function showMainWindow() {
+  if (!mainWin || mainWin.isDestroyed()) return;
+  if (mainWin.isMinimized()) mainWin.restore();
+  mainWin.show();
+  mainWin.focus();
+}
+
+function ensureTray() {
+  if (tray) return;
+  tray = new Tray(getTrayIcon());
+  tray.setToolTip('Stake Mod Hub');
+  const menu = Menu.buildFromTemplate([
+    { label: 'Öffnen', click: showMainWindow },
+    { type: 'separator' },
+    {
+      label: 'Beenden',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      }
+    }
+  ]);
+  tray.setContextMenu(menu);
+  tray.on('click', showMainWindow);
+}
+
+function hideMainWindowToTray() {
+  if (!mainWin || mainWin.isDestroyed()) return;
+  ensureTray();
+  mainWin.hide();
+}
+
 function createMainWindow() {
+  const appIcon = loadAppIcon();
   mainWin = new BrowserWindow({
     width: 1440,
     height: 920,
     minWidth: 1100,
     minHeight: 720,
     title: 'Stake Mod Hub',
+    icon: appIcon || undefined,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
+  });
+  mainWin.once('ready-to-show', () => {
+    if (mainWin && !mainWin.isDestroyed()) mainWin.show();
+  });
+  mainWin.on('close', (e) => {
+    if (isQuitting) return;
+    e.preventDefault();
+    hideMainWindowToTray();
   });
   mainWin.loadFile(path.join(__dirname, 'index.html'));
 }
@@ -761,9 +827,20 @@ function registerIpc() {
   });
 
   ipcMain.handle('modhub-check-updates', () => checkForUpdatesManual());
+  ipcMain.handle('modhub-hide-to-tray', () => {
+    hideMainWindowToTray();
+    return { ok: true };
+  });
 }
 
 app.whenReady().then(async () => {
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.stake.modhub');
+  }
+  const appIcon = loadAppIcon();
+  if (appIcon && process.platform === 'darwin') {
+    app.dock.setIcon(appIcon);
+  }
   registerIpc();
   initDataStorage();
   await refreshCookies();
@@ -772,18 +849,22 @@ app.whenReady().then(async () => {
 });
 
 app.on('second-instance', () => {
-  if (mainWin && !mainWin.isDestroyed()) {
-    if (mainWin.isMinimized()) mainWin.restore();
-    mainWin.focus();
-  }
+  showMainWindow();
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
   stopLiveHealthMonitor();
   stopNativeChatWs();
   autoHashQueue.dispose();
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform === 'darwin') return;
+  if (tray) return;
+  app.quit();
 });

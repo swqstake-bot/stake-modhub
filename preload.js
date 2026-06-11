@@ -1,7 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const { version } = require('./package.json');
 
 contextBridge.exposeInMainWorld('modHub', {
-  version: '0.3.4',
+  version,
   getSettings: () => ipcRenderer.invoke('modhub-settings-get'),
   saveSettings: (s) => ipcRenderer.invoke('modhub-settings-set', s || {}),
   pickDataPath: () => ipcRenderer.invoke('modhub-pick-data-path'),
@@ -63,6 +64,7 @@ contextBridge.exposeInMainWorld('modHub', {
     ipcRenderer.on('modhub-bets-loaded', w);
     return () => ipcRenderer.removeListener('modhub-bets-loaded', w);
   },
+  hideToTray: () => ipcRenderer.invoke('modhub-hide-to-tray'),
   checkForUpdates: () => ipcRenderer.invoke('modhub-check-updates'),
   onUpdateStatus: (handler) => {
     const w = (_e, p) => handler(p);
