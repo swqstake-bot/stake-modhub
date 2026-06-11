@@ -446,6 +446,9 @@ async function openStakeChatCapture(showWindow = false) {
 }
 
 function registerIpc() {
+  ipcMain.on('modhub-get-version', (event) => {
+    event.returnValue = app.getVersion();
+  });
   ipcMain.handle('modhub-settings-get', async () => loadSettings());
   ipcMain.handle('modhub-settings-set', async (_e, partial) => {
     const next = saveSettings(partial || {});

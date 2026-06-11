@@ -1,5 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const { version } = require('./package.json');
+
+let version = '0.4.10';
+try {
+  version = ipcRenderer.sendSync('modhub-get-version') || version;
+} catch (_) {}
 
 contextBridge.exposeInMainWorld('modHub', {
   version,
