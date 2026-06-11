@@ -249,9 +249,15 @@ function getActiveRhSessions() {
   return state.rhSessions.filter((s) => s.active);
 }
 
+function getRhLeaderBets(session) {
+  if (!session?.bets?.length) return [];
+  return session.bets.filter((b) => !b.hidden);
+}
+
 function getRhLeader(session) {
-  if (!session?.bets?.length) return null;
-  return session.bets.reduce((best, b) => ((b.multiplier || 0) > (best.multiplier || 0) ? b : best));
+  const eligible = getRhLeaderBets(session);
+  if (!eligible.length) return null;
+  return eligible.reduce((best, b) => ((b.multiplier || 0) > (best.multiplier || 0) ? b : best));
 }
 
 function formatRhSessionMeta(session) {
@@ -396,15 +402,34 @@ function buildRhLeaderAnnounceMessage(bet, session) {
 }
 
 async function postRhLeaderAnnounce(bet, session) {
-  if (!bet) return;
+  if (!bet || !session) return { ok: false, error: 'Kein Treffer' };
   if (!state.loggedIn) {
     $('rhModeHint').textContent = 'Zuerst einloggen.';
-    return;
+    return { ok: false, error: 'Nicht eingeloggt' };
   }
   const msg = buildRhLeaderAnnounceMessage(bet, session);
   $('rhChatMessage').value = msg;
   const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
-  $('rhModeHint').textContent = res.ok ? 'Gewinner-Ankündigung gesendet' : `Fehler: ${res.error}`;
+  const label = session.game ? `${session.game} RH — ` : '';
+  $('rhModeHint').textContent = res.ok ? `${label}Führung gepostet` : `${label}Fehler: ${res.error}`;
+  return res;
+}
+
+async function postCurrentRhLeader() {
+  const session = getSelectedRhSession();
+  if (!session?.active || session.mode !== 'highestMulti') {
+    $('rhRecordStatus').textContent = 'Nur für aktive Crash/Slide-RH.';
+    return;
+  }
+  const leader = getRhLeader(session);
+  if (!leader) {
+    $('rhRecordStatus').textContent = `${session.game}: Keine zählbare Führung (nur nicht-versteckte Wetten).`;
+    return;
+  }
+  const res = await postRhLeaderAnnounce(leader, session);
+  if (res.ok) {
+    $('rhRecordStatus').textContent = `${session.game} RH | Führung gepostet: ${formatRhLeaderLine(leader)}`;
+  }
 }
 
 /** STOP-Zeile aus ChatBlueprints (🛑 bevorzugt, sonst 🔴). */
@@ -423,6 +448,19 @@ function setRhStopButtonsEnabled(on) {
     const el = $(id);
     if (el) el.disabled = !on;
   });
+  updateRhLeaderPostUi();
+}
+
+function updateRhLeaderPostUi() {
+  const wrap = $('rhPostLeaderWrap');
+  const btn = $('btnRhPostLeader');
+  if (!btn) return;
+  const session = getSelectedRhSession();
+  const show =
+    session?.mode === 'highestMulti' || isHighestMultiRhGame($('rhGame')?.value || '');
+  wrap?.classList.toggle('hidden', !show);
+  const leader = session?.active && session.mode === 'highestMulti' ? getRhLeader(session) : null;
+  btn.disabled = !state.loggedIn || !leader;
 }
 
 async function sendRhStopBlueprintToChat() {
@@ -447,9 +485,10 @@ function updateRhGameModeUi() {
   const hint = $('rhModeHint');
   if (hint) {
     hint.textContent = crashMode
-      ? 'Crash/Slide: Timer-Ende → Verlängerung (zählt weiter bis RH beenden). STOP nur per Button. Max. 1 RH pro Spiel. ● = versteckte Wette.'
-      : 'Klassisch: nur Wetten ab dem eingestellten Multi. Mehrere Spiele parallel — max. 1 RH pro Spiel. ● = versteckte Wette.';
+      ? 'Crash/Slide: Timer → Verlängerung bis Stop. Führung per Button posten (versteckte Wetten zählen nicht). ● = hidden.'
+      : 'Klassisch: nur Wetten ab dem eingestellten Multi. Max. 1 RH pro Spiel. ● = hidden.';
   }
+  updateRhLeaderPostUi();
 }
 
 function refreshRhStatusLine() {
@@ -690,15 +729,15 @@ function renderRhBets() {
         const leaderCls = isLeader ? ' bet-leader' : '';
         const hiddenCls = b.hidden ? ' bet-hidden' : '';
         const hiddenMark = b.hidden ? '<span class="bet-hidden-mark" title="Versteckte Wette (Hidden)">●</span> ' : '';
-        let titleAttr = 'Klick = Bet-ID kopieren';
-        if (b.hidden) titleAttr = 'Versteckte Wette (Hidden) — Klick = Bet-ID kopieren';
-        if (isLeader && session.active) titleAttr = 'Klick = Gewinner-Ankündigung in den Chat';
-        if (b.hidden && isLeader && session.active) {
-          titleAttr = 'Versteckte Wette · Klick = Gewinner-Ankündigung';
-        }
+        const titleAttr = b.hidden
+          ? 'Versteckte Wette (zählt nicht für Führung) — Klick = Bet-ID kopieren'
+          : isLeader
+            ? 'Aktuelle Führung — Klick = Bet-ID kopieren'
+            : 'Klick = Bet-ID kopieren';
         return `<div class="bet-row${leaderCls}${hiddenCls}" data-bet-id="${esc(b.betId || '')}" data-copy="${esc(b.betId || '')}" title="${esc(titleAttr)}">${hiddenMark}${multi} — ${esc(b.game)} — <span class="bet-id-label">${esc(b.betId || b.casinoId || '')}</span> — @${esc(b.username)}</div>`;
       })
       .join('') || '<div class="hint">Keine Wetten in dieser Session.</div>';
+  updateRhLeaderPostUi();
 }
 
 function buildRainIndexEntry(m, line) {
@@ -2051,6 +2090,8 @@ function wireRh() {
   });
   $('btnRhStopAnnounce')?.addEventListener('click', () => stopRhWithAnnounce('manuell'));
 
+  $('btnRhPostLeader')?.addEventListener('click', () => postCurrentRhLeader());
+
   $('btnRhClear')?.addEventListener('click', () => {
     const session = getSelectedRhSession();
     if (!session) return;
@@ -2060,16 +2101,9 @@ function wireRh() {
     refreshRhStatusLine();
   });
 
-  $('rhBetLog')?.addEventListener('click', async (e) => {
+  $('rhBetLog')?.addEventListener('click', (e) => {
     const row = e.target.closest('.bet-row');
     if (!row) return;
-    const session = getSelectedRhSession();
-    const betId = row.getAttribute('data-bet-id');
-    const bet = betId && session ? session.bets.find((b) => b.betId === betId) : null;
-    if (session?.active && bet && row.classList.contains('bet-leader')) {
-      await postRhLeaderAnnounce(bet, session);
-      return;
-    }
     const t = row.getAttribute('data-copy');
     if (t) copyBetId(t, $('rhModeHint'));
   });

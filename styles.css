@@ -612,6 +612,14 @@ body {
   color: #f39c12;
 }
 
+.rh-post-leader-wrap {
+  margin-top: 6px;
+}
+
+#btnRhPostLeader {
+  width: 100%;
+}
+
 .bet-log .bet-id-label {
   color: var(--stake-accent);
   text-decoration: underline;
