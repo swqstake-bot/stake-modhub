@@ -813,6 +813,14 @@ body {
   margin: 0;
 }
 
+.chat-line .chat-time {
+  color: var(--stake-text-dim);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  margin-right: 2px;
+  opacity: 0.9;
+}
+
 .chat-line .user {
   color: #7ec8ff;
   font-weight: 600;

@@ -142,6 +142,16 @@ function formatBetPosterCell(b) {
   return `@${first}`;
 }
 
+function formatChatTime(ts) {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  const tenth = Math.floor(d.getMilliseconds() / 100);
+  return `${hh}:${mm}:${ss},${tenth}`;
+}
+
 function parseChatLine(username, message, kind, ts) {
   const multiMatch = String(message).match(/(\d+(?:[.,]\d+)?)\s*x/i);
   return {
@@ -157,6 +167,17 @@ function parseChatLine(username, message, kind, ts) {
   };
 }
 
+function buildTaggedIndexEntry(line) {
+  const displayTs = line.receivedAt ?? line.ts;
+  return {
+    username: line.username,
+    time: formatChatTime(displayTs),
+    text: line.message,
+    preview: line.message.slice(0, 120),
+    idx: line.idx
+  };
+}
+
 function retagModMentions() {
   for (const line of state.chatLines) {
     line.modMention = isMentionOfMod(line.message);
@@ -165,18 +186,7 @@ function retagModMentions() {
     .filter((l) => l.modMention)
     .slice(-50)
     .reverse()
-    .map((line) => ({
-      username: line.username,
-      time: new Date(line.ts).toLocaleString('de-DE', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      text: line.message,
-      preview: line.message.slice(0, 120),
-      idx: line.idx
-    }));
+    .map((line) => buildTaggedIndexEntry(line));
 }
 
 function normalizeGameName(name) {
@@ -736,7 +746,11 @@ function renderChatBox(el, lines, opts = {}) {
       const betAttr = m.betId ? ` data-bet="${esc(m.betId)}" title="Bet-ID: ${esc(m.betId)} — Doppelklick = Lookup"` : '';
       const idxAttr = ` data-idx="${m.idx}"`;
       const msgCls = m.betId ? ' has-bet-id' : '';
-      return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}><span class="user">${esc(stripAt(m.username))}</span>: ${esc(m.message)}</div>`;
+      const displayTs = m.receivedAt ?? m.ts;
+      const timeLabel = formatChatTime(displayTs);
+      const serverLabel = m.receivedAt && m.ts !== m.receivedAt ? formatChatTime(m.ts) : '';
+      const timeTitle = serverLabel ? `Empfang ${timeLabel} · Server ${serverLabel}` : timeLabel;
+      return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}><span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span> <span class="user">${esc(stripAt(m.username))}</span>: ${esc(m.message)}</div>`;
     })
     .join('');
   if (opts.autoscroll !== false && ($('autoscroll')?.checked ?? true)) {
@@ -1687,25 +1701,15 @@ async function processBetForRh(line) {
   }
 }
 
-async function onLiveMessage(m) {
+async function onLiveMessage(m, { receivedAt } = {}) {
   const line = parseChatLine(m.username, m.message, m.kind, m.timestamp);
+  line.receivedAt = receivedAt ?? Date.now();
   if (m.rain && typeof m.rain === 'object') line.rain = m.rain;
   line.modMention = isMentionOfMod(line.message);
   pushChatLine(line);
 
   if (line.modMention) {
-    state.tagged.unshift({
-      username: line.username,
-      time: new Date(line.ts).toLocaleString('de-DE', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      text: line.message,
-      preview: line.message.slice(0, 120),
-      idx: line.idx
-    });
+    state.tagged.unshift(buildTaggedIndexEntry(line));
     if (state.tagged.length > 50) state.tagged.length = 50;
   }
 
@@ -2447,7 +2451,10 @@ async function init() {
       state.liveStats.browserCount += messages.length;
       state.liveStats.lastBrowserAt = Date.now();
     }
-    for (const m of messages) onLiveMessage(m);
+    const baseTs = Date.now();
+    for (let i = 0; i < messages.length; i++) {
+      onLiveMessage(messages[i], { receivedAt: baseTs + i });
+    }
     updateLiveStatusUi();
   });
 
