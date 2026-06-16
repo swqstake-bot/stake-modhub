@@ -743,8 +743,16 @@ function lineClasses(m) {
   return parts.join(' ');
 }
 
+function isChatAutoscrollEnabled() {
+  const el = $('autoscroll');
+  return el ? el.checked : true;
+}
+
 function renderChatBox(el, lines, opts = {}) {
   if (!el) return;
+  const autoscroll = opts.autoscroll !== false && isChatAutoscrollEnabled();
+  const prevTop = el.scrollTop;
+  const prevHeight = el.scrollHeight;
   const slice = lines.slice(-300);
   el.innerHTML = slice
     .map((m) => {
@@ -759,8 +767,10 @@ function renderChatBox(el, lines, opts = {}) {
       return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}><span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span> <span class="user">${esc(stripAt(m.username))}</span>: ${esc(m.message)}</div>`;
     })
     .join('');
-  if (opts.autoscroll !== false && ($('autoscroll')?.checked ?? true)) {
+  if (autoscroll) {
     el.scrollTop = el.scrollHeight;
+  } else if (prevHeight > 0) {
+    el.scrollTop = Math.max(0, prevTop + (el.scrollHeight - prevHeight));
   }
 }
 
