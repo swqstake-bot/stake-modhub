@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.12</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.13</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -182,6 +182,22 @@
               <button type="button" id="btnRhSendChat" class="primary sm" disabled>RH | Message</button>
               <button type="button" id="btnRhStopAnnounce" class="stake-stop sm" disabled>🛑 STOP Chat</button>
             </div>
+          </div>
+        </div>
+        <div class="rh-trivia panel">
+          <h2>Trivia</h2>
+          <label class="compact-label">Lösungswort
+            <input id="rhTriviaSolution" type="text" autocomplete="off" placeholder="Antwort…" />
+          </label>
+          <div class="row-inline rh-trivia-actions">
+            <button type="button" id="btnRhTriviaStart" class="primary sm">Start</button>
+            <button type="button" id="btnRhTriviaStop" class="sm" disabled>Stop</button>
+            <button type="button" id="btnRhTriviaClear" class="sm">Clear</button>
+          </div>
+          <p id="rhTriviaStatus" class="status-line hint">Inaktiv</p>
+          <div class="rh-trivia-log-wrap">
+            <div class="panel-head"><h3 id="rhTriviaLogTitle">Lösungen</h3></div>
+            <div id="rhTriviaLog" class="chat-box chat-box-rh-trivia bet-log"></div>
           </div>
         </div>
         <div class="rh-stack pane">

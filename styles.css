@@ -489,9 +489,65 @@ body {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(400px, 1.2fr) minmax(280px, 0.8fr);
+  grid-template-columns: minmax(320px, 1.05fr) minmax(200px, 0.5fr) minmax(260px, 0.85fr);
   gap: 10px;
   align-items: stretch;
+}
+
+.rh-trivia {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+}
+
+.rh-trivia h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.rh-trivia-actions {
+  flex-wrap: wrap;
+}
+
+.rh-trivia-log-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--stake-border);
+  padding-top: 8px;
+}
+
+.rh-trivia-log-wrap .panel-head {
+  margin-bottom: 0;
+}
+
+.rh-trivia-log-wrap .panel-head h3 {
+  color: var(--stake-text-muted);
+  font-size: 12px;
+}
+
+.chat-box-rh-trivia {
+  flex: 1;
+  min-height: 120px;
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 6px;
+  overflow: auto;
+}
+
+.trivia-hit-row {
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+  word-break: break-word;
+}
+
+.trivia-hit-row .user {
+  color: #7ec8ff;
+  font-weight: 600;
 }
 
 #panel-rh.panel-view.active .rh-layout {

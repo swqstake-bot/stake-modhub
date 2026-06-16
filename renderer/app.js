@@ -13,6 +13,12 @@ const state = {
   rhSessions: [],
   rhActiveId: null,
   rhNextId: 1,
+  rhTrivia: {
+    active: false,
+    solution: '',
+    solutionNorm: '',
+    hits: []
+  },
   betCache: {},
   hitKeys: new Set(),
   convRates: {},
@@ -798,6 +804,101 @@ function renderRhBets() {
       })
       .join('') || '<div class="hint">Keine Wetten in dieser Session.</div>';
   updateRhLeaderPostUi();
+}
+
+function isRhTriviaSolutionMatch(message, solutionNorm) {
+  const msg = stripLeadingUserMention(message).trim().toLowerCase();
+  return !!solutionNorm && msg === solutionNorm;
+}
+
+function processRhTriviaHit(line) {
+  const t = state.rhTrivia;
+  if (!t.active || !t.solutionNorm) return;
+  if (line.kind !== 'text') return;
+  if (isOwnModChatUser(line.username)) return;
+  if (!isRhTriviaSolutionMatch(line.message, t.solutionNorm)) return;
+  const userKey = stripAt(line.username).toLowerCase();
+  if (t.hits.some((h) => h.username.toLowerCase() === userKey)) return;
+
+  t.hits.push({
+    username: stripAt(line.username),
+    message: stripLeadingUserMention(line.message).trim(),
+    ts: line.ts,
+    receivedAt: line.receivedAt ?? line.ts
+  });
+  renderRhTriviaLog();
+  updateRhTriviaUi();
+}
+
+function renderRhTriviaLog() {
+  const box = $('rhTriviaLog');
+  const title = $('rhTriviaLogTitle');
+  const t = state.rhTrivia;
+  if (title) {
+    title.textContent = t.active ? `Lösungen — «${t.solution}»` : 'Lösungen';
+  }
+  if (!box) return;
+  const rows = [...t.hits].sort((a, b) => (a.receivedAt || a.ts) - (b.receivedAt || b.ts));
+  box.innerHTML =
+    rows
+      .map((h) => {
+        const timeLabel = formatChatTime(h.receivedAt ?? h.ts);
+        return `<div class="trivia-hit-row" title="${esc(timeLabel)}"><span class="chat-time">${esc(timeLabel)}</span> <span class="user">@${esc(h.username)}</span> — ${esc(h.message)}</div>`;
+      })
+      .join('') || '<div class="hint">Noch keine Treffer — Trivia starten und auf Chat-Antworten warten.</div>';
+  box.scrollTop = box.scrollHeight;
+}
+
+function updateRhTriviaUi() {
+  const t = state.rhTrivia;
+  const startBtn = $('btnRhTriviaStart');
+  const stopBtn = $('btnRhTriviaStop');
+  const input = $('rhTriviaSolution');
+  if (startBtn) startBtn.disabled = !!t.active;
+  if (stopBtn) stopBtn.disabled = !t.active;
+  if (input) input.disabled = !!t.active;
+  const status = $('rhTriviaStatus');
+  if (status) {
+    if (t.active) {
+      status.textContent = `Aktiv — Lösung: «${t.solution}» · ${t.hits.length} Treffer`;
+    } else if (t.hits.length) {
+      status.textContent = `Beendet · ${t.hits.length} Treffer`;
+    } else {
+      status.textContent = 'Inaktiv';
+    }
+  }
+}
+
+function startRhTrivia() {
+  const solution = $('rhTriviaSolution')?.value?.trim();
+  if (!solution) {
+    $('rhTriviaStatus').textContent = 'Lösungswort eingeben.';
+    return;
+  }
+  state.rhTrivia = {
+    active: true,
+    solution,
+    solutionNorm: solution.toLowerCase(),
+    hits: []
+  };
+  renderRhTriviaLog();
+  updateRhTriviaUi();
+}
+
+function stopRhTrivia() {
+  if (!state.rhTrivia.active) return;
+  state.rhTrivia.active = false;
+  updateRhTriviaUi();
+}
+
+function clearRhTrivia() {
+  if (state.rhTrivia.active) return;
+  state.rhTrivia.hits = [];
+  state.rhTrivia.solution = '';
+  state.rhTrivia.solutionNorm = '';
+  if ($('rhTriviaSolution')) $('rhTriviaSolution').value = '';
+  renderRhTriviaLog();
+  updateRhTriviaUi();
 }
 
 function formatRainShareLabel(amount, currency) {
@@ -1719,6 +1820,7 @@ async function onLiveMessage(m, { receivedAt } = {}) {
   }
 
   if (line.betId) await processBetForRh(line);
+  processRhTriviaHit(line);
 
   renderChats();
   renderTaggedRainRecent();
@@ -2302,6 +2404,19 @@ function wireRh() {
     const t = row.getAttribute('data-copy');
     if (t) copyBetId(t, $('rhModeHint'));
   });
+
+  $('btnRhTriviaStart')?.addEventListener('click', () => startRhTrivia());
+  $('btnRhTriviaStop')?.addEventListener('click', () => stopRhTrivia());
+  $('btnRhTriviaClear')?.addEventListener('click', () => clearRhTrivia());
+  $('rhTriviaSolution')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !state.rhTrivia.active) {
+      e.preventDefault();
+      startRhTrivia();
+    }
+  });
+
+  updateRhTriviaUi();
+  renderRhTriviaLog();
 }
 
 function updateStatusLabel(p) {
