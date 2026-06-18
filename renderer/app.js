@@ -752,7 +752,18 @@ function renderChatBox(el, lines, opts = {}) {
   if (!el) return;
   const autoscroll = opts.autoscroll !== false && isChatAutoscrollEnabled();
   const prevTop = el.scrollTop;
-  const prevHeight = el.scrollHeight;
+  let anchorIdx = null;
+  let anchorOffset = 0;
+  if (!autoscroll) {
+    for (const child of el.querySelectorAll('.chat-line[data-idx]')) {
+      const top = child.offsetTop;
+      if (top + child.offsetHeight > prevTop + 1) {
+        anchorIdx = child.getAttribute('data-idx');
+        anchorOffset = top - prevTop;
+        break;
+      }
+    }
+  }
   const slice = lines.slice(-300);
   el.innerHTML = slice
     .map((m) => {
@@ -769,8 +780,11 @@ function renderChatBox(el, lines, opts = {}) {
     .join('');
   if (autoscroll) {
     el.scrollTop = el.scrollHeight;
-  } else if (prevHeight > 0) {
-    el.scrollTop = Math.max(0, prevTop + (el.scrollHeight - prevHeight));
+  } else if (anchorIdx != null) {
+    const anchor = el.querySelector(`[data-idx="${anchorIdx}"]`);
+    el.scrollTop = anchor ? Math.max(0, anchor.offsetTop - anchorOffset) : prevTop;
+  } else {
+    el.scrollTop = prevTop;
   }
 }
 
