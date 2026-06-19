@@ -13,6 +13,7 @@ const state = {
   rhSessions: [],
   rhActiveId: null,
   rhNextId: 1,
+  chatLineUid: 0,
   rhTrivia: {
     active: false,
     solution: '',
@@ -715,11 +716,37 @@ function fmtMoney(amount, currency) {
   return crypto;
 }
 
+function isChatAutoscrollEnabled() {
+  const el = $('autoscroll');
+  return el ? el.checked : true;
+}
+
+function ensureLineUid(line) {
+  if (line.uid == null) {
+    state.chatLineUid += 1;
+    line.uid = state.chatLineUid;
+  }
+  return line.uid;
+}
+
+/** Speicher-Limit: bei Autoscroll aus kein Trim (Lesen ohne Sprünge). */
+function getEffectiveChatStoreMax() {
+  if (!isChatAutoscrollEnabled()) return Infinity;
+  return Number(state.settings.maxChatRows) || 1000;
+}
+
+/** Anzeige-Limit: hartes slice(-300) nur bei Autoscroll an. */
+function getChatLinesForDisplay(lines) {
+  if (!isChatAutoscrollEnabled()) return lines;
+  return lines.length > 300 ? lines.slice(-300) : lines;
+}
+
 function pushChatLine(line) {
+  ensureLineUid(line);
   line.idx = state.chatLines.length;
   state.chatLines.push(line);
-  const max = Number(state.settings.maxChatRows) || 1000;
-  if (state.chatLines.length > max) {
+  const max = getEffectiveChatStoreMax();
+  if (Number.isFinite(max) && state.chatLines.length > max) {
     const drop = state.chatLines.length - max;
     state.chatLines = state.chatLines.slice(drop);
     state.chatLines.forEach((l, i) => {
@@ -743,33 +770,29 @@ function lineClasses(m) {
   return parts.join(' ');
 }
 
-function isChatAutoscrollEnabled() {
-  const el = $('autoscroll');
-  return el ? el.checked : true;
-}
-
 function renderChatBox(el, lines, opts = {}) {
   if (!el) return;
   const autoscroll = opts.autoscroll !== false && isChatAutoscrollEnabled();
   const prevTop = el.scrollTop;
-  let anchorIdx = null;
+  let anchorUid = null;
   let anchorOffset = 0;
   if (!autoscroll) {
-    for (const child of el.querySelectorAll('.chat-line[data-idx]')) {
+    for (const child of el.querySelectorAll('.chat-line[data-uid]')) {
       const top = child.offsetTop;
       if (top + child.offsetHeight > prevTop + 1) {
-        anchorIdx = child.getAttribute('data-idx');
+        anchorUid = child.getAttribute('data-uid');
         anchorOffset = top - prevTop;
         break;
       }
     }
   }
-  const slice = lines.slice(-300);
+  const slice = getChatLinesForDisplay(lines);
+  slice.forEach(ensureLineUid);
   el.innerHTML = slice
     .map((m) => {
       const cls = lineClasses(m);
       const betAttr = m.betId ? ` data-bet="${esc(m.betId)}" title="Bet-ID: ${esc(m.betId)} — Doppelklick = Lookup"` : '';
-      const idxAttr = ` data-idx="${m.idx}"`;
+      const idxAttr = ` data-idx="${m.idx}" data-uid="${m.uid}"`;
       const msgCls = m.betId ? ' has-bet-id' : '';
       const displayTs = m.receivedAt ?? m.ts;
       const timeLabel = formatChatTime(displayTs);
@@ -780,8 +803,8 @@ function renderChatBox(el, lines, opts = {}) {
     .join('');
   if (autoscroll) {
     el.scrollTop = el.scrollHeight;
-  } else if (anchorIdx != null) {
-    const anchor = el.querySelector(`[data-idx="${anchorIdx}"]`);
+  } else if (anchorUid != null) {
+    const anchor = el.querySelector(`[data-uid="${anchorUid}"]`);
     el.scrollTop = anchor ? Math.max(0, anchor.offsetTop - anchorOffset) : prevTop;
   } else {
     el.scrollTop = prevTop;
@@ -1911,6 +1934,20 @@ function ensureCtxMenu() {
 
 function wireHub() {
   ensureCtxMenu();
+
+  $('autoscroll')?.addEventListener('change', () => {
+    if (isChatAutoscrollEnabled()) {
+      const max = Number(state.settings.maxChatRows) || 1000;
+      if (state.chatLines.length > max) {
+        const drop = state.chatLines.length - max;
+        state.chatLines = state.chatLines.slice(drop);
+        state.chatLines.forEach((l, i) => {
+          l.idx = i;
+        });
+      }
+    }
+    renderChats();
+  });
 
   $('btnClearLive')?.addEventListener('click', () => {
     state.chatLines = [];
