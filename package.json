@@ -1,6 +1,6 @@
 {
   "name": "stake-modhub",
-  "version": "0.4.19",
+  "version": "0.4.20",
   "description": "Stake Mod Hub — Electron (ModHub + RH + Extension APIs)",
   "main": "main.js",
   "private": true,
@@ -11,9 +11,9 @@
   },
   "scripts": {
     "start": "electron .",
-    "dist": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-kollegen-paket.ps1",
-    "dist:publish": "electron-builder --win portable --publish always",
-    "dist:win": "electron-builder --win portable --publish never"
+    "dist": "electron-builder --win nsis --publish never",
+    "dist:publish": "electron-builder --win nsis --publish always",
+    "dist:win": "electron-builder --win nsis --publish never"
   },
   "dependencies": {
     "electron-updater": "^6.6.2",
@@ -24,6 +24,7 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
+    "npmRebuild": false,
     "appId": "com.stake.modhub",
     "productName": "Stake Mod Hub",
     "directories": {
@@ -43,18 +44,13 @@
       "icon": "build/icon.png",
       "forceCodeSigning": false,
       "signAndEditExecutable": false,
-      "target": [
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "artifactName": "Stake-ModHub-${version}-Windows.${ext}"
+      "target": "nsis"
     },
-    "portable": {
-      "artifactName": "Stake-ModHub-${version}-Windows.${ext}"
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Stake-ModHub-${version}-Setup.${ext}",
+      "include": "build/installer.nsh"
     },
     "publish": [
       {

@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.19</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.20</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -279,7 +279,7 @@
         </div>
         <label class="check"><input type="checkbox" id="logChat" checked /> Chat-Log (Text/Tip/Bot → Chat_de.csv, Rain → Rain_de.csv)</label>
         <button type="button" id="btnSeedBlueprints" class="sm">Standard-Blueprints importieren</button>
-        <p class="hint">Alle Logs, Blueprints und CSVs liegen in <code>modhub-electron/Datengrube/</code>.</p>
+        <p class="hint">Alle Logs, Blueprints und CSVs liegen im Ordner <code>Datengrube/</code> neben der installierten App.</p>
         <label class="check"><input type="checkbox" id="logHash" checked /> Auto IP-Hash (1×/Tag pro User)</label>
         <label class="check"><input type="checkbox" id="useNativeWs" checked /> Native WebSocket (empfohlen)</label>
         <div class="grid-2">
@@ -305,7 +305,7 @@
         </div>
         <div class="panel compact">
           <h3>Updates (GitHub)</h3>
-          <p class="hint">Installierte Portable-EXE prüft beim Start und alle 4&nbsp;h automatisch auf GitHub-Releases (<code>latest.yml</code>). ZIP-Builds ohne electron-builder haben kein Auto-Update.</p>
+          <p class="hint">Installierte App prüft beim Start und alle 4&nbsp;h automatisch auf GitHub-Releases (<code>latest.yml</code>).</p>
           <div class="row-inline">
             <button type="button" id="btnCheckUpdate" class="sm">Nach Updates suchen</button>
             <span id="updateStatus" class="status-line">—</span>

@@ -9,25 +9,24 @@ npm install
 npm start
 ```
 
-## Kollegen-Paket (lokal, ohne Auto-Update-Metadaten)
+## Lokaler Installer-Build
 
 ```bash
 npm run dist
 ```
 
-Ergebnis: `dist/Stake-ModHub-v0.3.0-Windows.zip`
+Ergebnis: `dist/Stake-ModHub-<version>-Setup.exe`
 
 ## Releases (GitHub)
 
-**Kollegen laden das ZIP** von [Releases](https://github.com/swqstake-bot/stake-modhub/releases) — nicht die alte Einzel-EXE.
+**Kollegen laden den Setup-Installer** von [Releases](https://github.com/swqstake-bot/stake-modhub/releases):
 
-1. ZIP entpacken  
-2. `START.bat` oder `Stake Mod Hub.exe` im Ordner starten  
+1. `Stake-ModHub-<version>-Setup.exe` ausführen und installieren
+2. Beim ersten Start legt die App `Datengrube/` neben der EXE an (Standard-Blueprints werden importiert)
+3. Auto-Update läuft über `latest.yml` auf GitHub
 
 Neues Release bauen:
 
-1. Version in `package.json` erhöhen  
-2. `git tag v0.3.2 && git push origin v0.3.2`  
-3. GitHub Action erzeugt `Stake-ModHub-v…-Windows.zip`
-
-Lokal: `npm run dist` → `dist/Stake-ModHub-v…-Windows.zip`
+1. Version in `package.json` erhöhen
+2. `git tag v0.4.21 && git push origin v0.4.21`
+3. GitHub Action erzeugt Setup-EXE + `latest.yml`
