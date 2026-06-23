@@ -1329,6 +1329,21 @@ function fillBlueprint(selId, targetId) {
   field.value = withMention ? prependUserMentionForChat(v, state.validatedUser) : v;
 }
 
+function wireBlueprintSelect(selId, targetId, afterFill) {
+  const sel = $(selId);
+  if (!sel) return;
+  const apply = () => {
+    fillBlueprint(selId, targetId);
+    afterFill?.();
+  };
+  sel.addEventListener('change', apply);
+  sel.addEventListener('mouseup', () => {
+    requestAnimationFrame(() => {
+      if (sel.value) apply();
+    });
+  });
+}
+
 async function loadSettingsUi() {
   const s = await modHub.getSettings();
   state.settings = s;
@@ -1976,13 +1991,12 @@ function wireHub() {
   $('btnCloseBet')?.addEventListener('click', () => $('betPanel').classList.add('hidden'));
   $('btnCloseOverlay')?.addEventListener('click', hideOverlay);
 
-  $('cbChatBlueprints')?.addEventListener('change', () => fillBlueprint('cbChatBlueprints', 'chatMessage'));
-  $('cbMuteBlueprints')?.addEventListener('change', () => fillBlueprint('cbMuteBlueprints', 'muteMessage'));
-  $('cbWarnBlueprints')?.addEventListener('change', () => fillBlueprint('cbWarnBlueprints', 'warnMessage'));
-  $('cbRhBlueprints')?.addEventListener('change', () => {
-    fillBlueprint('cbRhBlueprints', 'rhChatMessage');
-    saveRhBlueprintToSession($('cbRhBlueprints')?.value);
-  });
+  wireBlueprintSelect('cbChatBlueprints', 'chatMessage');
+  wireBlueprintSelect('cbMuteBlueprints', 'muteMessage');
+  wireBlueprintSelect('cbWarnBlueprints', 'warnMessage');
+  wireBlueprintSelect('cbRhBlueprints', 'rhChatMessage', () =>
+    saveRhBlueprintToSession($('cbRhBlueprints')?.value)
+  );
 
   $('btnAddChatBp')?.addEventListener('click', async () => {
     const line = $('chatMessage').value.trim();

@@ -17,6 +17,7 @@ const { CHATROOMS, LOCKDOWN_TOKEN, DEFAULT_WS_HOST } = require('./lib/stake-cons
 const { createBetRegistry } = require('./lib/bet-registry');
 const { extractBetIds } = require('./lib/bet-id-parse');
 const { initAutoUpdate, checkForUpdatesManual } = require('./lib/auto-update');
+const { closeBridgeWindow } = require('./lib/stake-http');
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
@@ -236,6 +237,32 @@ function showMainWindow() {
   mainWin.focus();
 }
 
+function teardownBackground() {
+  stopLiveHealthMonitor();
+  stopNativeChatWs();
+  autoHashQueue.dispose();
+  closeBridgeWindow();
+  for (const win of [stakeChatCaptureWin, stakeLoginWin]) {
+    if (win && !win.isDestroyed()) win.destroy();
+  }
+  stakeChatCaptureWin = null;
+  stakeLoginWin = null;
+}
+
+function destroyTray() {
+  if (!tray) return;
+  tray.destroy();
+  tray = null;
+}
+
+function quitApplication() {
+  if (isQuitting) return;
+  isQuitting = true;
+  teardownBackground();
+  destroyTray();
+  app.quit();
+}
+
 function ensureTray() {
   if (tray) return;
   tray = new Tray(getTrayIcon());
@@ -243,13 +270,7 @@ function ensureTray() {
   const menu = Menu.buildFromTemplate([
     { label: 'Öffnen', click: showMainWindow },
     { type: 'separator' },
-    {
-      label: 'Beenden',
-      click: () => {
-        isQuitting = true;
-        app.quit();
-      }
-    }
+    { label: 'Beenden', click: quitApplication }
   ]);
   tray.setContextMenu(menu);
   tray.on('click', showMainWindow);
@@ -283,7 +304,7 @@ function createMainWindow() {
   mainWin.on('close', (e) => {
     if (isQuitting) return;
     e.preventDefault();
-    hideMainWindowToTray();
+    quitApplication();
   });
   mainWin.loadFile(path.join(__dirname, 'index.html'));
 }
@@ -857,17 +878,11 @@ app.on('second-instance', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
-  stopLiveHealthMonitor();
-  stopNativeChatWs();
-  autoHashQueue.dispose();
-  if (tray) {
-    tray.destroy();
-    tray = null;
-  }
+  teardownBackground();
+  destroyTray();
 });
 
 app.on('window-all-closed', () => {
   if (process.platform === 'darwin') return;
-  if (tray) return;
   app.quit();
 });
