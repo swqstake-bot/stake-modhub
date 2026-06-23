@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-let version = '0.4.17';
+let version = '0.4.18';
 try {
   version = ipcRenderer.sendSync('modhub-get-version') || version;
 } catch (_) {}
@@ -70,6 +70,8 @@ contextBridge.exposeInMainWorld('modHub', {
   },
   hideToTray: () => ipcRenderer.invoke('modhub-hide-to-tray'),
   checkForUpdates: () => ipcRenderer.invoke('modhub-check-updates'),
+  startUpdateDownload: () => ipcRenderer.invoke('modhub-start-download'),
+  quitAndInstallUpdate: () => ipcRenderer.invoke('modhub-quit-and-install'),
   onUpdateStatus: (handler) => {
     const w = (_e, p) => handler(p);
     ipcRenderer.on('modhub-update-status', w);

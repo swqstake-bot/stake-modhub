@@ -1,0 +1,4 @@
+provider: github
+owner: swqstake-bot
+repo: stake-modhub
+updaterCacheDirName: stake-modhub-updater

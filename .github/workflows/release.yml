@@ -1,3 +1,6 @@
+# Build + electron-builder --publish → GitHub Release + latest.yml (electron-updater).
+# Wird bei Push eines Tags v* ausgeführt.
+
 name: Release
 
 on:
@@ -17,32 +20,33 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Windows ZIP (Packager — Kollegen-Paket)
+      - name: Build Kollegen-ZIP (Packager, ohne Auto-Update)
         shell: pwsh
         run: npm run dist
 
-      - name: Publish GitHub Release
+      - name: Kollegen-ZIP sichern
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path dist -Filter "Stake-ModHub-*-Windows.zip" | Select-Object -First 1
+          if (-not $zip) { throw "Kein Kollegen-ZIP in dist/" }
+          Copy-Item $zip.FullName "$env:RUNNER_TEMP\Stake-ModHub-Kollegen.zip"
+
+      - name: Build & publish portable (electron-updater + latest.yml)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm run dist:publish
+
+      - name: Kollegen-ZIP zum Release hochladen
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          $zip = Get-ChildItem -Path dist -Filter "Stake-ModHub-*.zip" | Select-Object -First 1
-          if (-not $zip) { throw "Kein ZIP in dist/ — Build fehlgeschlagen?" }
-          gh release view $tag 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --title "Stake Mod Hub $tag" --notes @"
-          ## Installation
-          1. **ZIP entpacken** (kompletter Ordner)
-          2. **START.bat** oder **Stake Mod Hub.exe** starten
-          3. SmartScreen: *Weitere Informationen* → *Trotzdem ausführen*
-
-          Nicht `npm start` — nur die entpackte App.
-          "@
-          }
-          gh release upload $tag $zip.FullName --clobber
-          gh release edit $tag --draft=false
+          gh release upload $tag "$env:RUNNER_TEMP\Stake-ModHub-Kollegen.zip" --clobber

@@ -2506,10 +2506,86 @@ function updateStatusLabel(p) {
     error: `Update-Fehler: ${p.message || '?'}`
   };
   el.textContent = labels[p.state] || '—';
+  renderUpdaterToast(p);
 }
 
+function renderUpdaterToast(p) {
+  const box = $('updateToast');
+  if (!box) return;
+  const state = p?.state;
+  const title = $('updateToastTitle');
+  const body = $('updateToastBody');
+  const progress = $('updateToastProgress');
+  const bar = $('updateToastBar');
+  const percent = $('updateToastPercent');
+  const btnDl = $('btnUpdateDownload');
+  const btnRestart = $('btnUpdateRestart');
+  const btnDismiss = $('btnUpdateDismiss');
+  const curVer = modHub.version || $('appVersion')?.textContent || '?';
+
+  const hideActions = () => {
+    btnDl?.classList.add('hidden');
+    btnRestart?.classList.add('hidden');
+    btnDismiss?.classList.add('hidden');
+    progress?.classList.add('hidden');
+  };
+
+  if (!state || state === 'checking' || state === 'none') {
+    box.classList.add('hidden');
+    box.classList.remove('is-error');
+    return;
+  }
+
+  box.classList.remove('hidden');
+  box.classList.toggle('is-error', state === 'error');
+  hideActions();
+
+  if (state === 'available') {
+    if (title) title.textContent = 'Update verfügbar';
+    if (body) {
+      body.textContent = `Version ${p.version || '?'} auf GitHub. Aktuell: v${curVer}. Download startet automatisch — oder manuell:`;
+    }
+    btnDl?.classList.remove('hidden');
+    btnDismiss?.classList.remove('hidden');
+    return;
+  }
+
+  if (state === 'downloading') {
+    if (title) title.textContent = 'Update wird geladen…';
+    if (body) body.textContent = `Stake Mod Hub v${p.version || '?'}`;
+    progress?.classList.remove('hidden');
+    const pct = Math.round(p.percent ?? 0);
+    if (bar) bar.style.width = `${pct}%`;
+    if (percent) percent.textContent = `${pct}%`;
+    return;
+  }
+
+  if (state === 'ready') {
+    if (title) title.textContent = 'Update bereit';
+    if (body) body.textContent = `Version ${p.version || '?'} installieren und neu starten?`;
+    btnRestart?.classList.remove('hidden');
+    btnDismiss?.classList.remove('hidden');
+    return;
+  }
+
+  if (state === 'error') {
+    if (title) title.textContent = 'Update-Fehler';
+    if (body) body.textContent = String(p.message || 'Unbekannter Fehler');
+    btnDismiss?.classList.remove('hidden');
+  }
+}
+
+const UPDATE_UI_CHECK_MS = 4 * 60 * 60 * 1000;
+
 function wireUpdates() {
+  let updateUiTimer = null;
+
+  const triggerCheck = () => {
+    modHub.checkForUpdates?.().catch(() => {});
+  };
+
   modHub.onUpdateStatus?.((p) => updateStatusLabel(p));
+
   $('btnCheckUpdate')?.addEventListener('click', async () => {
     $('updateStatus').textContent = 'Prüfe…';
     const res = await modHub.checkForUpdates();
@@ -2527,6 +2603,23 @@ function wireUpdates() {
       $('updateStatus').textContent = 'Prüfung gestartet…';
     }
   });
+
+  $('btnUpdateDownload')?.addEventListener('click', () => {
+    modHub.startUpdateDownload?.();
+    $('updateStatus').textContent = 'Download gestartet…';
+  });
+
+  $('btnUpdateRestart')?.addEventListener('click', () => {
+    modHub.quitAndInstallUpdate?.();
+  });
+
+  $('btnUpdateDismiss')?.addEventListener('click', () => {
+    $('updateToast')?.classList.add('hidden');
+  });
+
+  setTimeout(triggerCheck, 2000);
+  if (updateUiTimer) clearInterval(updateUiTimer);
+  updateUiTimer = setInterval(triggerCheck, UPDATE_UI_CHECK_MS);
 }
 
 function wireSettings() {

@@ -16,7 +16,13 @@ const { AutoHashQueue } = require('./lib/auto-hash-queue');
 const { CHATROOMS, LOCKDOWN_TOKEN, DEFAULT_WS_HOST } = require('./lib/stake-constants');
 const { createBetRegistry } = require('./lib/bet-registry');
 const { extractBetIds } = require('./lib/bet-id-parse');
-const { initAutoUpdate, checkForUpdatesManual } = require('./lib/auto-update');
+const {
+  initAutoUpdate,
+  disposeAutoUpdate,
+  checkForUpdatesManual,
+  startUpdateDownload,
+  quitAndInstallUpdate
+} = require('./lib/auto-update');
 const { closeBridgeWindow } = require('./lib/stake-http');
 
 app.disableHardwareAcceleration();
@@ -241,6 +247,7 @@ function teardownBackground() {
   stopLiveHealthMonitor();
   stopNativeChatWs();
   autoHashQueue.dispose();
+  disposeAutoUpdate();
   closeBridgeWindow();
   for (const win of [stakeChatCaptureWin, stakeLoginWin]) {
     if (win && !win.isDestroyed()) win.destroy();
@@ -851,6 +858,8 @@ function registerIpc() {
   });
 
   ipcMain.handle('modhub-check-updates', () => checkForUpdatesManual());
+  ipcMain.handle('modhub-start-download', () => startUpdateDownload());
+  ipcMain.handle('modhub-quit-and-install', () => quitAndInstallUpdate());
   ipcMain.handle('modhub-hide-to-tray', () => {
     hideMainWindowToTray();
     return { ok: true };

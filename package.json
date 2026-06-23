@@ -1,6 +1,6 @@
 {
   "name": "stake-modhub",
-  "version": "0.4.17",
+  "version": "0.4.18",
   "description": "Stake Mod Hub — Electron (ModHub + RH + Extension APIs)",
   "main": "main.js",
   "private": true,
@@ -13,7 +13,7 @@
     "start": "electron .",
     "dist": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-kollegen-paket.ps1",
     "dist:publish": "electron-builder --win portable --publish always",
-    "dist:win": "electron-builder --win portable"
+    "dist:win": "electron-builder --win portable --publish never"
   },
   "dependencies": {
     "electron-updater": "^6.6.2",
@@ -41,6 +41,8 @@
     "asar": true,
     "win": {
       "icon": "build/icon.png",
+      "forceCodeSigning": false,
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "portable",

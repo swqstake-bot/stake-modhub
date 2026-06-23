@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.17</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.18</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -305,7 +305,7 @@
         </div>
         <div class="panel compact">
           <h3>Updates (GitHub)</h3>
-          <p class="hint">Installierte App prüft Releases automatisch. Neue Versionen als GitHub-Release veröffentlichen.</p>
+          <p class="hint">Installierte Portable-EXE prüft beim Start und alle 4&nbsp;h automatisch auf GitHub-Releases (<code>latest.yml</code>). ZIP-Builds ohne electron-builder haben kein Auto-Update.</p>
           <div class="row-inline">
             <button type="button" id="btnCheckUpdate" class="sm">Nach Updates suchen</button>
             <span id="updateStatus" class="status-line">—</span>
@@ -324,6 +324,22 @@
       </div>
     </section>
   </main>
+
+  <div id="updateToast" class="update-toast hidden" aria-live="polite">
+    <h4 id="updateToastTitle">Update verfügbar</h4>
+    <p id="updateToastBody" class="hint"></p>
+    <div id="updateToastProgress" class="update-toast-progress hidden">
+      <div class="update-toast-progress-track">
+        <div id="updateToastBar" class="update-toast-bar"></div>
+      </div>
+      <span id="updateToastPercent" class="update-toast-percent">0%</span>
+    </div>
+    <div class="row-inline update-toast-actions">
+      <button type="button" id="btnUpdateDownload" class="primary sm hidden">Download</button>
+      <button type="button" id="btnUpdateRestart" class="primary sm hidden">Neustart &amp; Installieren</button>
+      <button type="button" id="btnUpdateDismiss" class="sm hidden">Schließen</button>
+    </div>
+  </div>
 
   <div id="overlayBackdrop" class="overlay-backdrop hidden">
     <div class="overlay panel">
