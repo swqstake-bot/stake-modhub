@@ -2655,7 +2655,7 @@ function wireHub() {
     sendModChatField('warnMessage', 'Warn-Text', { mentionUser: true })
   );
   $('btnSendChat')?.addEventListener('click', () =>
-    sendModChatField('chatMessage', 'Chat-Text', { mentionUser: true })
+    sendModChatField('chatMessage', 'Chat-Text', { mentionUser: false })
   );
 
   $('chatMessage')?.addEventListener('keydown', (e) => {
