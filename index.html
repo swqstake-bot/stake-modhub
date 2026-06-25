@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.23</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.24</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -77,17 +77,13 @@
                 <button type="button" id="btnValidate" class="primary sm">Validate</button>
               </div>
               <p id="validateStatus" class="status-line span-all">—</p>
+              <button type="button" id="btnModAction" class="primary hub-mod-action-btn span-all" disabled>Mod Action</button>
               <div class="btn-grid span-all hub-action-grid">
-                <button type="button" id="btnMute" disabled>Mute</button>
-                <button type="button" id="btnUnmute" disabled>Unmute</button>
                 <button type="button" id="btnWarn" disabled>Warn</button>
                 <button type="button" id="btnUserHash" disabled>IP Hash</button>
                 <button type="button" id="btnAddVeri2" disabled>Veri2</button>
                 <button type="button" id="btnMutedList" disabled>Muted</button>
                 <button type="button" id="btnWarnedList" disabled>Warned</button>
-                <button type="button" id="btnChatHist" disabled>Chat Hist</button>
-                <button type="button" id="btnTipHist" disabled>Tips</button>
-                <button type="button" id="btnMuteHist" disabled>Mutes</button>
               </div>
               <label class="compact-label">Mute-Zeit <select id="mutePeriod"></select></label>
               <label class="compact-label">Mute-BP <select id="cbMuteBlueprints"><option value="">—</option></select></label>
@@ -417,19 +413,58 @@
   </div>
 
   <div id="mutePolicyModal" class="overlay-backdrop hidden">
-    <div class="overlay panel policy-modal">
-      <h3>Policy 2026 — Mute</h3>
-      <p id="policyUserLine" class="status-line"></p>
-      <label>Grund / Keywords
-        <input id="policyReason" type="text" placeholder="z.B. begging, toxic…" />
-      </label>
-      <p id="policySuggestion" class="status-line"></p>
-      <label>Kategorie <select id="policyCategory"></select></label>
-      <label>Dauer <select id="policyDuration"></select></label>
-      <label>Mute-Nachricht <input id="policyMuteMsg" type="text" /></label>
-      <div class="row-inline">
-        <button type="button" id="btnPolicyApply" class="primary">Mute ausführen</button>
-        <button type="button" id="btnPolicyCancel">Abbrechen</button>
+    <div class="stake-mod-modal panel">
+      <header class="stake-mod-head">
+        <h3 class="stake-mod-title"><span class="stake-mod-gear" aria-hidden="true">⚙</span> Moderation</h3>
+        <button type="button" id="btnPolicyClose" class="stake-mod-close" title="Schließen">×</button>
+      </header>
+
+      <div class="stake-mod-user">
+        <div id="policyUserName" class="stake-mod-username">—</div>
+        <div id="policyUserHash" class="stake-mod-hash">—</div>
+      </div>
+
+      <nav class="stake-mod-tabs" role="tablist">
+        <button type="button" class="stake-mod-tab active" data-mod-tab="mute" role="tab">Stummschalten</button>
+        <button type="button" class="stake-mod-tab" data-mod-tab="tips" role="tab">Spenden</button>
+        <button type="button" class="stake-mod-tab" data-mod-tab="chat" role="tab">Chat</button>
+      </nav>
+
+      <div class="stake-mod-body">
+        <div id="modTabMute" class="stake-mod-panel active" data-mod-panel="mute">
+          <label class="stake-mod-field">
+            <span class="stake-mod-label">Läuft ab</span>
+            <select id="policyDuration"></select>
+          </label>
+          <label class="stake-mod-field">
+            <span class="stake-mod-label">Beschreibung <em class="req">*</em></span>
+            <input id="policyMuteMsg" type="text" autocomplete="off" placeholder="z. B. low quality chat, begging…" />
+          </label>
+          <p class="stake-mod-field-note">Mute-Grund in der Historie — nicht die Chat-Nachricht an den User (dafür Mute-Text im Hub).</p>
+          <p id="policySuggestion" class="stake-mod-hint"></p>
+          <details class="stake-mod-advanced">
+            <summary>Policy-Vorschlag (optional)</summary>
+            <label class="stake-mod-field compact">
+              <span class="stake-mod-label">Keyword / Grund</span>
+              <input id="policyReason" type="text" placeholder="z. B. begging, toxic…" />
+            </label>
+            <label class="stake-mod-field compact">
+              <span class="stake-mod-label">Kategorie</span>
+              <select id="policyCategory"></select>
+            </label>
+          </details>
+          <button type="button" id="btnPolicyApply" class="stake-mod-submit">Benutzer stummschalten</button>
+          <button type="button" id="btnPolicyUnmute" class="stake-mod-unmute sm">Stummschaltung aufheben</button>
+          <div id="policyMuteHistory" class="stake-mod-history"></div>
+        </div>
+
+        <div id="modTabTips" class="stake-mod-panel" data-mod-panel="tips" hidden>
+          <div id="policyTipHistory" class="stake-mod-chat-hist overlay-body"></div>
+        </div>
+
+        <div id="modTabChat" class="stake-mod-panel" data-mod-panel="chat" hidden>
+          <div id="policyChatHistory" class="stake-mod-chat-hist overlay-body"></div>
+        </div>
       </div>
     </div>
   </div>

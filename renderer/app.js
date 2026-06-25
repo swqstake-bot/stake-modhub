@@ -9,6 +9,7 @@ const state = {
   modUser: '',
   validatedUser: '',
   validatedUserId: '',
+  validatedUserHashedIp: '',
   chatLines: [],
   rhSessions: [],
   rhActiveId: null,
@@ -1469,16 +1470,12 @@ function hideOverlay() {
 
 function setModActionsEnabled(on) {
   const ids = [
-    'btnMute',
-    'btnUnmute',
+    'btnModAction',
     'btnWarn',
     'btnUserHash',
     'btnSendChat',
     'btnSendMute',
     'btnSendWarn',
-    'btnChatHist',
-    'btnTipHist',
-    'btnMuteHist',
     'btnAddVeri2',
     'btnMutedList',
     'btnWarnedList',
@@ -1500,7 +1497,7 @@ function setModActionsEnabled(on) {
 }
 
 function setUserActionsEnabled(on) {
-  ['btnMute', 'btnUnmute', 'btnWarn', 'btnUserHash', 'btnChatHist', 'btnTipHist', 'btnMuteHist', 'btnAddVeri2', 'btnApiRecent'].forEach((id) => {
+  ['btnModAction', 'btnWarn', 'btnUserHash', 'btnAddVeri2', 'btnApiRecent'].forEach((id) => {
     const el = $(id);
     if (el) el.disabled = !on || !state.loggedIn;
   });
@@ -2035,6 +2032,31 @@ async function openBetLookup(betId) {
   showBetPanel(res.data, betId);
 }
 
+function closePolicyMuteModal() {
+  $('mutePolicyModal')?.classList.add('hidden');
+  state.policyPending = null;
+  switchModTab('mute');
+}
+
+function switchModTab(tabId) {
+  document.querySelectorAll('.stake-mod-tab').forEach((btn) => {
+    const active = btn.dataset.modTab === tabId && !btn.disabled;
+    btn.classList.toggle('active', active);
+  });
+  document.querySelectorAll('.stake-mod-panel').forEach((panel) => {
+    const active = panel.dataset.modPanel === tabId;
+    panel.classList.toggle('active', active);
+    panel.hidden = !active;
+  });
+}
+
+function renderPolicyMuteHistory(list) {
+  const el = $('policyMuteHistory');
+  if (!el) return;
+  const fmt = window.HistoryFormat?.formatStakeMuteHistoryTable;
+  el.innerHTML = fmt ? fmt(list) : '<p class="stake-mod-hist-empty">—</p>';
+}
+
 function initPolicyModal() {
   const cats = Policy.POLICY_CATEGORIES || {};
   $('policyCategory').innerHTML = Object.values(cats)
@@ -2046,7 +2068,7 @@ function initPolicyModal() {
 }
 
 function updatePolicySuggestion() {
-  const reason = $('policyReason').value;
+  const reason = ($('policyMuteMsg')?.value || $('policyReason')?.value || '').trim();
   const cat = Policy.detectedReasonToCategory?.(reason);
   const catEl = $('policyCategory');
   if (cat && catEl) catEl.value = cat;
@@ -2054,7 +2076,11 @@ function updatePolicySuggestion() {
   const strikes = Policy.countStrikesInCategory?.(state.muteHistoryCache, categoryId) || 0;
   const mins = Policy.getSuggestedMinutes?.(categoryId, strikes);
   const label = mins != null ? Policy.minutesToLabel?.(mins) : 'manuell';
-  $('policySuggestion').textContent = mins != null ? `Vorschlag: ${label} (Strike ${strikes + 1})` : 'Kategorie manuell wählen';
+  const hint = $('policySuggestion');
+  if (hint) {
+    hint.textContent =
+      mins != null ? `Policy-Vorschlag: ${label} (Strike ${strikes + 1})` : 'Dauer manuell wählen';
+  }
   const dur = Policy.minutesToDurationString?.(mins);
   if (dur) {
     const sel = $('policyDuration');
@@ -2068,31 +2094,75 @@ function updatePolicySuggestion() {
   }
 }
 
-async function openPolicyMute() {
+async function loadPolicyChatTab() {
+  const el = $('policyChatHistory');
+  if (!el || !state.validatedUser) return;
+  el.innerHTML = '<p class="hist-empty">Lade Chat-Historie…</p>';
+  const res = await modHub.chatHistory(state.validatedUser);
+  if (!res.ok) {
+    el.innerHTML = `<p class="hist-empty">Fehler: ${esc(res.error)}</p>`;
+    return;
+  }
+  el.innerHTML = window.HistoryFormat?.formatChatHistory(res.data) || '<p class="hist-empty">—</p>';
+}
+
+async function loadPolicyTipsTab() {
+  const el = $('policyTipHistory');
+  if (!el || !state.validatedUser) return;
+  el.innerHTML = '<p class="hist-empty">Lade Spenden-Historie…</p>';
+  const res = await modHub.tipHistory(state.validatedUser);
+  if (!res.ok) {
+    el.innerHTML = `<p class="hist-empty">Fehler: ${esc(res.error)}</p>`;
+    return;
+  }
+  el.innerHTML = window.HistoryFormat?.formatTipHistory(res.data) || '<p class="hist-empty">—</p>';
+}
+
+async function openModAction(initialTab = 'mute') {
   if (!state.validatedUserId) return;
   state.policyPending = { userId: state.validatedUserId, username: state.validatedUser };
-  $('policyUserLine').textContent = `User: ${state.validatedUser}`;
-  $('policyReason').value = $('muteMessage').value.trim();
-  $('policyMuteMsg').value = prependUserMentionForChat($('muteMessage').value.trim(), state.validatedUser);
+  const v2 = isVeri2(state.validatedUser) ? ' ★' : '';
+  $('policyUserName').textContent = `${state.validatedUser}${v2}`;
+  $('policyReason').value = '';
+  $('policyMuteMsg').value = '';
   const hist = await modHub.muteHistory(state.validatedUser);
-  state.muteHistoryCache = hist.ok ? hist.data?.user?.community?.muteList || [] : [];
+  const user = hist.ok ? hist.data?.user : null;
+  const hash = user?.hashedIp || state.validatedUserHashedIp || '';
+  $('policyUserHash').textContent = hash ? `Hashed IP: ${hash}` : 'Hashed IP: —';
+  if (user?.hashedIp) state.validatedUserHashedIp = user.hashedIp;
+  state.muteHistoryCache = user?.community?.muteList || [];
+  renderPolicyMuteHistory(state.muteHistoryCache);
   updatePolicySuggestion();
+  switchModTab(initialTab);
+  if (initialTab === 'chat') loadPolicyChatTab();
+  else if (initialTab === 'tips') loadPolicyTipsTab();
   $('mutePolicyModal').classList.remove('hidden');
+  if (initialTab === 'mute') $('policyMuteMsg')?.focus();
+}
+
+async function openPolicyMute() {
+  return openModAction('mute');
 }
 
 async function applyPolicyMute() {
   if (!state.policyPending) return;
   const expire = $('policyDuration').value || $('mutePeriod').value;
-  const rawMsg = $('policyMuteMsg').value.trim() || $('muteMessage').value.trim();
-  const message = prependUserMentionForChat(rawMsg, state.policyPending.username);
+  const message = ($('policyMuteMsg')?.value || '').trim();
+  if (!message) {
+    $('policySuggestion').textContent = 'Beschreibung (Mute-Grund) ist erforderlich.';
+    $('policyMuteMsg')?.focus();
+    return;
+  }
+  const btn = $('btnPolicyApply');
+  if (btn) btn.disabled = true;
   const res = await modHub.muteUser({
     userId: state.policyPending.userId,
     expire,
     message
   });
+  if (btn) btn.disabled = false;
   $('validateStatus').textContent = res.ok ? `Gemutet: ${state.policyPending.username}` : `Fehler: ${res.error}`;
-  $('mutePolicyModal').classList.add('hidden');
-  state.policyPending = null;
+  if (res.ok) closePolicyMuteModal();
 }
 
 async function processBetForRh(line) {
@@ -2330,6 +2400,7 @@ function wireHub() {
       const canonical = stripAt(u.name) || name;
       state.validatedUser = canonical;
       state.validatedUserId = u.id;
+      state.validatedUserHashedIp = u.hashedIp || '';
       $('validateUsername').value = canonical;
       const v2 = isVeri2(canonical) ? ' ★ Veri2' : '';
       $('validateStatus').textContent = `OK: ${canonical}${v2}`;
@@ -2340,6 +2411,7 @@ function wireHub() {
     } else {
       state.validatedUser = '';
       state.validatedUserId = '';
+      state.validatedUserHashedIp = '';
       $('validateStatus').textContent =
         res.error === 'user_not_found'
           ? `User „${name}“ nicht gefunden (API)`
@@ -2375,19 +2447,47 @@ function wireHub() {
     }
   });
 
-  $('btnMute')?.addEventListener('click', () => openPolicyMute());
+  $('btnModAction')?.addEventListener('click', () => openModAction('mute'));
   $('btnPolicyApply')?.addEventListener('click', () => applyPolicyMute());
-  $('btnPolicyCancel')?.addEventListener('click', () => {
-    $('mutePolicyModal').classList.add('hidden');
-    state.policyPending = null;
-  });
-  $('policyReason')?.addEventListener('input', updatePolicySuggestion);
-  $('policyCategory')?.addEventListener('change', updatePolicySuggestion);
-
-  $('btnUnmute')?.addEventListener('click', async () => {
+  $('btnPolicyUnmute')?.addEventListener('click', async () => {
     if (!state.validatedUserId) return;
     const res = await modHub.unmuteUser({ userId: state.validatedUserId });
-    $('validateStatus').textContent = res.ok ? `Unmute: ${state.validatedUser}` : `Fehler: ${res.error}`;
+    $('validateStatus').textContent = res.ok
+      ? `Unmute: ${state.validatedUser}`
+      : `Fehler: ${res.error}`;
+    if (res.ok) {
+      const hist = await modHub.muteHistory(state.validatedUser);
+      const user = hist.ok ? hist.data?.user : null;
+      state.muteHistoryCache = user?.community?.muteList || [];
+      renderPolicyMuteHistory(state.muteHistoryCache);
+    }
+  });
+  $('btnPolicyClose')?.addEventListener('click', () => closePolicyMuteModal());
+  $('mutePolicyModal')?.addEventListener('click', (e) => {
+    if (e.target === $('mutePolicyModal')) closePolicyMuteModal();
+  });
+  document.querySelectorAll('.stake-mod-tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const tab = btn.dataset.modTab;
+      switchModTab(tab);
+      if (tab === 'chat') loadPolicyChatTab();
+      else if (tab === 'tips') loadPolicyTipsTab();
+    });
+  });
+  $('policyReason')?.addEventListener('input', updatePolicySuggestion);
+  $('policyMuteMsg')?.addEventListener('input', () => {
+    if ($('policyReason') && $('policyMuteMsg')?.value.trim()) {
+      $('policyReason').value = $('policyMuteMsg').value;
+    }
+    updatePolicySuggestion();
+  });
+  $('policyCategory')?.addEventListener('change', updatePolicySuggestion);
+  $('policyMuteMsg')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyPolicyMute();
+    }
   });
 
   $('btnWarn')?.addEventListener('click', async () => {
@@ -2584,48 +2684,6 @@ function wireHub() {
     const gameLabel = session?.game ? `${session.game} RH — ` : '';
     const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
     $('rhRecordStatus').textContent = res.ok ? `${gameLabel}RH-Nachricht gesendet.` : `${gameLabel}Fehler: ${res.error}`;
-  });
-
-  $('btnChatHist')?.addEventListener('click', async () => {
-    if (!state.validatedUser) {
-      setHistoryOut('<p class="hist-empty">Zuerst User validieren.</p>', 'Chat-Historie');
-      return;
-    }
-    setHistoryOut('<p class="hist-empty">Lade Chat-Historie…</p>', 'Chat-Historie');
-    const res = await modHub.chatHistory(state.validatedUser);
-    if (!res.ok) {
-      setHistoryOut(`<p class="hist-empty">Fehler: ${esc(res.error)}</p>`, 'Chat-Historie');
-      return;
-    }
-    setHistoryOut(HistoryFormat.formatChatHistory(res.data), 'Chat-Historie');
-  });
-
-  $('btnTipHist')?.addEventListener('click', async () => {
-    if (!state.validatedUser) {
-      setHistoryOut('<p class="hist-empty">Zuerst User validieren.</p>', 'Tip-Historie');
-      return;
-    }
-    setHistoryOut('<p class="hist-empty">Lade Tip-Historie…</p>', 'Tip-Historie');
-    const res = await modHub.tipHistory(state.validatedUser);
-    if (!res.ok) {
-      setHistoryOut(`<p class="hist-empty">Fehler: ${esc(res.error)}</p>`, 'Tip-Historie');
-      return;
-    }
-    setHistoryOut(HistoryFormat.formatTipHistory(res.data), 'Tip-Historie');
-  });
-
-  $('btnMuteHist')?.addEventListener('click', async () => {
-    if (!state.validatedUser) {
-      setHistoryOut('<p class="hist-empty">Zuerst User validieren.</p>', 'Mute-Historie');
-      return;
-    }
-    setHistoryOut('<p class="hist-empty">Lade Mute-Historie…</p>', 'Mute-Historie');
-    const res = await modHub.muteHistory(state.validatedUser);
-    if (!res.ok) {
-      setHistoryOut(`<p class="hist-empty">Fehler: ${esc(res.error)}</p>`, 'Mute-Historie');
-      return;
-    }
-    setHistoryOut(HistoryFormat.formatMuteHistory(res.data), 'Mute-Historie');
   });
 }
 

@@ -62,6 +62,24 @@
     return `<table class="hist-table"><thead><tr><th>Zeit</th><th>Von</th><th>An</th><th>Betrag</th><th>Chat</th><th>Öffentlich</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
+  function formatStakeMuteHistoryTable(list) {
+    if (!Array.isArray(list) || !list.length) {
+      return '<p class="stake-mod-hist-empty">Keine Mute-Historie.</p>';
+    }
+    const rows = list
+      .map((m) => {
+        const grund = m.message || '—';
+        const mod = m.authUser?.name || '—';
+        const d = m.createdAt ? new Date(m.createdAt) : null;
+        const ts = d
+          ? `${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} ${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`
+          : '—';
+        return `<tr><td>${esc(grund)}</td><td>${esc(mod)}</td><td>${esc(ts)}</td></tr>`;
+      })
+      .join('');
+    return `<table class="stake-mod-hist-table"><thead><tr><th>Grund</th><th>Stummgeschaltet von</th><th>Erstellt am</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
   function formatMuteHistory(data) {
     const list = data?.user?.community?.muteList;
     if (!Array.isArray(list) || !list.length) return '<p class="hist-empty">Keine Mute-Historie.</p>';
@@ -106,6 +124,7 @@
     formatChatHistory,
     formatTipHistory,
     formatMuteHistory,
+    formatStakeMuteHistoryTable,
     formatUserDetails
   };
 })();
