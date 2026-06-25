@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.20</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.21</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -27,6 +27,7 @@
     <button class="tab active" data-tab="hub">Hub</button>
     <button class="tab" data-tab="rh">Rollhunt</button>
     <button class="tab" data-tab="wetten">Wetten</button>
+    <button class="tab" data-tab="automsg">Automsg</button>
     <button class="tab" data-tab="settings">Settings</button>
   </nav>
 
@@ -257,6 +258,39 @@
       </div>
     </section>
 
+    <section id="panel-automsg" class="panel-view">
+      <div class="panel automsg-panel">
+        <h2>Automsg / Regelpost</h2>
+        <p class="hint">Eigene Chat-Texte anlegen, manuell senden (rot) oder Autopost einstellen (grün).</p>
+
+        <div class="panel compact automsg-notify-panel">
+          <h3>Markierung im Chat (@Mod)</h3>
+          <div class="row-inline automsg-notify-row">
+            <label class="check"><input type="checkbox" id="mentionNotifyEnabled" checked /> Ton bei Erwähnung</label>
+            <label>Sound
+              <select id="mentionNotifySound">
+                <option value="1">1 — Kurz</option>
+                <option value="2">2 — Doppelt</option>
+                <option value="3">3 — Tief</option>
+                <option value="4">4 — Melodie</option>
+                <option value="5">5 — Alarm</option>
+              </select>
+            </label>
+            <button type="button" id="btnTestMentionSound" class="sm">Test</button>
+          </div>
+        </div>
+
+        <div class="automsg-toolbar">
+          <button type="button" id="btnAddAutoMsg" class="automsg-btn-create">+ Neue Automsg</button>
+          <span id="automsgStatus" class="status-line">—</span>
+        </div>
+
+        <div id="automsgList" class="automsg-list">
+          <p class="hint automsg-empty">Noch keine Automsg — blauen Button nutzen.</p>
+        </div>
+      </div>
+    </section>
+
     <section id="panel-settings" class="panel-view">
       <div class="panel settings-panel">
         <h2>Einstellungen</h2>
@@ -285,23 +319,6 @@
         <div class="grid-2">
           <label>Max Chat-Zeilen <input id="maxChatRows" type="number" min="100" max="5000" value="1000" /></label>
           <label>Hash-Reset (Uhrzeit) <input id="autodelTime" type="time" value="23:59" /></label>
-        </div>
-        <div class="panel compact rule-post-panel">
-          <h3>Regelpost (Chat)</h3>
-          <label class="check"><input type="checkbox" id="rulePostEnabled" /> Automatisch posten</label>
-          <label>Intervall (Minuten)
-            <input id="rulePostIntervalMinutes" type="number" min="0" max="1440" step="5" value="60" />
-            <span class="hint">0 = nur manuell</span>
-          </label>
-          <label class="compact-label">Zusatz-Text (optional, vor dem Link)
-            <textarea id="rulePostExtra" rows="2" maxlength="80" placeholder="z. B. Bitte lest die Regeln!"></textarea>
-          </label>
-          <p class="hint rule-post-link-hint">Link: <span id="rulePostLinkPreview"></span> · max. 160 Zeichen gesamt</p>
-          <p id="rulePostPreview" class="hint rule-post-preview"></p>
-          <div class="row-inline">
-            <button type="button" id="btnRulePostNow" class="primary sm">Regelpost jetzt senden</button>
-            <span id="rulePostStatus" class="status-line">—</span>
-          </div>
         </div>
         <div class="panel compact">
           <h3>Updates (GitHub)</h3>
@@ -338,6 +355,42 @@
       <button type="button" id="btnUpdateDownload" class="primary sm hidden">Download</button>
       <button type="button" id="btnUpdateRestart" class="primary sm hidden">Neustart &amp; Installieren</button>
       <button type="button" id="btnUpdateDismiss" class="sm hidden">Schließen</button>
+    </div>
+  </div>
+
+  <div id="autoMsgEditModal" class="overlay-backdrop hidden">
+    <div class="overlay panel automsg-modal">
+      <h3 id="autoMsgEditTitle">Neue Automsg</h3>
+      <label class="compact-label">Name
+        <input id="autoMsgEditLabel" type="text" maxlength="40" placeholder="z. B. Werbung, Regelpost…" />
+      </label>
+      <label class="compact-label">Text
+        <textarea id="autoMsgEditText" rows="4" maxlength="160" placeholder="Chat-Nachricht…"></textarea>
+      </label>
+      <label class="check"><input type="checkbox" id="autoMsgEditRulesLink" /> Regel-Link anhängen (<span id="autoMsgRulesLinkPreview"></span>)</label>
+      <p id="autoMsgEditPreview" class="hint automsg-preview"></p>
+      <div class="row-inline">
+        <button type="button" id="btnAutoMsgEditSave" class="automsg-btn-create">Speichern</button>
+        <button type="button" id="btnAutoMsgEditDelete" class="danger sm hidden">Löschen</button>
+        <button type="button" id="btnAutoMsgEditCancel" class="sm">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="autoMsgSettingsModal" class="overlay-backdrop hidden">
+    <div class="overlay panel automsg-modal">
+      <h3>Autopost-Einstellungen</h3>
+      <p id="autoMsgSettingsName" class="status-line"></p>
+      <label class="check"><input type="checkbox" id="autoMsgSettingsEnabled" /> Automatisch posten</label>
+      <label>Intervall (Minuten)
+        <input id="autoMsgSettingsInterval" type="number" min="0" max="1440" step="5" value="60" />
+        <span class="hint">0 = nur manuell</span>
+      </label>
+      <p id="autoMsgSettingsPreview" class="hint automsg-preview"></p>
+      <div class="row-inline">
+        <button type="button" id="btnAutoMsgSettingsSave" class="automsg-btn-settings">Speichern</button>
+        <button type="button" id="btnAutoMsgSettingsCancel" class="sm">Abbrechen</button>
+      </div>
     </div>
   </div>
 

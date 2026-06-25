@@ -25,7 +25,10 @@ const state = {
   convRates: {},
   convRatesAt: 0,
   hubClockTimer: null,
-  rulePostTimer: null,
+  autoMsgTimer: null,
+  autoMsgLastSent: {},
+  autoMsgEditId: null,
+  autoMsgSettingsId: null,
   veri2: new Set(),
   blueprints: { chat: [], mute: [], warn: [], rh: [] },
   tagged: [],
@@ -1027,7 +1030,7 @@ function formatRainSharesHtml(shares) {
 function buildRulePostMessage(extra) {
   const link = C.RULE_POST_LINK || 'https://stakecommunity.com/topic/119796-📜deutsche-chatregeln📜/';
   const linkPart = `📜 Chatregeln: ${link}`;
-  const extraTrim = String(extra ?? state.settings.rulePostExtra ?? '').trim();
+  const extraTrim = String(extra ?? '').trim();
   if (!extraTrim) return linkPart.slice(0, RH_CHAT_MAX_LEN);
   const sep = ' — ';
   const combined = `${extraTrim}${sep}${linkPart}`;
@@ -1037,53 +1040,271 @@ function buildRulePostMessage(extra) {
   return linkPart.slice(0, RH_CHAT_MAX_LEN);
 }
 
-function updateRulePostPreviewUi() {
-  const linkEl = $('rulePostLinkPreview');
-  if (linkEl) linkEl.textContent = C.RULE_POST_LINK || '';
-  const preview = $('rulePostPreview');
-  if (!preview) return;
-  const msg = buildRulePostMessage($('rulePostExtra')?.value ?? '');
-  preview.textContent = msg ? `Vorschau (${msg.length}/${RH_CHAT_MAX_LEN}): ${msg}` : '';
+function newAutoMsgId() {
+  return `am-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function clearRulePostTimer() {
-  if (state.rulePostTimer) {
-    clearInterval(state.rulePostTimer);
-    state.rulePostTimer = null;
+function migrateAutoMessages(settings) {
+  if (Array.isArray(settings.autoMessages) && settings.autoMessages.length) {
+    return settings.autoMessages.map((m) => ({
+      id: m.id || newAutoMsgId(),
+      label: String(m.label || 'Automsg').trim() || 'Automsg',
+      text: String(m.text || ''),
+      appendRulesLink: !!m.appendRulesLink,
+      autoEnabled: !!m.autoEnabled,
+      autoIntervalMinutes: Math.max(0, Number(m.autoIntervalMinutes) || 0)
+    }));
+  }
+  const msgs = JSON.parse(JSON.stringify([
+    {
+      id: 'regelpost',
+      label: 'Regelpost',
+      text: '',
+      appendRulesLink: true,
+      autoEnabled: false,
+      autoIntervalMinutes: 60
+    }
+  ]));
+  const rules = msgs.find((m) => m.appendRulesLink) || msgs[0];
+  if (rules) {
+    rules.autoEnabled = !!settings.rulePostEnabled;
+    rules.autoIntervalMinutes = Math.max(0, Number(settings.rulePostIntervalMinutes) || 60);
+    rules.text = String(settings.rulePostExtra || '');
+  }
+  return msgs;
+}
+
+function getAutoMessages() {
+  return Array.isArray(state.settings.autoMessages) ? state.settings.autoMessages : [];
+}
+
+function findAutoMessage(id) {
+  return getAutoMessages().find((m) => m.id === id) || null;
+}
+
+function buildAutoMsgMessage(entry) {
+  if (!entry) return '';
+  if (entry.appendRulesLink) return buildRulePostMessage(entry.text);
+  return String(entry.text || '').trim().slice(0, RH_CHAT_MAX_LEN);
+}
+
+function autoMsgPreview(entry) {
+  const msg = buildAutoMsgMessage(entry);
+  if (!msg) return '—';
+  return msg.length > 120 ? `${msg.slice(0, 119)}…` : msg;
+}
+
+function autoMsgMetaLabel(entry) {
+  if (!entry?.autoEnabled) return 'Nur manuell';
+  const min = Math.max(0, Number(entry.autoIntervalMinutes) || 0);
+  if (min < 1) return 'Nur manuell';
+  return `Autopost alle ${min} min`;
+}
+
+async function persistAutoMsgSettings(partial = {}) {
+  const autoMessages = partial.autoMessages ?? getAutoMessages();
+  state.settings = await modHub.saveSettings({
+    autoMessages,
+    mentionNotifyEnabled:
+      partial.mentionNotifyEnabled ?? !!$('mentionNotifyEnabled')?.checked,
+    mentionNotifySound: Math.min(
+      5,
+      Math.max(1, Number(partial.mentionNotifySound ?? $('mentionNotifySound')?.value) || 1)
+    )
+  });
+  renderAutoMsgList();
+  syncAutoMsgTimers();
+}
+
+function renderAutoMsgList() {
+  const list = $('automsgList');
+  if (!list) return;
+  const msgs = getAutoMessages();
+  if (!msgs.length) {
+    list.innerHTML = '<p class="hint automsg-empty">Noch keine Automsg — blauen Button nutzen.</p>';
+    return;
+  }
+  list.innerHTML = msgs
+    .map((m) => {
+      const activeCls = m.autoEnabled && (Number(m.autoIntervalMinutes) || 0) > 0 ? ' is-active' : '';
+      return `<div class="automsg-row" data-id="${esc(m.id)}">
+        <div class="automsg-row-body">
+          <span class="automsg-row-title">${esc(m.label || 'Automsg')}${m.appendRulesLink ? ' <span class="hint">(Regeln)</span>' : ''}</span>
+          <span class="automsg-row-preview">${esc(autoMsgPreview(m))}</span>
+          <span class="automsg-row-meta">${esc(autoMsgMetaLabel(m))}</span>
+        </div>
+        <button type="button" class="automsg-btn-send sm" data-action="send" title="Jetzt senden">▶</button>
+        <button type="button" class="automsg-btn-settings sm${activeCls}" data-action="settings" title="Autopost-Einstellungen">⚙</button>
+      </div>`;
+    })
+    .join('');
+}
+
+function setAutomsgStatus(text) {
+  const el = $('automsgStatus');
+  if (el) el.textContent = text || '—';
+}
+
+function clearAutoMsgTimers() {
+  if (state.autoMsgTimer) {
+    clearInterval(state.autoMsgTimer);
+    state.autoMsgTimer = null;
   }
 }
 
-function syncRulePostTimer() {
-  clearRulePostTimer();
-  const s = state.settings;
-  if (!state.loggedIn || !s.rulePostEnabled) return;
-  const min = Math.max(0, Number(s.rulePostIntervalMinutes) || 0);
-  if (min < 1) return;
-  state.rulePostTimer = setInterval(() => {
-    postRuleMessage({ auto: true });
-  }, min * 60 * 1000);
+function syncAutoMsgTimers() {
+  clearAutoMsgTimers();
+  if (!state.loggedIn) return;
+  state.autoMsgLastSent = state.autoMsgLastSent || {};
+  state.autoMsgTimer = setInterval(() => {
+    const now = Date.now();
+    for (const m of getAutoMessages()) {
+      if (!m.autoEnabled) continue;
+      const min = Math.max(0, Number(m.autoIntervalMinutes) || 0);
+      if (min < 1) continue;
+      const last = state.autoMsgLastSent[m.id] || 0;
+      if (now - last >= min * 60 * 1000) {
+        postAutoMessage(m.id, { auto: true });
+      }
+    }
+  }, 30000);
 }
 
-async function postRuleMessage({ auto = false } = {}) {
-  const status = $('rulePostStatus');
-  if (!state.loggedIn) {
-    if (status) status.textContent = 'Zuerst einloggen.';
+async function postAutoMessage(id, { auto = false } = {}) {
+  const entry = findAutoMessage(id);
+  if (!entry) {
+    setAutomsgStatus('Automsg nicht gefunden.');
     return { ok: false };
   }
-  const msg = buildRulePostMessage($('rulePostExtra')?.value ?? '');
+  if (!state.loggedIn) {
+    setAutomsgStatus('Zuerst einloggen.');
+    return { ok: false };
+  }
+  const msg = buildAutoMsgMessage(entry);
   if (!msg) {
-    if (status) status.textContent = 'Regelpost leer.';
+    setAutomsgStatus(`${entry.label || 'Automsg'} ist leer.`);
     return { ok: false };
   }
   const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
-  if (status) {
-    status.textContent = res.ok
-      ? auto
-        ? `Auto-Regelpost gesendet (${msg.length} Zeichen).`
-        : `Regelpost gesendet (${msg.length} Zeichen).`
-      : `Fehler: ${res.error}`;
+  if (res.ok) {
+    state.autoMsgLastSent[id] = Date.now();
+    setAutomsgStatus(
+      auto
+        ? `Auto: „${entry.label}“ gesendet (${msg.length} Zeichen).`
+        : `„${entry.label}“ gesendet (${msg.length} Zeichen).`
+    );
+  } else {
+    setAutomsgStatus(`Fehler bei „${entry.label}“: ${res.error}`);
   }
   return res;
+}
+
+function updateAutoMsgEditPreview() {
+  const preview = $('autoMsgEditPreview');
+  if (!preview) return;
+  const entry = {
+    text: $('autoMsgEditText')?.value ?? '',
+    appendRulesLink: !!$('autoMsgEditRulesLink')?.checked
+  };
+  const msg = buildAutoMsgMessage(entry);
+  preview.textContent = msg
+    ? `Vorschau (${msg.length}/${RH_CHAT_MAX_LEN}): ${msg}`
+    : 'Vorschau leer';
+}
+
+function openAutoMsgEditor(id = null) {
+  state.autoMsgEditId = id;
+  const existing = id ? findAutoMessage(id) : null;
+  $('autoMsgEditTitle').textContent = existing ? 'Automsg bearbeiten' : 'Neue Automsg';
+  $('autoMsgEditLabel').value = existing?.label || '';
+  $('autoMsgEditText').value = existing?.text || '';
+  if ($('autoMsgEditRulesLink')) $('autoMsgEditRulesLink').checked = !!existing?.appendRulesLink;
+  if ($('autoMsgRulesLinkPreview')) {
+    $('autoMsgRulesLinkPreview').textContent = C.RULE_POST_LINK || '';
+  }
+  $('btnAutoMsgEditDelete')?.classList.toggle('hidden', !existing);
+  updateAutoMsgEditPreview();
+  $('autoMsgEditModal')?.classList.remove('hidden');
+}
+
+function closeAutoMsgEditor() {
+  state.autoMsgEditId = null;
+  $('autoMsgEditModal')?.classList.add('hidden');
+}
+
+function openAutoMsgSettings(id) {
+  const entry = findAutoMessage(id);
+  if (!entry) return;
+  state.autoMsgSettingsId = id;
+  $('autoMsgSettingsName').textContent = entry.label || 'Automsg';
+  if ($('autoMsgSettingsEnabled')) $('autoMsgSettingsEnabled').checked = !!entry.autoEnabled;
+  if ($('autoMsgSettingsInterval')) {
+    $('autoMsgSettingsInterval').value = String(entry.autoIntervalMinutes ?? 60);
+  }
+  const preview = $('autoMsgSettingsPreview');
+  if (preview) preview.textContent = autoMsgPreview(entry);
+  $('autoMsgSettingsModal')?.classList.remove('hidden');
+}
+
+function closeAutoMsgSettings() {
+  state.autoMsgSettingsId = null;
+  $('autoMsgSettingsModal')?.classList.add('hidden');
+}
+
+let mentionAudioCtx = null;
+
+function playMentionNotifySound(soundId) {
+  if (!state.settings.mentionNotifyEnabled) return;
+  const id = Math.min(5, Math.max(1, Number(soundId ?? state.settings.mentionNotifySound) || 1));
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!mentionAudioCtx) mentionAudioCtx = new Ctx();
+    const ctx = mentionAudioCtx;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+    const playTone = (freq, start, dur, type = 'sine', gain = 0.12) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(gain, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + dur + 0.05);
+    };
+
+    const t0 = ctx.currentTime + 0.02;
+    if (id === 1) playTone(880, t0, 0.12);
+    else if (id === 2) {
+      playTone(740, t0, 0.1);
+      playTone(740, t0 + 0.16, 0.1);
+    } else if (id === 3) playTone(440, t0, 0.22, 'triangle', 0.14);
+    else if (id === 4) {
+      playTone(523, t0, 0.1);
+      playTone(659, t0 + 0.12, 0.1);
+      playTone(784, t0 + 0.24, 0.14);
+    } else {
+      playTone(980, t0, 0.08, 'square', 0.08);
+      playTone(980, t0 + 0.12, 0.08, 'square', 0.08);
+      playTone(980, t0 + 0.24, 0.08, 'square', 0.08);
+    }
+  } catch (_) {
+    /* audio optional */
+  }
+}
+
+function loadAutoMsgUiFromSettings() {
+  const s = state.settings;
+  if ($('mentionNotifyEnabled')) $('mentionNotifyEnabled').checked = s.mentionNotifyEnabled !== false;
+  if ($('mentionNotifySound')) {
+    $('mentionNotifySound').value = String(Math.min(5, Math.max(1, Number(s.mentionNotifySound) || 1)));
+  }
+  renderAutoMsgList();
+  syncAutoMsgTimers();
 }
 
 function setValidateButtonState(validated) {
@@ -1259,7 +1480,7 @@ function updateLoginUi() {
     live.textContent = 'Live: aus';
   }
   setModActionsEnabled(state.loggedIn);
-  syncRulePostTimer();
+  syncAutoMsgTimers();
   renderTaggedRainRecent();
 }
 
@@ -1347,6 +1568,12 @@ function wireBlueprintSelect(selId, targetId, afterFill) {
 async function loadSettingsUi() {
   const s = await modHub.getSettings();
   state.settings = s;
+  const migrated = migrateAutoMessages(s);
+  if (!Array.isArray(s.autoMessages) || s.autoMessages.length === 0) {
+    state.settings = await modHub.saveSettings({ autoMessages: migrated });
+  } else {
+    state.settings.autoMessages = migrated;
+  }
   $('stakeDomain').innerHTML = (C.STAKE_MIRRORS || []).map((d) => `<option value="${d}">${d}</option>`).join('');
   $('stakeDomain').value = s.stakeDomain || 'stake.bet';
   if ($('wsHost')) $('wsHost').value = s.wsHost || 'stake.bet';
@@ -1388,13 +1615,7 @@ async function loadSettingsUi() {
   if (s.dataPath || state.settings.dataPath) {
     await refreshVeri2();
   }
-  if ($('rulePostEnabled')) $('rulePostEnabled').checked = !!s.rulePostEnabled;
-  if ($('rulePostIntervalMinutes')) {
-    $('rulePostIntervalMinutes').value = String(s.rulePostIntervalMinutes ?? 60);
-  }
-  if ($('rulePostExtra')) $('rulePostExtra').value = s.rulePostExtra || '';
-  updateRulePostPreviewUi();
-  syncRulePostTimer();
+  loadAutoMsgUiFromSettings();
 }
 
 async function saveSettingsFromForm() {
@@ -1415,14 +1636,10 @@ async function saveSettingsFromForm() {
     autodelHour: Number.isFinite(autodelHour) ? autodelHour : 23,
     autodelMinute: Number.isFinite(autodelMinute) ? autodelMinute : 59,
     rhCrashTimerMinutes: Math.max(0, Number($('rhTimerMinutes')?.value) || 0),
-    rhCrashTimerSeconds: Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0)),
-    rulePostEnabled: !!$('rulePostEnabled')?.checked,
-    rulePostIntervalMinutes: Math.max(0, Number($('rulePostIntervalMinutes')?.value) || 0),
-    rulePostExtra: ($('rulePostExtra')?.value || '').trim()
+    rhCrashTimerSeconds: Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0))
   });
   $('dataPathLabel').textContent = state.settings.dataPath || 'Datengrube/';
-  updateRulePostPreviewUi();
-  syncRulePostTimer();
+  syncAutoMsgTimers();
 }
 
 async function doLogin() {
@@ -1874,6 +2091,9 @@ async function onLiveMessage(m, { receivedAt } = {}) {
   if (line.modMention) {
     state.tagged.unshift(buildTaggedIndexEntry(line));
     if (state.tagged.length > 50) state.tagged.length = 50;
+    if (!isOwnModChatUser(line.username)) {
+      playMentionNotifySound();
+    }
   }
 
   if (line.kind === 'rain') {
@@ -2622,10 +2842,108 @@ function wireUpdates() {
   updateUiTimer = setInterval(triggerCheck, UPDATE_UI_CHECK_MS);
 }
 
-function wireSettings() {
-  $('rulePostExtra')?.addEventListener('input', () => updateRulePostPreviewUi());
-  $('btnRulePostNow')?.addEventListener('click', () => postRuleMessage({ auto: false }));
+function wireAutomsg() {
+  $('btnAddAutoMsg')?.addEventListener('click', () => openAutoMsgEditor(null));
 
+  $('automsgList')?.addEventListener('click', (e) => {
+    const row = e.target.closest('.automsg-row');
+    if (!row) return;
+    const id = row.getAttribute('data-id');
+    const btn = e.target.closest('button[data-action]');
+    if (!btn || !id) return;
+    if (btn.dataset.action === 'send') postAutoMessage(id, { auto: false });
+    else if (btn.dataset.action === 'settings') openAutoMsgSettings(id);
+  });
+
+  $('automsgList')?.addEventListener('dblclick', (e) => {
+    const row = e.target.closest('.automsg-row');
+    if (!row || e.target.closest('button')) return;
+    openAutoMsgEditor(row.getAttribute('data-id'));
+  });
+
+  $('autoMsgEditText')?.addEventListener('input', () => updateAutoMsgEditPreview());
+  $('autoMsgEditRulesLink')?.addEventListener('change', () => updateAutoMsgEditPreview());
+
+  $('btnAutoMsgEditCancel')?.addEventListener('click', () => closeAutoMsgEditor());
+  $('autoMsgEditModal')?.addEventListener('click', (e) => {
+    if (e.target === $('autoMsgEditModal')) closeAutoMsgEditor();
+  });
+
+  $('btnAutoMsgEditSave')?.addEventListener('click', async () => {
+    const label = ($('autoMsgEditLabel')?.value || '').trim() || 'Automsg';
+    const text = ($('autoMsgEditText')?.value || '').trim();
+    const appendRulesLink = !!$('autoMsgEditRulesLink')?.checked;
+    const msgs = getAutoMessages().slice();
+    const existingId = state.autoMsgEditId;
+    if (existingId) {
+      const idx = msgs.findIndex((m) => m.id === existingId);
+      if (idx >= 0) {
+        msgs[idx] = { ...msgs[idx], label, text, appendRulesLink };
+      }
+    } else {
+      msgs.push({
+        id: newAutoMsgId(),
+        label,
+        text,
+        appendRulesLink,
+        autoEnabled: false,
+        autoIntervalMinutes: 60
+      });
+    }
+    await persistAutoMsgSettings({ autoMessages: msgs });
+    closeAutoMsgEditor();
+    setAutomsgStatus(`„${label}“ gespeichert.`);
+  });
+
+  $('btnAutoMsgEditDelete')?.addEventListener('click', async () => {
+    const id = state.autoMsgEditId;
+    if (!id) return;
+    const msgs = getAutoMessages().filter((m) => m.id !== id);
+    await persistAutoMsgSettings({ autoMessages: msgs });
+    closeAutoMsgEditor();
+    setAutomsgStatus('Automsg gelöscht.');
+  });
+
+  $('btnAutoMsgSettingsCancel')?.addEventListener('click', () => closeAutoMsgSettings());
+  $('autoMsgSettingsModal')?.addEventListener('click', (e) => {
+    if (e.target === $('autoMsgSettingsModal')) closeAutoMsgSettings();
+  });
+
+  $('btnAutoMsgSettingsSave')?.addEventListener('click', async () => {
+    const id = state.autoMsgSettingsId;
+    if (!id) return;
+    const msgs = getAutoMessages().map((m) => {
+      if (m.id !== id) return m;
+      return {
+        ...m,
+        autoEnabled: !!$('autoMsgSettingsEnabled')?.checked,
+        autoIntervalMinutes: Math.max(0, Number($('autoMsgSettingsInterval')?.value) || 0)
+      };
+    });
+    await persistAutoMsgSettings({ autoMessages: msgs });
+    closeAutoMsgSettings();
+    const entry = findAutoMessage(id);
+    setAutomsgStatus(`Autopost für „${entry?.label || 'Automsg'}“ gespeichert.`);
+  });
+
+  $('mentionNotifyEnabled')?.addEventListener('change', () => {
+    persistAutoMsgSettings({
+      mentionNotifyEnabled: !!$('mentionNotifyEnabled')?.checked
+    });
+  });
+
+  $('mentionNotifySound')?.addEventListener('change', () => {
+    persistAutoMsgSettings({
+      mentionNotifySound: Number($('mentionNotifySound')?.value) || 1
+    });
+  });
+
+  $('btnTestMentionSound')?.addEventListener('click', () => {
+    playMentionNotifySound(Number($('mentionNotifySound')?.value) || 1);
+  });
+}
+
+function wireSettings() {
   $('btnSaveSettings')?.addEventListener('click', async () => {
     await saveSettingsFromForm();
     $('loginStatus').textContent = 'Einstellungen gespeichert.';
@@ -2712,6 +3030,7 @@ async function init() {
   wireHub();
   wireRh();
   wireBets();
+  wireAutomsg();
   wireSettings();
   wireUpdates();
   await loadSettingsUi();

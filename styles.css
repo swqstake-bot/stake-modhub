@@ -336,6 +336,133 @@ body {
   word-break: break-word;
 }
 
+/* —— Automsg tab —— */
+.automsg-panel {
+  max-width: 720px;
+}
+
+.automsg-notify-panel {
+  margin-bottom: 12px;
+}
+
+.automsg-notify-row {
+  align-items: center;
+  gap: 12px;
+}
+
+.automsg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.automsg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.automsg-empty {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed var(--stake-border);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.automsg-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: stretch;
+  padding: 8px 10px;
+  border: 1px solid var(--stake-border);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.automsg-row-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.automsg-row-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--stake-text);
+}
+
+.automsg-row-preview {
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--stake-muted);
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.automsg-row-meta {
+  font-size: 9px;
+  color: var(--stake-accent);
+}
+
+.automsg-btn-create {
+  background: #2563eb !important;
+  border-color: #1d4ed8 !important;
+  color: #fff !important;
+}
+
+.automsg-btn-create:hover {
+  background: #1d4ed8 !important;
+}
+
+.automsg-btn-send {
+  min-width: 52px;
+  background: #dc2626 !important;
+  border-color: #b91c1c !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+.automsg-btn-send:hover {
+  background: #b91c1c !important;
+}
+
+.automsg-btn-settings {
+  min-width: 52px;
+  background: #16a34a !important;
+  border-color: #15803d !important;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+.automsg-btn-settings:hover {
+  background: #15803d !important;
+}
+
+.automsg-btn-settings.is-active {
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.45);
+}
+
+.automsg-modal textarea {
+  width: 100%;
+  min-height: 4.5em;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.automsg-preview {
+  margin: 6px 0 0;
+  font-size: 10px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .index-item-sub {
   font-size: 10px;
   color: var(--stake-accent);
