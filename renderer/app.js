@@ -25,8 +25,9 @@ const state = {
   convRates: {},
   convRatesAt: 0,
   hubClockTimer: null,
-  autoMsgTimer: null,
+  autoMsgTimers: {},
   autoMsgLastSent: {},
+  autoMsgInflight: new Set(),
   autoMsgEditId: null,
   autoMsgSettingsId: null,
   veri2: new Set(),
@@ -1183,28 +1184,55 @@ function setAutomsgStatus(text) {
 }
 
 function clearAutoMsgTimers() {
-  if (state.autoMsgTimer) {
-    clearInterval(state.autoMsgTimer);
-    state.autoMsgTimer = null;
+  if (state.autoMsgTimers) {
+    for (const t of Object.values(state.autoMsgTimers)) {
+      clearTimeout(t);
+    }
   }
+  state.autoMsgTimers = {};
+}
+
+function scheduleAutoMsg(entry) {
+  if (!entry?.id || !state.loggedIn) return;
+  const id = entry.id;
+  if (state.autoMsgTimers[id]) {
+    clearTimeout(state.autoMsgTimers[id]);
+    delete state.autoMsgTimers[id];
+  }
+  if (!entry.autoEnabled) return;
+  const min = Math.max(0, Number(entry.autoIntervalMinutes) || 0);
+  if (min < 1) return;
+
+  const ms = min * 60 * 1000;
+  const last = state.autoMsgLastSent[id] || 0;
+  const elapsed = last > 0 ? Date.now() - last : 0;
+  const delay = last > 0 ? Math.max(1000, ms - elapsed) : ms;
+
+  state.autoMsgTimers[id] = setTimeout(async () => {
+    delete state.autoMsgTimers[id];
+    const current = findAutoMessage(id);
+    if (!current?.autoEnabled || !state.loggedIn) return;
+    if (state.autoMsgInflight.has(id)) {
+      scheduleAutoMsg(current);
+      return;
+    }
+    state.autoMsgInflight.add(id);
+    try {
+      await postAutoMessage(id, { auto: true });
+    } finally {
+      state.autoMsgInflight.delete(id);
+    }
+  }, delay);
 }
 
 function syncAutoMsgTimers() {
   clearAutoMsgTimers();
   if (!state.loggedIn) return;
   state.autoMsgLastSent = state.autoMsgLastSent || {};
-  state.autoMsgTimer = setInterval(() => {
-    const now = Date.now();
-    for (const m of getAutoMessages()) {
-      if (!m.autoEnabled) continue;
-      const min = Math.max(0, Number(m.autoIntervalMinutes) || 0);
-      if (min < 1) continue;
-      const last = state.autoMsgLastSent[m.id] || 0;
-      if (now - last >= min * 60 * 1000) {
-        postAutoMessage(m.id, { auto: true });
-      }
-    }
-  }, 30000);
+  state.autoMsgInflight = state.autoMsgInflight || new Set();
+  for (const m of getAutoMessages()) {
+    scheduleAutoMsg(m);
+  }
 }
 
 async function postAutoMessage(id, { auto = false } = {}) {
@@ -1225,6 +1253,10 @@ async function postAutoMessage(id, { auto = false } = {}) {
   const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
   if (res.ok) {
     state.autoMsgLastSent[id] = Date.now();
+    const current = findAutoMessage(id) || entry;
+    if (current?.autoEnabled && (Number(current.autoIntervalMinutes) || 0) > 0) {
+      scheduleAutoMsg(current);
+    }
     setAutomsgStatus(
       auto
         ? `Auto: „${entry.label}“ gesendet (${msg.length} Zeichen).`
@@ -1232,6 +1264,9 @@ async function postAutoMessage(id, { auto = false } = {}) {
     );
   } else {
     setAutomsgStatus(`Fehler bei „${entry.label}“: ${res.error}`);
+    if (auto && entry.autoEnabled) {
+      state.autoMsgTimers[id] = setTimeout(() => scheduleAutoMsg(findAutoMessage(id) || entry), 60000);
+    }
   }
   return res;
 }
