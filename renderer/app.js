@@ -668,12 +668,47 @@ function isVeri2(name) {
   return state.veri2.has(String(name || '').toLowerCase());
 }
 
+function parseMentionAliases(raw) {
+  if (Array.isArray(raw)) {
+    return raw.map((s) => stripAt(String(s || '').trim())).filter(Boolean);
+  }
+  if (typeof raw === 'string') {
+    return raw
+      .split(/[,;\n]+/)
+      .map((s) => stripAt(s.trim()))
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function formatMentionAliases(aliases) {
+  return parseMentionAliases(aliases).join(', ');
+}
+
+function getMentionWatchTerms() {
+  const terms = [];
+  const seen = new Set();
+  const add = (name) => {
+    const t = stripAt(String(name || '').trim());
+    if (!t) return;
+    const key = t.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    terms.push(t);
+  };
+  add(state.modUser);
+  for (const alias of parseMentionAliases(state.settings.mentionAliases)) add(alias);
+  return terms;
+}
+
 function isMentionOfMod(message) {
-  const mod = stripAt(state.modUser);
-  if (!mod) return false;
-  const esc = mod.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`@${esc}\\b`, 'i');
-  return re.test(String(message || ''));
+  const terms = getMentionWatchTerms();
+  if (!terms.length) return false;
+  const msg = String(message || '');
+  return terms.some((term) => {
+    const esc = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`@${esc}\\b`, 'i').test(msg);
+  });
 }
 
 function isOwnModChatUser(username) {
@@ -1110,7 +1145,9 @@ async function persistAutoMsgSettings(partial = {}) {
     mentionNotifySound: Math.min(
       5,
       Math.max(1, Number(partial.mentionNotifySound ?? $('mentionNotifySound')?.value) || 1)
-    )
+    ),
+    mentionAliases:
+      partial.mentionAliases ?? parseMentionAliases($('mentionAliases')?.value ?? '')
   });
   renderAutoMsgList();
   syncAutoMsgTimers();
@@ -1302,6 +1339,9 @@ function loadAutoMsgUiFromSettings() {
   if ($('mentionNotifyEnabled')) $('mentionNotifyEnabled').checked = s.mentionNotifyEnabled !== false;
   if ($('mentionNotifySound')) {
     $('mentionNotifySound').value = String(Math.min(5, Math.max(1, Number(s.mentionNotifySound) || 1)));
+  }
+  if ($('mentionAliases')) {
+    $('mentionAliases').value = formatMentionAliases(s.mentionAliases);
   }
   renderAutoMsgList();
   syncAutoMsgTimers();
@@ -2936,6 +2976,14 @@ function wireAutomsg() {
     persistAutoMsgSettings({
       mentionNotifySound: Number($('mentionNotifySound')?.value) || 1
     });
+  });
+
+  $('mentionAliases')?.addEventListener('change', () => {
+    persistAutoMsgSettings({
+      mentionAliases: parseMentionAliases($('mentionAliases')?.value ?? '')
+    });
+    retagModMentions();
+    renderTaggedRainRecent();
   });
 
   $('btnTestMentionSound')?.addEventListener('click', () => {
