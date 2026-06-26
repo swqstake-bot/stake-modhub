@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.26</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.27</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -28,6 +28,7 @@
     <button class="tab" data-tab="rh">Rollhunt</button>
     <button class="tab" data-tab="wetten">Wetten</button>
     <button class="tab" data-tab="automsg">Automsg</button>
+    <button class="tab" data-tab="analyse">Analyse</button>
     <button class="tab" data-tab="settings">Settings</button>
   </nav>
 
@@ -241,8 +242,8 @@
                 <th>Bet-ID</th>
                 <th class="bets-sort" data-sort="game" title="Sortieren">Spiel</th>
                 <th class="bets-sort" data-sort="multi" title="Sortieren">Multi</th>
-                <th>Einsatz <span class="th-sub">(USD)</span></th>
-                <th>Auszahlung <span class="th-sub">(USD)</span></th>
+                <th class="bets-sort" data-sort="amount" title="Sortieren">Einsatz <span class="th-sub">(USD)</span></th>
+                <th class="bets-sort" data-sort="payout" title="Sortieren">Auszahlung <span class="th-sub">(USD)</span></th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -287,6 +288,97 @@
 
         <div id="automsgList" class="automsg-list">
           <p class="hint automsg-empty">Noch keine Automsg — blauen Button nutzen.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-analyse" class="panel-view">
+      <div class="panel analyse-panel">
+        <div class="panel-head">
+          <h2>Analyse</h2>
+          <div class="row-inline analyse-toolbar">
+            <label class="analyse-mode-label">Modus
+              <select id="analyseMode">
+                <option value="friendlist">Friendlist</option>
+                <option value="enforcement">Enforcement</option>
+              </select>
+            </label>
+            <label class="analyse-mode-label" id="analysePresetLabel">Zeitraum
+              <select id="analysePreset">
+                <option value="month">Monat</option>
+                <option value="today">Heute</option>
+              </select>
+            </label>
+            <button type="button" id="btnAnalyseReload" class="primary sm">Laden</button>
+          </div>
+        </div>
+        <p id="analyseStatus" class="status-line hint">Modus und Zeitraum wählen, dann <strong>Laden</strong> — Daten aus <code>Datengrube/</code>.</p>
+        <div id="analyseProgress" class="analyse-progress hidden" aria-live="polite">
+          <div class="analyse-progress-track"><div id="analyseProgressBar" class="analyse-progress-bar"></div></div>
+          <span id="analyseProgressPct" class="analyse-progress-pct">0%</span>
+          <span id="analyseProgressLabel" class="hint analyse-progress-label"></span>
+        </div>
+        <div class="analyse-meta row-inline" id="analyseMeta"></div>
+
+        <div id="analyseFriendlistBlock" class="analyse-block">
+          <h3>Friendlist-Kandidaten <span class="hint">(max. 2 auswählen)</span></h3>
+          <p class="hint">Stammchatter mit Substanz — ≥150 Msgs/Monat, ≥10 aktive Tage. Spaltenköpfe anklicken zum Sortieren; Erklärung unten aufklappen.</p>
+          <div id="analysePicksBar" class="analyse-picks-bar row-inline">
+            <span id="analysePicksLabel" class="hint">Auswahl: —</span>
+            <button type="button" id="btnAnalyseClearPicks" class="sm">Auswahl leeren</button>
+          </div>
+          <div class="analyse-table-wrap">
+            <table class="hist-table analyse-table" id="analyseFriendlistTable">
+              <thead id="analyseFriendlistHead"></thead>
+              <tbody id="analyseFriendlistBody">
+                <tr><td colspan="11" class="hint">Auf „Laden“ klicken…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <details class="analyse-stat-legend" id="analyseFriendlistLegend">
+            <summary>Spalten-Erklärung</summary>
+            <dl class="analyse-stat-dl" id="analyseFriendlistLegendBody"></dl>
+          </details>
+        </div>
+
+        <div id="analyseEnforcementBlock" class="analyse-block hidden">
+          <h3>Enforcement</h3>
+          <p id="analyseEnfHint" class="hint">gz-Wiederholer, Kurztext, hoher LQ-Anteil — kalibriert an Spam-Mutes.</p>
+          <p class="hint">Kalibriert an echte Mod-Mutes (<span id="analyseCalibHint">Studie lädt…</span>). Spaltenköpfe anklicken zum Sortieren.</p>
+          <div class="analyse-enf-tabs" role="tablist" aria-label="Enforcement-Kategorien">
+            <button type="button" class="analyse-enf-tab active" data-bucket="spam" role="tab" aria-selected="true">Spam / LQ <span class="analyse-enf-count" id="analyseEnfCountSpam">0</span></button>
+            <button type="button" class="analyse-enf-tab" data-bucket="toxic" role="tab" aria-selected="false">Toxic <span class="analyse-enf-count" id="analyseEnfCountToxic">0</span></button>
+            <button type="button" class="analyse-enf-tab" data-bucket="bot" role="tab" aria-selected="false">Bot-Verdacht <span class="analyse-enf-count" id="analyseEnfCountBot">0</span></button>
+            <button type="button" class="analyse-enf-tab" data-bucket="begging" role="tab" aria-selected="false">Bettler <span class="analyse-enf-count" id="analyseEnfCountBegging">0</span></button>
+            <button type="button" class="analyse-enf-tab" data-bucket="other" role="tab" aria-selected="false">Weitere <span class="analyse-enf-count" id="analyseEnfCountOther">0</span></button>
+          </div>
+          <div class="analyse-table-wrap">
+            <table class="hist-table analyse-table" id="analyseEnforcementTable">
+              <thead id="analyseEnforcementHead"></thead>
+              <tbody id="analyseEnforcementBody">
+                <tr><td colspan="9" class="hint">Auf „Laden“ klicken…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <details class="analyse-stat-legend" id="analyseEnforcementLegend">
+            <summary>Spalten-Erklärung</summary>
+            <dl class="analyse-stat-dl" id="analyseEnforcementLegendBody"></dl>
+          </details>
+        </div>
+
+        <div id="analyseDetail" class="panel compact analyse-detail hidden">
+          <div class="panel-head">
+            <h3 id="analyseDetailTitle">User-Details</h3>
+            <button type="button" id="btnAnalyseDetailClose" class="sm">Schließen</button>
+          </div>
+          <div id="analyseDetailChips" class="analyse-chips"></div>
+          <p id="analyseDetailMsgsHint" class="hint analyse-detail-msgs-hint"></p>
+          <ul id="analyseDetailMsgs" class="analyse-msg-list"></ul>
+          <div class="row-inline analyse-detail-actions">
+            <button type="button" id="btnAnalyseMuteSpam" class="sm">Mute Spam</button>
+            <button type="button" id="btnAnalyseMuteBot" class="sm danger">Mute Bot</button>
+            <button type="button" id="btnAnalyseModAction" class="sm primary">Mod Action</button>
+          </div>
         </div>
       </div>
     </section>
@@ -477,6 +569,8 @@
   <script src="./renderer/bet-id-parse.js"></script>
   <script src="./renderer/mod-policy.js"></script>
   <script src="./renderer/history-format.js"></script>
+  <script src="./renderer/live-chat.js"></script>
+  <script src="./renderer/analyse.js"></script>
   <script src="./renderer/app.js"></script>
 </body>
 </html>

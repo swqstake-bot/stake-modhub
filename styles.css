@@ -1993,3 +1993,327 @@ button:disabled {
   gap: 6px;
   margin: 0;
 }
+
+/* —— Analyse tab —— */
+.analyse-panel .panel-head {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.analyse-toolbar {
+  align-items: center;
+  gap: 10px;
+}
+
+.analyse-mode-label select {
+  min-width: 180px;
+}
+
+.analyse-meta {
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--stake-text-dim);
+  margin-bottom: 10px;
+}
+
+.analyse-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.22);
+  border-radius: 8px;
+}
+
+.analyse-progress-track {
+  flex: 1;
+  min-width: 120px;
+  height: 10px;
+  background: var(--stake-bg-surface);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.analyse-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--stake-accent, #00d4ff);
+  transition: width 0.2s ease;
+}
+
+.analyse-progress-pct {
+  font-size: 11px;
+  color: var(--stake-text-dim);
+  min-width: 2.25rem;
+}
+
+.analyse-progress-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analyse-panel.is-loading .analyse-table-wrap {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.analyse-block {
+  margin-top: 12px;
+}
+
+.analyse-block h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.analyse-table-wrap {
+  overflow: auto;
+  max-height: min(52vh, 520px);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 6px;
+}
+
+.analyse-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.analyse-good {
+  color: #6ee7a8;
+  font-weight: 600;
+}
+
+.analyse-bad {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.analyse-row-muted {
+  opacity: 0.55;
+}
+
+.analyse-tier {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.analyse-tier-bot,
+.analyse-tier-scam {
+  background: rgba(248, 113, 113, 0.2);
+  color: #fca5a5;
+}
+
+.analyse-tier-coord {
+  background: rgba(167, 139, 250, 0.22);
+  color: #c4b5fd;
+}
+
+.analyse-tier-begging {
+  background: rgba(251, 146, 60, 0.2);
+  color: #fdba74;
+}
+
+.analyse-tier-flood,
+.analyse-tier-spam {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fcd34d;
+}
+
+.analyse-tier-toxic {
+  background: rgba(220, 80, 120, 0.22);
+  color: #ff8fa8;
+}
+
+.analyse-tier-review {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+}
+
+.analyse-flags {
+  font-size: 11px;
+  color: var(--stake-text-dim);
+  max-width: 200px;
+}
+
+.analyse-act {
+  white-space: nowrap;
+}
+
+.analyse-detail {
+  margin-top: 12px;
+}
+
+.analyse-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.analyse-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 212, 255, 0.12);
+  color: #9bdcff;
+}
+
+.analyse-chip-high {
+  background: rgba(248, 113, 113, 0.2);
+  color: #fca5a5;
+}
+
+.analyse-chip-muted {
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.analyse-msg-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.analyse-msg-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.06);
+  word-break: break-word;
+}
+
+.analyse-msg-list time {
+  color: var(--stake-text-dim);
+  margin-right: 6px;
+  font-size: 11px;
+}
+
+.analyse-gap {
+  color: #fbbf24;
+  font-size: 10px;
+  margin-right: 6px;
+}
+
+.analyse-detail-msgs-hint {
+  margin: 8px 0 6px;
+}
+
+.analyse-msg-tag {
+  display: inline-block;
+  margin: 0 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent, #5b8fd9);
+  background: rgba(91, 143, 217, 0.15);
+  vertical-align: middle;
+}
+
+.analyse-detail-actions {
+  gap: 8px;
+}
+
+.analyse-picks-bar {
+  margin: 6px 0 10px;
+  align-items: center;
+  gap: 10px;
+}
+
+.analyse-enf-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+
+.analyse-enf-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border, #2a3344);
+  border-radius: 6px;
+  background: var(--panel-2, #1a2030);
+  color: var(--text-muted, #9aa4b8);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.analyse-enf-tab:hover {
+  color: var(--text, #e8ecf4);
+  border-color: var(--accent-dim, #4a6fa5);
+}
+
+.analyse-enf-tab.active {
+  color: var(--text, #e8ecf4);
+  border-color: var(--accent, #5b8fd9);
+  background: rgba(91, 143, 217, 0.12);
+}
+
+.analyse-enf-count {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.analyse-enf-tab.active .analyse-enf-count {
+  background: rgba(91, 143, 217, 0.25);
+}
+
+.analyse-sort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.analyse-sort:hover {
+  color: var(--accent, #5b8fd9);
+}
+
+.analyse-sort-active {
+  color: var(--accent, #5b8fd9);
+  font-weight: 600;
+}
+
+.analyse-stat-legend {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--text-muted, #9aa4b8);
+}
+
+.analyse-stat-legend summary {
+  cursor: pointer;
+  color: var(--accent-dim, #4a6fa5);
+  margin-bottom: 6px;
+}
+
+.analyse-stat-dl {
+  display: grid;
+  grid-template-columns: minmax(5.5em, auto) 1fr;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+}
+
+.analyse-stat-dl dt {
+  font-weight: 600;
+  color: var(--text, #e8ecf4);
+}
+
+.analyse-stat-dl dd {
+  margin: 0;
+}

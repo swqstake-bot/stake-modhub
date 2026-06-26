@@ -1,0 +1,126 @@
+{
+  "version": "2",
+  "title": "Stake DE Chat — Heuristische Regeln (lokal)",
+  "description": "Heuristik für exportierte Logs. Wertung pro User: Kategorie-Treffer und Caps werden mit Kategorie-Gewicht summiert und durch √(Nachrichten+1) geteilt (stabil bei langen Logs). Keine Screenshots-Pflicht.",
+  "caps": {
+    "minLetters": 14,
+    "ratioThreshold": 0.64,
+    "weight": 0.82,
+    "label": "Caps / Schreien"
+  },
+  "mentionFlood": {
+    "threshold": 8,
+    "weight": 0.72,
+    "label": "Viele @-Mentions"
+  },
+  "categories": [
+    {
+      "id": "begging",
+      "label": "Betteln / Rain / Tip-Druck",
+      "policyHint": "Policy: begging",
+      "weight": 1.12,
+      "keywords": [
+        "bettel", "betteln", "gebettel", "rain bitte", "regen bitte",
+        "tip mich", "gib tip", "gib mir tip", "jemand tip",
+        "kann einer tip", "spare change", "loan", "leihen",
+        "borg mir", "borgen", "spenden", "brauche geld",
+        "pocket rockets", "give me",
+        "<3 wenn du", "<3 wen du", "<3 wen du tip"
+      ]
+    },
+    {
+      "id": "chat_jumping",
+      "label": "Chat Jumping / Sprache",
+      "policyHint": "Policy: chat_jumping",
+      "weight": 1.05,
+      "keywords": [
+        "falscher chat", "wrong chat", "english chat only",
+        "deutscher chat", "go to english", "go eng", "anders chat",
+        "missed raintalk", "rain talk", "raintalk", "wrong channel"
+      ]
+    },
+    {
+      "id": "telegram_connect",
+      "label": "Telegram / externe Kontakte",
+      "policyHint": "Policy: telegram_connect",
+      "weight": 1.25,
+      "keywords": ["t.me/", "telegram @", "@telegram", "add me on tg", "schreib mir auf telegram", "telegram name"],
+      "patterns": ["(?:^|\\s)tg\\s*[:\\s@]", "\\btelegram\\s*[:@]", "\\btw\\s*[:@\\\\]"]
+    },
+    {
+      "id": "scam_social",
+      "label": "Scam / Phishing / Social",
+      "policyHint": "Policy: scam_social",
+      "weight": 1.38,
+      "keywords": [
+        "double your", "free btc", "send eth", "verify account",
+        "click here coin", "airdrop scam", "phish",
+        "instagram:", "tiktok@", "snapchat", "snap:",
+        "onlyfans", "nudes", "skype:", "meet me"
+      ]
+    },
+    {
+      "id": "privacy_links",
+      "label": "Kurz-URLs / verdächtige Links",
+      "policyHint": "Regeln: nur vollständige URLs — Shortener-Verdacht",
+      "weight": 0.88,
+      "keywords": [
+        "bit.ly/", "tinyurl", "t.co/", "goo.gl", "short.link", "buff.ly/", "cutt.ly"
+      ]
+    },
+    {
+      "id": "racism_hate",
+      "label": "Hass / Rassismus (Stichworte)",
+      "policyHint": "Policy: racism_hate — schwere Fälle manuell",
+      "weight": 1.52,
+      "keywords": [],
+      "patterns": [
+        "\\bhitler\\b", "\\bnazi", "\\bns\\s*[-]?\\s*da", "\\bisis\\b",
+        "\\b(rasse|ethni)[^\\s]{0,6}hass", "\\bvolksverr", "\\bsieg\\s*heil"
+      ]
+    },
+    {
+      "id": "toxic_behavior",
+      "label": "Toxic / Beleidigungen (grob)",
+      "policyHint": "Policy: toxic_behavior",
+      "weight": 1.18,
+      "keywords": [
+        "hurensohn", "huren kind", "wichser", "fick dich", "fickt euch",
+        "nutte", "du opfer", "spast", "spasti", "bastard",
+        "kys", "kill yourself", "abfall", "untermensch"
+      ],
+      "patterns": [
+        "\\bfick\\s*(dich|euch|ab)\\b",
+        "\\bversager\\b",
+        "\\bsterb\\s+(doch|dafür)\\b"
+      ]
+    },
+    {
+      "id": "discord_ad",
+      "label": "Discord / externe Gruppen",
+      "policyHint": "Werbung / externe Gruppen",
+      "weight": 1.1,
+      "keywords": ["discord.gg/", "discord.com/invite", "joint mein dc", "joint discord", "mein server:"]
+    },
+    {
+      "id": "selling_accounts",
+      "label": "Account-Verkauf / Transfer",
+      "policyHint": "Policy: selling_accounts",
+      "weight": 1.3,
+      "keywords": [
+        "account verkaufen", "verkauf account", "sell account", "sell acc",
+        "account kaufen", "account transfer"
+      ]
+    },
+    {
+      "id": "advertising",
+      "label": "Werbung / andere Casinos",
+      "policyHint": "Regeln: keine Fremdwerbung",
+      "weight": 1.02,
+      "keywords": [
+        "bc.game", "roobet", "rollbit", "gamdom", "duelbits", "500.casino",
+        "use code", "promo code", "ref link", "affiliate"
+      ]
+    }
+  ]
+}

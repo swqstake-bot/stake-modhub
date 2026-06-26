@@ -149,9 +149,9 @@ function formatBetPosterCell(b) {
   const last = stripAt(b.lastUsername || '');
   const firstRaw = stripAt(b.username || '');
   if (last && last !== firstRaw) {
-    return `@${first} <span class="bet-seen" title="Zuletzt im Chat gepostet">→ @${esc(last)}</span>`;
+    return `${first} <span class="bet-seen" title="Zuletzt im Chat gepostet">→ ${esc(last)}</span>`;
   }
-  return `@${first}`;
+  return first;
 }
 
 function formatChatTime(ts) {
@@ -208,7 +208,8 @@ function syncMentionAliasesFromUi({ persist = false } = {}) {
   state.settings.mentionAliases = aliases;
   retagModMentions();
   renderTaggedRainRecent();
-  renderChats();
+  LiveChat.invalidateChatDom();
+  renderChats({ forceFull: true });
   if (!persist) return;
   clearTimeout(mentionAliasPersistTimer);
   mentionAliasPersistTimer = setTimeout(() => {
@@ -800,99 +801,12 @@ function isChatAutoscrollEnabled() {
   return el ? el.checked : true;
 }
 
-function ensureLineUid(line) {
-  if (line.uid == null) {
-    state.chatLineUid += 1;
-    line.uid = state.chatLineUid;
-  }
-  return line.uid;
-}
-
-/** Speicher-Limit: bei Autoscroll aus kein Trim (Lesen ohne Sprünge). */
-function getEffectiveChatStoreMax() {
-  if (!isChatAutoscrollEnabled()) return Infinity;
-  return Number(state.settings.maxChatRows) || 1000;
-}
-
-/** Anzeige-Limit: hartes slice(-300) nur bei Autoscroll an. */
-function getChatLinesForDisplay(lines) {
-  if (!isChatAutoscrollEnabled()) return lines;
-  return lines.length > 300 ? lines.slice(-300) : lines;
-}
-
 function pushChatLine(line) {
-  ensureLineUid(line);
-  line.idx = state.chatLines.length;
-  state.chatLines.push(line);
-  const max = getEffectiveChatStoreMax();
-  if (Number.isFinite(max) && state.chatLines.length > max) {
-    const drop = state.chatLines.length - max;
-    state.chatLines = state.chatLines.slice(drop);
-    state.chatLines.forEach((l, i) => {
-      l.idx = i;
-    });
-  }
+  return LiveChat.pushChatLine(line);
 }
 
-function lineClasses(m) {
-  const parts = ['chat-line'];
-  if (m.kind === 'tip') parts.push('kind-tip');
-  if (m.kind === 'rain') parts.push('kind-rain');
-  if (m.kind === 'trivia') parts.push('kind-trivia');
-  if (m.kind === 'race') parts.push('kind-race');
-  if (m.kind === 'bot') parts.push('kind-bot');
-  if (m.rhHit) parts.push('rh-hit');
-  if (isVeri2(m.username)) parts.push('veri2');
-  if (m.modMention) parts.push('mark-tagged');
-  if (state.allmsgUser && m.username.toLowerCase() === state.allmsgUser.toLowerCase()) parts.push('mark-yellow');
-  if (state.modMarkUser && m.username.toLowerCase() === state.modMarkUser.toLowerCase()) parts.push('mark-mod');
-  return parts.join(' ');
-}
-
-function renderChatBox(el, lines, opts = {}) {
-  if (!el) return;
-  const autoscroll = opts.autoscroll !== false && isChatAutoscrollEnabled();
-  const prevTop = el.scrollTop;
-  let anchorUid = null;
-  let anchorOffset = 0;
-  if (!autoscroll) {
-    for (const child of el.querySelectorAll('.chat-line[data-uid]')) {
-      const top = child.offsetTop;
-      if (top + child.offsetHeight > prevTop + 1) {
-        anchorUid = child.getAttribute('data-uid');
-        anchorOffset = top - prevTop;
-        break;
-      }
-    }
-  }
-  const slice = getChatLinesForDisplay(lines);
-  slice.forEach(ensureLineUid);
-  el.innerHTML = slice
-    .map((m) => {
-      const cls = lineClasses(m);
-      const betAttr = m.betId ? ` data-bet="${esc(m.betId)}" title="Bet-ID: ${esc(m.betId)} — Doppelklick = Lookup"` : '';
-      const idxAttr = ` data-idx="${m.idx}" data-uid="${m.uid}"`;
-      const msgCls = m.betId ? ' has-bet-id' : '';
-      const displayTs = m.receivedAt ?? m.ts;
-      const timeLabel = formatChatTime(displayTs);
-      const serverLabel = m.receivedAt && m.ts !== m.receivedAt ? formatChatTime(m.ts) : '';
-      const timeTitle = serverLabel ? `Empfang ${timeLabel} · Server ${serverLabel}` : timeLabel;
-      return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}><span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span> <span class="user">${esc(stripAt(m.username))}</span>: ${esc(m.message)}</div>`;
-    })
-    .join('');
-  if (autoscroll) {
-    el.scrollTop = el.scrollHeight;
-  } else if (anchorUid != null) {
-    const anchor = el.querySelector(`[data-uid="${anchorUid}"]`);
-    el.scrollTop = anchor ? Math.max(0, anchor.offsetTop - anchorOffset) : prevTop;
-  } else {
-    el.scrollTop = prevTop;
-  }
-}
-
-function renderChats() {
-  renderChatBox($('liveChat'), state.chatLines);
-  renderChatBox($('rhLiveChat'), state.chatLines);
+function renderChats(opts) {
+  LiveChat.renderChats(opts);
 }
 
 function renderRhBets() {
@@ -1821,6 +1735,15 @@ function betRowDateIso(b) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function betSortMoney(b, field) {
+  const amount = b[field];
+  if (amount == null) return -1;
+  const usd = toUsd(amount, b.currency);
+  if (usd != null) return usd;
+  const n = Number(amount);
+  return Number.isFinite(n) ? n : -1;
+}
+
 function getFilteredSortedBets() {
   readBetsFiltersFromUi();
   const v = state.betsView;
@@ -1864,6 +1787,12 @@ function getFilteredSortedBets() {
     }
     if (col === 'multi') {
       return ((a.multiplier || 0) - (b.multiplier || 0)) * dir;
+    }
+    if (col === 'amount') {
+      return (betSortMoney(a, 'amount') - betSortMoney(b, 'amount')) * dir;
+    }
+    if (col === 'payout') {
+      return (betSortMoney(a, 'payout') - betSortMoney(b, 'payout')) * dir;
     }
     return ((a.lastSeenAt || 0) - (b.lastSeenAt || 0)) * dir;
   });
@@ -2179,6 +2108,8 @@ async function openModAction(initialTab = 'mute') {
   if (initialTab === 'mute') $('policyMuteMsg')?.focus();
 }
 
+window.openModAction = openModAction;
+
 async function openPolicyMute() {
   return openModAction('mute');
 }
@@ -2262,10 +2193,34 @@ async function processBetForRh(line) {
     state.hitKeys.add(`${line.username}|${line.ts}`);
     renderRhSessionsList();
     if (getSelectedRhSession()) refreshRhStatusLine();
+    LiveChat.invalidateChatDom();
+    renderChats({ forceFull: true });
   }
 }
 
-async function onLiveMessage(m, { receivedAt } = {}) {
+const rhBetQueue = [];
+let rhBetDraining = false;
+
+function enqueueRhBet(line) {
+  if (!line?.betId) return;
+  rhBetQueue.push(line);
+  drainRhBetQueue();
+}
+
+async function drainRhBetQueue() {
+  if (rhBetDraining) return;
+  rhBetDraining = true;
+  try {
+    while (rhBetQueue.length) {
+      const line = rhBetQueue.shift();
+      await processBetForRh(line);
+    }
+  } finally {
+    rhBetDraining = false;
+  }
+}
+
+function ingestLiveMessageSync(m, { receivedAt } = {}) {
   const line = parseChatLine(m.username, m.message, m.kind, m.timestamp);
   line.receivedAt = receivedAt ?? Date.now();
   if (m.rain && typeof m.rain === 'object') line.rain = m.rain;
@@ -2285,9 +2240,16 @@ async function onLiveMessage(m, { receivedAt } = {}) {
     if (state.rains.length > 50) state.rains.length = 50;
   }
 
-  if (line.betId) await processBetForRh(line);
   processRhTriviaHit(line);
+  return line;
+}
 
+function processLiveMessageBatch(messages, { baseTs } = {}) {
+  const ts0 = baseTs ?? Date.now();
+  for (let i = 0; i < messages.length; i++) {
+    const line = ingestLiveMessageSync(messages[i], { receivedAt: ts0 + i });
+    if (line.betId) enqueueRhBet(line);
+  }
   renderChats();
   renderTaggedRainRecent();
 }
@@ -2299,8 +2261,11 @@ function wireTabs() {
       document.querySelectorAll('.panel-view').forEach((p) => p.classList.remove('active'));
       btn.classList.add('active');
       $(`panel-${btn.dataset.tab}`).classList.add('active');
-      if (btn.dataset.tab === 'bets') {
+      if (btn.dataset.tab === 'wetten') {
         ensureConvRates().then(() => renderBetsTable());
+      }
+      if (btn.dataset.tab === 'analyse') {
+        window.AnalysePanel?.onTabShow?.();
       }
     });
   });
@@ -2355,6 +2320,7 @@ function wireHub() {
   ensureCtxMenu();
 
   $('autoscroll')?.addEventListener('change', () => {
+    LiveChat.invalidateChatDom();
     if (isChatAutoscrollEnabled()) {
       const max = Number(state.settings.maxChatRows) || 1000;
       if (state.chatLines.length > max) {
@@ -2365,14 +2331,15 @@ function wireHub() {
         });
       }
     }
-    renderChats();
+    renderChats({ forceFull: true });
   });
 
   $('btnClearLive')?.addEventListener('click', () => {
     state.chatLines = [];
     state.tagged = [];
     state.rains = [];
-    renderChats();
+    LiveChat.invalidateChatDom();
+    renderChats({ forceFull: true });
     renderTaggedRainRecent();
   });
 
@@ -2459,7 +2426,8 @@ function wireHub() {
       setValidateButtonState(false);
       setUserActionsEnabled(false);
     }
-    renderChats();
+    LiveChat.invalidateChatDom();
+    renderChats({ forceFull: true });
   });
 
   $('validateUsername')?.addEventListener('keydown', (e) => {
@@ -2645,15 +2613,17 @@ function wireHub() {
         preview: l.message
       };
     });
-    renderChats();
     renderTaggedRainRecent();
+    LiveChat.invalidateChatDom();
+    renderChats({ forceFull: true });
     $('validateStatus').textContent = `Allmsg: ${matches.length} Zeilen für ${name}`;
   });
 
   $('btnUndoMark')?.addEventListener('click', () => {
     state.allmsgUser = '';
     state.modMarkUser = state.modUser || '';
-    renderChats();
+    LiveChat.invalidateChatDom();
+    renderChats({ forceFull: true });
     $('validateStatus').textContent = state.modMarkUser ? `Undo mark: ${state.modMarkUser}` : 'Mod-User unbekannt';
   });
 
@@ -3200,6 +3170,14 @@ async function init() {
     return;
   }
   $('appVersion').textContent = modHub.version || '0.3';
+  LiveChat.init({
+    state,
+    $,
+    esc,
+    stripAt,
+    formatChatTime,
+    isVeri2
+  });
   startHubClock();
   initPolicyModal();
   wireTabs();
@@ -3230,9 +3208,7 @@ async function init() {
       state.liveStats.lastBrowserAt = Date.now();
     }
     const baseTs = Date.now();
-    for (let i = 0; i < messages.length; i++) {
-      onLiveMessage(messages[i], { receivedAt: baseTs + i });
-    }
+    processLiveMessageBatch(messages, { baseTs });
     updateLiveStatusUi();
   });
 

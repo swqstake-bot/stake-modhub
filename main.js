@@ -11,6 +11,7 @@ const {
 } = require('./lib/blueprint-defaults');
 const { ensureDataPath, getDatengrubePath } = require('./lib/data-path');
 const dataFiles = require('./lib/data-files');
+const analyseEngine = require('./lib/analyse');
 const { StakeChatWebSocket } = require('./lib/stake-chat-ws');
 const { AutoHashQueue } = require('./lib/auto-hash-queue');
 const { CHATROOMS, LOCKDOWN_TOKEN, DEFAULT_WS_HOST } = require('./lib/stake-constants');
@@ -24,6 +25,7 @@ const {
   quitAndInstallUpdate
 } = require('./lib/auto-update');
 const { closeBridgeWindow } = require('./lib/stake-http');
+const { registerAnalyseIpc } = require('./main/ipc-analyse');
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
@@ -439,6 +441,7 @@ function broadcastLiveBatch(batch, source) {
       if (!m || !m.username) continue;
       fileLogs.logLiveMessage(dir, m);
     }
+    fileLogs.flushAll();
   }
   if (!mainWin || mainWin.isDestroyed()) return;
   mainWin.webContents.send('modhub-live-messages', { messages: batch, source });
@@ -820,6 +823,11 @@ function registerIpc() {
     return { ok: true, groups };
   });
 
+  registerAnalyseIpc(ipcMain, {
+    getDataDir: dataDir,
+    analyseEngine
+  });
+
   ipcMain.handle('modhub-warn-user', async (_e, { username, message } = {}) => {
     try {
       const { CHATROOMS } = require('./lib/stake-constants'); // eslint-disable-line global-require
@@ -834,6 +842,7 @@ function registerIpc() {
       const text = prependUserMention(msg, user);
       await gql.sendMessage(chatId, text);
       fileLogs.appendWarned(dataDir(), user, text);
+      fileLogs.flushAll();
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };
@@ -887,6 +896,7 @@ app.on('second-instance', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  fileLogs.flushAll();
   teardownBackground();
   destroyTray();
 });

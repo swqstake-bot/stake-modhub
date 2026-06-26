@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-let version = '0.4.26';
+let version = '0.4.27';
 try {
   version = ipcRenderer.sendSync('modhub-get-version') || version;
 } catch (_) {}
@@ -38,6 +38,13 @@ contextBridge.exposeInMainWorld('modHub', {
   addVeri2: (username) => ipcRenderer.invoke('modhub-add-veri2', { username }),
   loadMutedWarned: () => ipcRenderer.invoke('modhub-load-muted-warned'),
   duplicateIps: () => ipcRenderer.invoke('modhub-duplicate-ips'),
+  analyseRun: (opts) => ipcRenderer.invoke('modhub-analyse-run', opts || {}),
+  analyseListFiles: () => ipcRenderer.invoke('modhub-analyse-list-files'),
+  onAnalyseProgress: (handler) => {
+    const w = (_e, p) => handler(p);
+    ipcRenderer.on('modhub-analyse-progress', w);
+    return () => ipcRenderer.removeListener('modhub-analyse-progress', w);
+  },
   onSessionUpdated: (handler) => {
     const w = (_e, p) => handler(p);
     ipcRenderer.on('modhub-session-updated', w);
