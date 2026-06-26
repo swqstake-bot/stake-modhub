@@ -2108,7 +2108,48 @@ async function openModAction(initialTab = 'mute') {
   if (initialTab === 'mute') $('policyMuteMsg')?.focus();
 }
 
+async function validateAndOpenModAction(username, initialTab = 'mute') {
+  const name = stripAt(String(username || '').trim());
+  if (!name) return false;
+  document.querySelector('.tab[data-tab="hub"]')?.click();
+  $('validateUsername').value = name;
+  setValidateButtonState(false);
+  $('validateStatus').textContent = 'Prüfe über Stake-API…';
+  $('validateStatus').style.color = '';
+  const res = await modHub.validateUser(name);
+  const u = res.data?.user;
+  if (res.ok && u?.id) {
+    const canonical = stripAt(u.name) || name;
+    state.validatedUser = canonical;
+    state.validatedUserId = u.id;
+    state.validatedUserHashedIp = u.hashedIp || '';
+    $('validateUsername').value = canonical;
+    const v2 = isVeri2(canonical) ? ' ★ Veri2' : '';
+    $('validateStatus').textContent = `OK: ${canonical}${v2}`;
+    $('validateStatus').style.color = '#00e701';
+    setValidateButtonState(true);
+    setUserActionsEnabled(true);
+    syncModMessageMentions(canonical);
+    LiveChat.invalidateChatDom();
+    renderChats({ forceFull: true });
+    await openModAction(initialTab);
+    return true;
+  }
+  state.validatedUser = '';
+  state.validatedUserId = '';
+  state.validatedUserHashedIp = '';
+  $('validateStatus').textContent =
+    res.error === 'user_not_found'
+      ? `User „${name}“ nicht gefunden (API)`
+      : `Fehler: ${res.error || 'Validate fehlgeschlagen'}`;
+  $('validateStatus').style.color = '';
+  setValidateButtonState(false);
+  setUserActionsEnabled(false);
+  return false;
+}
+
 window.openModAction = openModAction;
+window.validateAndOpenModAction = validateAndOpenModAction;
 
 async function openPolicyMute() {
   return openModAction('mute');

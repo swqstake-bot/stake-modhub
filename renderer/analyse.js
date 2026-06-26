@@ -355,13 +355,19 @@
     return Policy.minutesToDurationString?.(mins) || '1 day';
   }
 
-  function validateUser(name) {
+  function openHubModModal(name) {
+    if (!name) return;
+    const user = name.replace(/^@/, '');
+    if (typeof window.validateAndOpenModAction === 'function') {
+      window.validateAndOpenModAction(user, 'mute');
+      return;
+    }
     const field = $('validateUsername');
-    if (!field || !name) return;
-    field.value = name.replace(/^@/, '');
-    field.focus();
-    $('btnValidate')?.click();
-    document.querySelector('.tab[data-tab="hub"]')?.click();
+    if (field) {
+      field.value = user;
+      document.querySelector('.tab[data-tab="hub"]')?.click();
+      $('btnValidate')?.click();
+    }
   }
 
   function findRow(username) {
@@ -619,8 +625,6 @@
       btn.classList.toggle('active', active);
       btn.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-    const hint = $('analyseEnfHint');
-    if (hint) hint.textContent = ENF_BUCKET_META[state.enforcementBucket]?.hint || '';
   }
 
   function setEnforcementBucket(bucket) {
@@ -710,12 +714,6 @@
       `<span>${esc(d.rangeLabel || '')}: ${esc(d.range?.from || '')} – ${esc(d.range?.to || '')}</span>`,
       `<span>${(d.files || []).length} CSV</span>`
     ].join(' · ');
-    const cal = $('analyseCalibHint');
-    if (cal && d.calibration) {
-      const c = d.calibration;
-      const when = c.generatedAt ? new Date(c.generatedAt).toLocaleDateString('de-DE') : '—';
-      cal.textContent = `${c.spamCases || 0} Spam- + ${c.toxicCases || 0} Toxic-Mutes, ${when}`;
-    }
   }
 
   function flushUi() {
@@ -858,12 +856,7 @@
       if (state.detailUser) muteUser(state.detailUser.username, 'chat-bot using', 'custom');
     });
     $('btnAnalyseModAction')?.addEventListener('click', () => {
-      if (state.detailUser) {
-        validateUser(state.detailUser.username);
-        setTimeout(() => {
-          if (typeof window.openModAction === 'function') window.openModAction('mute');
-        }, 500);
-      }
+      if (state.detailUser) openHubModModal(state.detailUser.username);
     });
 
     const panel = $('panel-analyse');
@@ -885,7 +878,7 @@
       }
       const val = e.target.closest('.analyse-validate');
       if (val) {
-        validateUser(val.dataset.user);
+        openHubModModal(val.dataset.user);
         return;
       }
       const mute = e.target.closest('.analyse-mute-spam');
