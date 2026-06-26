@@ -201,6 +201,21 @@ function retagModMentions() {
     .map((line) => buildTaggedIndexEntry(line));
 }
 
+let mentionAliasPersistTimer = null;
+
+function syncMentionAliasesFromUi({ persist = false } = {}) {
+  const aliases = parseMentionAliases($('mentionAliases')?.value ?? '');
+  state.settings.mentionAliases = aliases;
+  retagModMentions();
+  renderTaggedRainRecent();
+  renderChats();
+  if (!persist) return;
+  clearTimeout(mentionAliasPersistTimer);
+  mentionAliasPersistTimer = setTimeout(() => {
+    persistAutoMsgSettings({ mentionAliases: aliases });
+  }, 350);
+}
+
 function normalizeGameName(name) {
   return String(name || '')
     .toLowerCase()
@@ -687,6 +702,24 @@ function formatMentionAliases(aliases) {
   return parseMentionAliases(aliases).join(', ');
 }
 
+function getMentionAliasesEffective() {
+  const field = $('mentionAliases');
+  if (field && String(field.value ?? '').trim()) {
+    return parseMentionAliases(field.value);
+  }
+  return parseMentionAliases(state.settings?.mentionAliases);
+}
+
+function mentionRegexAt(term) {
+  const esc = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`@${esc}(?![\\w.-])`, 'i');
+}
+
+function mentionRegexBare(term) {
+  const esc = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![@\\w.-])${esc}(?![\\w.-])`, 'i');
+}
+
 function getMentionWatchTerms() {
   const terms = [];
   const seen = new Set();
@@ -699,18 +732,24 @@ function getMentionWatchTerms() {
     terms.push(t);
   };
   add(state.modUser);
-  for (const alias of parseMentionAliases(state.settings.mentionAliases)) add(alias);
+  for (const alias of getMentionAliasesEffective()) add(alias);
   return terms;
 }
 
 function isMentionOfMod(message) {
-  const terms = getMentionWatchTerms();
-  if (!terms.length) return false;
   const msg = String(message || '');
-  return terms.some((term) => {
-    const esc = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`@${esc}\\b`, 'i').test(msg);
-  });
+  if (!msg) return false;
+
+  const modTerm = stripAt(state.modUser);
+  if (modTerm && mentionRegexAt(modTerm).test(msg)) return true;
+
+  const aliasKeys = new Set(getMentionAliasesEffective().map((a) => a.toLowerCase()));
+  for (const term of getMentionWatchTerms()) {
+    if (modTerm && term.toLowerCase() === modTerm.toLowerCase()) continue;
+    if (!aliasKeys.has(term.toLowerCase())) continue;
+    if (mentionRegexAt(term).test(msg) || mentionRegexBare(term).test(msg)) return true;
+  }
+  return false;
 }
 
 function isOwnModChatUser(username) {
@@ -3071,13 +3110,9 @@ function wireAutomsg() {
     });
   });
 
-  $('mentionAliases')?.addEventListener('change', () => {
-    persistAutoMsgSettings({
-      mentionAliases: parseMentionAliases($('mentionAliases')?.value ?? '')
-    });
-    retagModMentions();
-    renderTaggedRainRecent();
-  });
+  $('mentionAliases')?.addEventListener('input', () => syncMentionAliasesFromUi({ persist: false }));
+  $('mentionAliases')?.addEventListener('change', () => syncMentionAliasesFromUi({ persist: true }));
+  $('mentionAliases')?.addEventListener('blur', () => syncMentionAliasesFromUi({ persist: true }));
 
   $('btnTestMentionSound')?.addEventListener('click', () => {
     playMentionNotifySound(Number($('mentionNotifySound')?.value) || 1);
