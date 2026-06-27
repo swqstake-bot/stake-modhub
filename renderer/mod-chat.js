@@ -10,6 +10,7 @@
   ]).map((n) => String(n).toLowerCase());
 
   const ERROR_LABELS = {
+    bad_token: 'Falsches Mod-Chat-Token (Settings).',
     not_allowed: 'Name nicht auf der Mod-Whitelist (Server config.js prüfen).',
     auth_required: 'Auth fehlgeschlagen.',
     auth_timeout: 'Auth-Timeout — Relay antwortet nicht.',
@@ -61,6 +62,10 @@
     if (ctx?.formatChatTime) return ctx.formatChatTime(ts);
     const d = new Date(ts);
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function getToken() {
+    return String(ctx?.state?.settings?.modChatToken || '').trim();
   }
 
   function getUrl() {
@@ -229,7 +234,7 @@
 
     socket.addEventListener('open', () => {
       reconnectAttempt = 0;
-      socket.send(JSON.stringify({ type: 'auth', name: ctx.state.modUser }));
+      socket.send(JSON.stringify({ type: 'auth', name: ctx.state.modUser, token: getToken() || undefined }));
       authTimer = setTimeout(() => {
         if (ws !== socket || socket.readyState !== WebSocket.OPEN) return;
         failFatal('Auth-Timeout — Relay antwortet nicht.');
@@ -253,6 +258,8 @@
         const label = ERROR_LABELS[msg.message] || msg.message || 'Relay-Fehler';
         if (msg.message === 'not_allowed') {
           failFatal(`${label} (Login: ${ctx.state.modUser})`);
+        } else if (msg.message === 'bad_token') {
+          failFatal(label);
         } else if (msg.message === 'auth_timeout' || msg.message === 'auth_required') {
           failFatal(label);
         } else {

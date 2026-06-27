@@ -9,7 +9,8 @@ const {
   MOD_CHAT_PORT,
   MOD_CHAT_HISTORY_MAX,
   normalizeModName,
-  isAllowedModChatUser
+  isAllowedModChatUser,
+  isValidModChatToken
 } = require('./config');
 
 const PORT = Number(process.env.MODCHAT_PORT) || MOD_CHAT_PORT;
@@ -76,6 +77,12 @@ wss.on('connection', (ws) => {
         return;
       }
       const user = normalizeModName(msg.name);
+      if (!isValidModChatToken(msg.token)) {
+        console.log(`[modchat] REJECTED bad token for ${user}`);
+        send(ws, { type: 'error', message: 'bad_token' });
+        ws.close(4003, 'bad_token');
+        return;
+      }
       if (!isAllowedModChatUser(user)) {
         console.log(`[modchat] REJECTED name=${JSON.stringify(msg.name)} -> ${user}`);
         send(ws, { type: 'error', message: 'not_allowed' });

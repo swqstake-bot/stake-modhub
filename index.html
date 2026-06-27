@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.38</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.39</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -438,9 +438,10 @@
         <label class="check"><input type="checkbox" id="showVipRankBadgesSettings" checked /> VIP-Rank-Badges im Live-Chat</label>
         <div class="grid-2 mod-chat-settings">
           <label class="check"><input type="checkbox" id="modChatEnabled" checked /> Mod-Team-Chat (Relay)</label>
-          <label>Mod-Chat Server <input id="modChatUrl" type="text" value="ws://192.168.178.177:3847" placeholder="ws://192.168.178.177:3847" /></label>
+          <label>Mod-Chat Server <input id="modChatUrl" type="text" value="ws://192.168.178.177:3847" placeholder="wss://….trycloudflare.com oder ws://192.168.178.177:3847" /></label>
+          <label>Mod-Chat Token <input id="modChatToken" type="password" autocomplete="off" placeholder="nur wenn MODCHAT_TOKEN auf dem Relay gesetzt" /></label>
         </div>
-        <p class="hint mod-chat-hint">Nur für swaqline, droz, wheelyboy321, kartenstapel · Relay auf <code>192.168.178.177:3847</code> (nur gleiches WLAN/VPN, z. B. Tailscale wenn remote).</p>
+        <p class="hint mod-chat-hint">LAN: <code>ws://192.168.178.177:3847</code> · Remote via Cloudflare Tunnel: <code>wss://dein-tunnel.trycloudflare.com</code> (ohne / am Ende). trycloudflare-URL ändert sich bei jedem Neustart.</p>
         <label class="check"><input type="checkbox" id="logHash" checked /> Auto IP-Hash (1×/Tag pro User)</label>
         <label class="check"><input type="checkbox" id="useNativeWs" checked /> Native WebSocket (empfohlen)</label>
         <div class="grid-2">
