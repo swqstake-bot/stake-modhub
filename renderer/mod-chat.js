@@ -10,7 +10,6 @@
   ]).map((n) => String(n).toLowerCase());
 
   const ERROR_LABELS = {
-    bad_token: 'Falsches Mod-Chat-Token (Settings).',
     not_allowed: 'Name nicht auf der Mod-Whitelist (Server config.js prüfen).',
     auth_required: 'Auth fehlgeschlagen.',
     auth_timeout: 'Auth-Timeout — Relay antwortet nicht.',
@@ -33,6 +32,8 @@
   let haltReconnect = false;
   let lastError = '';
   let status = 'off'; // off | connecting | online | error
+  /** @type {Set<string>} */
+  let onlineMods = new Set();
 
   function normalizeName(name) {
     return String(name || '')
@@ -62,10 +63,6 @@
     if (ctx?.formatChatTime) return ctx.formatChatTime(ts);
     const d = new Date(ts);
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  }
-
-  function getToken() {
-    return String(ctx?.state?.settings?.modChatToken || '').trim();
   }
 
   function getUrl() {
@@ -117,13 +114,44 @@
     return 'Server nicht erreichbar. 192.168.x nur im gleichen WLAN/VPN (z. B. Tailscale). Relay läuft? Firewall Port 3847?';
   }
 
+  function applyOnlineList(list) {
+    onlineMods = new Set();
+    if (Array.isArray(list)) {
+      for (const name of list) {
+        const n = normalizeName(name);
+        if (n) onlineMods.add(n);
+      }
+    }
+    renderOnlineUi();
+  }
+
+  function renderOnlineUi() {
+    const el = $('modChatOnline');
+    const countEl = $('modChatOnlineCount');
+    const onCount = ALLOWED.filter((n) => onlineMods.has(n)).length;
+    if (countEl) {
+      countEl.textContent = onCount > 0 ? String(onCount) : '';
+      countEl.classList.toggle('hidden', onCount === 0);
+    }
+    if (!el) return;
+    el.innerHTML = ALLOWED.map((name) => {
+      const on = onlineMods.has(name);
+      return `<span class="mod-chat-presence${on ? ' is-on' : ''}" title="${on ? 'Online' : 'Offline'}">${esc(name)}</span>`;
+    }).join('');
+  }
+
   function updateUnreadUi() {
     const badge = $('modChatUnread');
     if (!badge) return;
-    if (unread > 0 && !expanded) {
-      badge.textContent = unread > 99 ? '99+' : String(unread);
+    const show = unread > 0 && !expanded;
+    if (show) {
+      const label = unread > 99 ? '99+' : String(unread);
+      badge.textContent = label;
+      badge.setAttribute('aria-label', `${unread} ungelesene Nachrichten`);
+      badge.setAttribute('aria-hidden', 'false');
       badge.classList.remove('hidden');
     } else {
+      badge.setAttribute('aria-hidden', 'true');
       badge.classList.add('hidden');
     }
   }
@@ -199,6 +227,8 @@
       ws = null;
     }
     if (!haltReconnect) setStatus('off');
+    onlineMods = new Set();
+    renderOnlineUi();
   }
 
   function connect() {
@@ -234,7 +264,7 @@
 
     socket.addEventListener('open', () => {
       reconnectAttempt = 0;
-      socket.send(JSON.stringify({ type: 'auth', name: ctx.state.modUser, token: getToken() || undefined }));
+      socket.send(JSON.stringify({ type: 'auth', name: ctx.state.modUser }));
       authTimer = setTimeout(() => {
         if (ws !== socket || socket.readyState !== WebSocket.OPEN) return;
         failFatal('Auth-Timeout — Relay antwortet nicht.');
@@ -258,8 +288,6 @@
         const label = ERROR_LABELS[msg.message] || msg.message || 'Relay-Fehler';
         if (msg.message === 'not_allowed') {
           failFatal(`${label} (Login: ${ctx.state.modUser})`);
-        } else if (msg.message === 'bad_token') {
-          failFatal(label);
         } else if (msg.message === 'auth_timeout' || msg.message === 'auth_required') {
           failFatal(label);
         } else {
@@ -279,7 +307,20 @@
         if (Array.isArray(msg.history)) {
           lines = msg.history.slice(-200);
         }
+        applyOnlineList(msg.online);
         renderLog();
+        return;
+      }
+
+      if (msg.type === 'presence') {
+        if (Array.isArray(msg.onlineList)) {
+          applyOnlineList(msg.onlineList);
+        } else if (msg.user) {
+          const u = normalizeName(msg.user);
+          if (msg.online) onlineMods.add(u);
+          else onlineMods.delete(u);
+          renderOnlineUi();
+        }
         return;
       }
 
@@ -347,6 +388,8 @@
       updateUnreadUi();
       renderLog();
       $('modChatInput')?.focus();
+    } else {
+      updateUnreadUi();
     }
   }
 
@@ -361,7 +404,9 @@
     setPanelVisible(true);
     lines = [];
     unread = 0;
+    onlineMods = new Set();
     updateUnreadUi();
+    renderOnlineUi();
     renderLog();
     connect();
   }
@@ -371,8 +416,10 @@
     disconnect();
     lines = [];
     unread = 0;
+    onlineMods = new Set();
     lastError = '';
     updateUnreadUi();
+    renderOnlineUi();
     renderLog();
     setPanelVisible(false);
     haltReconnect = false;
@@ -411,6 +458,8 @@
 
     setPanelVisible(false);
     setStatus('off');
+    updateUnreadUi();
+    renderOnlineUi();
   }
 
   global.ModChat = {

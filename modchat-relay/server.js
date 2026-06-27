@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Minimal WebSocket relay for ModHub team chat (LAN).
- * Auth: username must be in MOD_CHAT_ALLOWED (same list as ModHub client).
+ * Minimal WebSocket relay for ModHub team chat (LAN / Cloudflare Tunnel).
+ * Auth: username must be in MOD_CHAT_ALLOWED.
  */
 const http = require('http');
 const { WebSocketServer } = require('ws');
@@ -9,8 +9,7 @@ const {
   MOD_CHAT_PORT,
   MOD_CHAT_HISTORY_MAX,
   normalizeModName,
-  isAllowedModChatUser,
-  isValidModChatToken
+  isAllowedModChatUser
 } = require('./config');
 
 const PORT = Number(process.env.MODCHAT_PORT) || MOD_CHAT_PORT;
@@ -26,6 +25,10 @@ let msgSeq = 0;
 function nextId() {
   msgSeq += 1;
   return `m${Date.now()}-${msgSeq}`;
+}
+
+function onlineUsers() {
+  return [...new Set([...clients.values()].map((c) => c.user))].sort();
 }
 
 function pushHistory(entry) {
@@ -47,7 +50,8 @@ function send(ws, obj) {
 
 const server = http.createServer((_req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-  res.end(`ModChat relay OK · ${clients.size} verbunden · ${history.length} History\n`);
+  const names = onlineUsers().join(', ') || '—';
+  res.end(`ModChat relay OK · ${clients.size} verbunden (${names}) · ${history.length} History\n`);
 });
 
 const wss = new WebSocketServer({ server });
@@ -77,12 +81,6 @@ wss.on('connection', (ws) => {
         return;
       }
       const user = normalizeModName(msg.name);
-      if (!isValidModChatToken(msg.token)) {
-        console.log(`[modchat] REJECTED bad token for ${user}`);
-        send(ws, { type: 'error', message: 'bad_token' });
-        ws.close(4003, 'bad_token');
-        return;
-      }
       if (!isAllowedModChatUser(user)) {
         console.log(`[modchat] REJECTED name=${JSON.stringify(msg.name)} -> ${user}`);
         send(ws, { type: 'error', message: 'not_allowed' });
@@ -93,9 +91,9 @@ wss.on('connection', (ws) => {
       clearTimeout(authTimer);
       const id = nextId();
       clients.set(ws, { user, id });
-      send(ws, { type: 'auth_ok', user, history: [...history] });
-      broadcast({ type: 'presence', user, online: true, ts: Date.now() }, ws);
-      console.log(`[modchat] + ${user} (${clients.size} online)`);
+      send(ws, { type: 'auth_ok', user, history: [...history], online: onlineUsers() });
+      broadcast({ type: 'presence', user, online: true, onlineList: onlineUsers(), ts: Date.now() }, ws);
+      console.log(`[modchat] + ${user} (${clients.size} online: ${onlineUsers().join(', ')})`);
       return;
     }
 
@@ -136,8 +134,15 @@ wss.on('connection', (ws) => {
     const meta = clients.get(ws);
     if (meta) {
       clients.delete(ws);
-      broadcast({ type: 'presence', user: meta.user, online: false, ts: Date.now() });
-      console.log(`[modchat] - ${meta.user} (${clients.size} online)`);
+      const list = onlineUsers();
+      broadcast({
+        type: 'presence',
+        user: meta.user,
+        online: false,
+        onlineList: list,
+        ts: Date.now()
+      });
+      console.log(`[modchat] - ${meta.user} (${clients.size} online: ${list.join(', ') || '—'})`);
     }
   });
 });

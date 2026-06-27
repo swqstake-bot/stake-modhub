@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.40</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.41</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -136,12 +136,18 @@
           <div id="modChatPanel" class="mod-chat-panel hidden" data-status="off">
             <button type="button" id="modChatToggle" class="mod-chat-toggle" title="Team-Chat (nur DE-Mods)">
               <span id="modChatDot" class="mod-chat-dot"></span>
-              <span class="mod-chat-toggle-label">Mod Chat</span>
-              <span id="modChatUnread" class="mod-chat-unread hidden">0</span>
+              <span class="mod-chat-toggle-main">
+                <span class="mod-chat-toggle-label">Mod Chat</span>
+                <span id="modChatUnread" class="mod-chat-unread hidden" aria-hidden="true">0</span>
+              </span>
+              <span id="modChatOnlineCount" class="mod-chat-online-count hidden" title="Mods online"></span>
               <span id="modChatChevron" class="mod-chat-chevron">▼</span>
             </button>
             <div id="modChatBody" class="mod-chat-body hidden">
-              <p id="modChatStatus" class="mod-chat-status"></p>
+              <div class="mod-chat-meta-row">
+                <p id="modChatStatus" class="mod-chat-status"></p>
+                <div id="modChatOnline" class="mod-chat-online" aria-label="Mod-Anwesenheit"></div>
+              </div>
               <div id="modChatLog" class="mod-chat-log"></div>
               <div class="mod-chat-input-row">
                 <input id="modChatInput" type="text" maxlength="500" placeholder="Nachricht an Mods…" autocomplete="off" />
@@ -439,9 +445,8 @@
         <div class="grid-2 mod-chat-settings">
           <label class="check"><input type="checkbox" id="modChatEnabled" checked /> Mod-Team-Chat (Relay)</label>
           <label>Mod-Chat Server <input id="modChatUrl" type="text" value="wss://announcement-anaheim-filled-ripe.trycloudflare.com" placeholder="wss://….trycloudflare.com" /></label>
-          <label>Mod-Chat Token <input id="modChatToken" type="password" autocomplete="off" placeholder="nur wenn MODCHAT_TOKEN auf dem Relay gesetzt" /></label>
         </div>
-        <p class="hint mod-chat-hint">Aktuell: <code>wss://announcement-anaheim-filled-ripe.trycloudflare.com</code> · LAN-Fallback: <code>ws://192.168.178.177:3847</code> · URL wechselt bei jedem <code>cloudflared</code>-Neustart.</p>
+        <p class="hint mod-chat-hint">Standard: <code>wss://announcement-anaheim-filled-ripe.trycloudflare.com</code> (Cloudflare Tunnel). Alte LAN-URLs (<code>192.168.x</code>) werden beim Start automatisch migriert. URL wechselt bei jedem <code>cloudflared</code>-Neustart.</p>
         <label class="check"><input type="checkbox" id="logHash" checked /> Auto IP-Hash (1×/Tag pro User)</label>
         <label class="check"><input type="checkbox" id="useNativeWs" checked /> Native WebSocket (empfohlen)</label>
         <div class="grid-2">

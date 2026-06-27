@@ -1749,7 +1749,6 @@ async function loadSettingsUi() {
   if ($('modChatUrl')) {
     $('modChatUrl').value = s.modChatUrl || C.MOD_CHAT_DEFAULT_URL || 'wss://announcement-anaheim-filled-ripe.trycloudflare.com';
   }
-  if ($('modChatToken')) $('modChatToken').value = s.modChatToken || '';
   const ah = Number(s.autodelHour ?? 23);
   const am = Number(s.autodelMinute ?? 59);
   if ($('autodelTime')) {
@@ -1803,7 +1802,6 @@ async function saveSettingsFromForm() {
     showVipRankBadges: $('showVipRankBadgesSettings')?.checked ?? $('showVipRankBadges')?.checked ?? true,
     modChatEnabled: $('modChatEnabled')?.checked !== false,
     modChatUrl: ($('modChatUrl')?.value || C.MOD_CHAT_DEFAULT_URL || 'wss://announcement-anaheim-filled-ripe.trycloudflare.com').trim(),
-    modChatToken: ($('modChatToken')?.value || '').trim(),
     autodelHour: Number.isFinite(autodelHour) ? autodelHour : 23,
     autodelMinute: Number.isFinite(autodelMinute) ? autodelMinute : 59,
     rhCrashTimerMinutes: Math.max(0, Number($('rhTimerMinutes')?.value) || 0),
@@ -3383,11 +3381,6 @@ function wireSettings() {
   });
 
   $('modChatUrl')?.addEventListener('change', async () => {
-    await saveSettingsFromForm();
-    if (state.loggedIn && ModChat?.isAllowedMod?.(state.modUser)) ModChat.reconnect?.();
-  });
-
-  $('modChatToken')?.addEventListener('change', async () => {
     await saveSettingsFromForm();
     if (state.loggedIn && ModChat?.isAllowedMod?.(state.modUser)) ModChat.reconnect?.();
   });
