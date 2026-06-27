@@ -31,6 +31,15 @@ const { registerAnalyseIpc } = require('./main/ipc-analyse');
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 
+process.on('uncaughtException', (err) => {
+  const msg = String(err?.message || err);
+  if (/WebSocket was closed before the connection was established/i.test(msg)) {
+    console.error('[modhub] WS teardown (ignored):', msg);
+    return;
+  }
+  console.error('[modhub] uncaughtException:', err);
+});
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 }
@@ -47,6 +56,7 @@ const liveDedup = new Map();
 const LIVE_DEDUP_MS = 15000;
 let captureOpenedForFallback = false;
 let liveHealthTimer = null;
+let wsStartChain = Promise.resolve();
 
 async function syncSessionFromElectron() {
   await refreshCookies();
@@ -418,12 +428,21 @@ function startLiveHealthMonitor() {
 }
 
 async function startNativeChatWs() {
-  const s = loadSettings();
-  if (!s.useNativeWs || !s.apiKey) return;
-  await prepareWsConnection();
-  chatWs.setConvRates(convRates);
-  autoHashQueue.reloadCheckedToday();
-  chatWs.start(buildWsConfig());
+  wsStartChain = wsStartChain
+    .catch(() => {})
+    .then(async () => {
+      const s = loadSettings();
+      if (!s.useNativeWs || !s.apiKey) return;
+      await prepareWsConnection();
+      chatWs.setConvRates(convRates);
+      autoHashQueue.reloadCheckedToday();
+      try {
+        chatWs.start(buildWsConfig());
+      } catch (e) {
+        console.error('[modhub] chatWs.start failed:', e?.message || e);
+      }
+    });
+  return wsStartChain;
 }
 
 function stopNativeChatWs() {
@@ -482,7 +501,11 @@ function registerIpc() {
     event.returnValue = app.getVersion();
   });
   ipcMain.on('modhub-live-flag', (event, input) => {
-    event.returnValue = scoreLiveMessage(input || {});
+    try {
+      event.returnValue = scoreLiveMessage(input || {});
+    } catch (_) {
+      event.returnValue = null;
+    }
   });
   ipcMain.handle('modhub-settings-get', async () => loadSettings());
   ipcMain.handle('modhub-settings-set', async (_e, partial) => {
