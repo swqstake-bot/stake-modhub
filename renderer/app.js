@@ -1513,7 +1513,7 @@ function setModActionsEnabled(on) {
 }
 
 function setUserActionsEnabled(on) {
-  ['btnModAction', 'btnWarn', 'btnUserHash', 'btnAddVeri2'].forEach((id) => {
+  ['btnModAction', 'btnWarn', 'btnUserHash', 'btnAddVeri2', 'btnChatHistory'].forEach((id) => {
     const el = $(id);
     if (el) el.disabled = !on || !state.loggedIn;
   });
@@ -2628,6 +2628,13 @@ function wireHub() {
   });
 
   $('btnModAction')?.addEventListener('click', () => openModAction('mute'));
+  $('btnChatHistory')?.addEventListener('click', () => {
+    if (!state.validatedUserId) {
+      $('validateStatus').textContent = 'Zuerst User validieren für History.';
+      return;
+    }
+    openModAction('chat');
+  });
   $('btnPolicyApply')?.addEventListener('click', () => applyPolicyMute());
   $('btnPolicyUnmute')?.addEventListener('click', async () => {
     if (!state.validatedUserId) return;
