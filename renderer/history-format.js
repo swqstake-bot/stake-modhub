@@ -65,7 +65,10 @@
         const hl = highlightText && messageMatchesHighlight(msg, highlightText);
         if (hl) highlightFound = true;
         const cls = hl ? 'hist-row-highlight' : '';
-        return `<tr class="${cls}" data-hist-i="${i}"><td>${esc(ts)}</td><td>${esc(room)}</td><td>${esc(msg)}</td></tr>`;
+        const msgHtml = window.Emotes?.formatMessageHtml
+          ? window.Emotes.formatMessageHtml(msg, esc)
+          : esc(msg);
+        return `<tr class="${cls}" data-hist-i="${i}"><td>${esc(ts)}</td><td>${esc(room)}</td><td>${msgHtml}</td></tr>`;
       })
       .join('');
     const note =

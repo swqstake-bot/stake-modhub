@@ -314,6 +314,76 @@ body {
   font-family: inherit;
 }
 
+.hub-msg-row--chat {
+  position: relative;
+}
+
+.hub-chat-side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.hub-emote-btn {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.emote-picker {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(8, 34px);
+  gap: 4px;
+  max-width: min(320px, 100%);
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--panel-bg, #1a2c38);
+  border: 1px solid var(--border, #2f4553);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.emote-picker-item {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emote-picker-item:hover,
+.emote-picker-item:focus-visible {
+  border-color: var(--accent, #00e701);
+  background: rgba(0, 231, 1, 0.08);
+}
+
+.emote-picker-item img,
+.chat-emote {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  vertical-align: middle;
+  display: inline-block;
+}
+
+.chat-line .chat-emote {
+  margin: 0 1px;
+}
+
 .hub-bp-row {
   gap: 4px;
   flex-wrap: wrap;

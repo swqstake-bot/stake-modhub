@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.33</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.34</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -109,12 +109,16 @@
                 </div>
               </label>
               <label class="compact-label">Chat-BP <select id="cbChatBlueprints"><option value="">—</option></select></label>
-              <label class="compact-label span-all hub-msg-row">
+              <label class="compact-label span-all hub-msg-row hub-msg-row--chat">
                 <span class="hub-msg-label">Chat-Text <span class="hint">(max. 160, Enter = Senden)</span></span>
                 <div class="hub-msg-input-row hub-msg-input-row--chat">
                   <textarea id="chatMessage" rows="3" maxlength="160" placeholder="Chat-Nachricht…"></textarea>
-                  <button type="button" id="btnSendChat" class="primary sm" disabled title="Chat-Text senden (Enter)">Senden</button>
+                  <div class="hub-chat-side-actions">
+                    <button type="button" id="btnEmotePicker" class="sm hub-emote-btn" title="Emotes einfügen">😀</button>
+                    <button type="button" id="btnSendChat" class="primary sm" disabled title="Chat-Text senden (Enter)">Senden</button>
+                  </div>
                 </div>
+                <div id="emotePicker" class="emote-picker hidden" role="listbox" aria-label="Emotes"></div>
               </label>
               <div class="span-all row-inline hub-bp-row">
                 <button type="button" id="btnAddMuteBp" class="sm">+ Mute BP</button>
@@ -583,6 +587,7 @@
   <script src="./renderer/bet-id-parse.js"></script>
   <script src="./renderer/mod-policy.js"></script>
   <script src="./renderer/history-format.js"></script>
+  <script src="./renderer/emotes.js"></script>
   <script src="./renderer/live-chat.js"></script>
   <script src="./renderer/analyse.js"></script>
   <script src="./renderer/app.js"></script>

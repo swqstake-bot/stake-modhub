@@ -82,7 +82,10 @@
     const timeLabel = formatChatTime(displayTs);
     const serverLabel = m.receivedAt && m.ts !== m.receivedAt ? formatChatTime(m.ts) : '';
     const timeTitle = serverLabel ? `Empfang ${timeLabel} · Server ${serverLabel}` : timeLabel;
-    return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}><span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span> <span class="user">${esc(stripAt(m.username))}</span>: ${esc(m.message)}</div>`;
+    const msgHtml = window.Emotes?.formatMessageHtml
+      ? window.Emotes.formatMessageHtml(m.message, esc)
+      : esc(m.message);
+    return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}><span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span> <span class="user">${esc(stripAt(m.username))}</span>: ${msgHtml}</div>`;
   }
 
   function needsFullChatRender(displayLines) {

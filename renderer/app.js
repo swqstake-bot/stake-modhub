@@ -3377,6 +3377,11 @@ async function init() {
     formatChatTime,
     isVeri2
   });
+  Emotes?.init({
+    button: $('btnEmotePicker'),
+    panel: $('emotePicker'),
+    textarea: $('chatMessage')
+  });
   startHubClock();
   initPolicyModal();
   wireTabs();
