@@ -1,0 +1,133 @@
+[
+  {
+    "flag": "none",
+    "file": "none.svg",
+    "label": "None",
+    "icon": "VIPNone"
+  },
+  {
+    "flag": "bronze",
+    "file": "bronze.svg",
+    "label": "Bronze",
+    "icon": "VIPBronze"
+  },
+  {
+    "flag": "silver",
+    "file": "silver.svg",
+    "label": "Silver",
+    "icon": "VIPSilver"
+  },
+  {
+    "flag": "gold",
+    "file": "gold.svg",
+    "label": "Gold",
+    "icon": "VIPGold"
+  },
+  {
+    "flag": "platinum",
+    "file": "platinum.svg",
+    "label": "Platinum I",
+    "icon": "VIPPlatinumI"
+  },
+  {
+    "flag": "wagered(500k)",
+    "file": "wagered_500k_.svg",
+    "label": "Platinum II",
+    "icon": "VIPPlatinumII"
+  },
+  {
+    "flag": "wagered(1m)",
+    "file": "wagered_1m_.svg",
+    "label": "Platinum III",
+    "icon": "VIPPlatinumIII"
+  },
+  {
+    "flag": "wagered(2.5m)",
+    "file": "wagered_2_5m_.svg",
+    "label": "Platinum IV",
+    "icon": "VIPPlatinumIV"
+  },
+  {
+    "flag": "wagered(5m)",
+    "file": "wagered_5m_.svg",
+    "label": "Platinum V",
+    "icon": "VIPPlatinumV"
+  },
+  {
+    "flag": "wagered(10m)",
+    "file": "wagered_10m_.svg",
+    "label": "Platinum VI",
+    "icon": "VIPPlatinumVI"
+  },
+  {
+    "flag": "wagered(25m)",
+    "file": "wagered_25m_.svg",
+    "label": "Diamond I",
+    "icon": "VIPDiamondI"
+  },
+  {
+    "flag": "wagered(50m)",
+    "file": "wagered_50m_.svg",
+    "label": "Diamond II",
+    "icon": "VIPDiamondII"
+  },
+  {
+    "flag": "wagered(100m)",
+    "file": "wagered_100m_.svg",
+    "label": "Diamond III",
+    "icon": "VIPDiamondIII"
+  },
+  {
+    "flag": "wagered(250m)",
+    "file": "wagered_250m_.svg",
+    "label": "Diamond IV",
+    "icon": "VIPDiamondIV"
+  },
+  {
+    "flag": "wagered(500m)",
+    "file": "wagered_500m_.svg",
+    "label": "Diamond V",
+    "icon": "VIPDiamondV"
+  },
+  {
+    "flag": "wagered(1000m)",
+    "file": "wagered_1000m_.svg",
+    "label": "Obsidian I",
+    "icon": "VIPObsidianI"
+  },
+  {
+    "flag": "wagered(2500m)",
+    "file": "wagered_2500m_.svg",
+    "label": "Obsidian II",
+    "icon": "VIPObsidianII"
+  },
+  {
+    "flag": "wagered(5000m)",
+    "file": "wagered_5000m_.svg",
+    "label": "Opal I",
+    "icon": "VIPOpalI"
+  },
+  {
+    "flag": "wagered(10000m)",
+    "file": "wagered_10000m_.svg",
+    "label": "Opal II",
+    "icon": "VIPOpalII"
+  },
+  {
+    "flag": "wagered(25000m)",
+    "file": "wagered_25000m_.svg",
+    "label": "Plutonium",
+    "icon": "VIPPlutoniumI"
+  },
+  {
+    "flag": "badge",
+    "file": "badge.webp",
+    "label": "badge"
+  },
+  {
+    "flag": "moderator",
+    "file": "moderator.svg",
+    "label": "Moderator",
+    "icon": "Moderator"
+  }
+]

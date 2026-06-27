@@ -57,7 +57,7 @@
   }
 
   function lineClasses(m) {
-    const { state, isVeri2 } = getCtx();
+    const { state, isVeri2, isOwnModChatUser } = getCtx();
     const parts = ['chat-line'];
     if (m.kind === 'tip') parts.push('kind-tip');
     if (m.kind === 'rain') parts.push('kind-rain');
@@ -69,11 +69,12 @@
     if (m.modMention) parts.push('mark-tagged');
     if (state.allmsgUser && m.username.toLowerCase() === state.allmsgUser.toLowerCase()) parts.push('mark-yellow');
     if (state.modMarkUser && m.username.toLowerCase() === state.modMarkUser.toLowerCase()) parts.push('mark-mod');
+    if (typeof isOwnModChatUser === 'function' && isOwnModChatUser(m.username)) parts.push('is-self');
     return parts.join(' ');
   }
 
   function formatChatLineHtml(m) {
-    const { esc, stripAt, formatChatTime } = getCtx();
+    const { esc, stripAt, formatChatTime, state } = getCtx();
     const cls = lineClasses(m);
     const betAttr = m.betId ? ` data-bet="${esc(m.betId)}" title="Bet-ID: ${esc(m.betId)} — Doppelklick = Lookup"` : '';
     const idxAttr = ` data-idx="${m.idx}" data-uid="${m.uid}"`;
@@ -85,7 +86,23 @@
     const msgHtml = window.Emotes?.formatMessageHtml
       ? window.Emotes.formatMessageHtml(m.message, esc)
       : esc(m.message);
-    return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}><span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span> <span class="user">${esc(stripAt(m.username))}</span>: ${msgHtml}</div>`;
+
+    const userName = stripAt(m.username);
+    const colorEnabled = state?.settings?.colorChatEnabled !== false;
+    const badgesEnabled = state?.settings?.showVipRankBadges !== false;
+    const isSelf = typeof getCtx().isOwnModChatUser === 'function' && getCtx().isOwnModChatUser(userName);
+
+    const badgeHtml = window.RankBadges?.formatUserBadgesHtml
+      ? window.RankBadges.formatUserBadgesHtml({ flags: m.flags, roles: m.roles }, esc, { enabled: badgesEnabled })
+      : window.RankBadges?.formatFlagsHtml
+        ? window.RankBadges.formatFlagsHtml(m.flags, esc, { enabled: badgesEnabled })
+        : '';
+
+    const userHtml = window.ChatColors?.formatUserHtml
+      ? window.ChatColors.formatUserHtml(userName, { isSelf, esc, colorEnabled })
+      : `<span class="user" data-username="${esc(userName)}">${esc(userName)}</span>`;
+
+    return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}><span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span>${badgeHtml}<span class="chat-user-wrap">${userHtml}</span>: ${msgHtml}</div>`;
   }
 
   function needsFullChatRender(displayLines) {

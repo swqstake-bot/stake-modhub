@@ -1702,6 +1702,22 @@ async function stepLiveChatFontSize(delta) {
   if (sel) sel.value = String(nearestLiveChatFontPreset(px));
 }
 
+function syncChatDisplaySettingsUi() {
+  const colorOn = state.settings?.colorChatEnabled !== false;
+  const badgesOn = state.settings?.showVipRankBadges !== false;
+  if ($('colorChat')) $('colorChat').checked = colorOn;
+  if ($('showVipRankBadges')) $('showVipRankBadges').checked = badgesOn;
+  if ($('colorChatSettings')) $('colorChatSettings').checked = colorOn;
+  if ($('showVipRankBadgesSettings')) $('showVipRankBadgesSettings').checked = badgesOn;
+}
+
+async function saveChatDisplaySettings(patch = {}) {
+  state.settings = await modHub.saveSettings(patch);
+  syncChatDisplaySettingsUi();
+  LiveChat.invalidateChatDom();
+  renderChats({ forceFull: true });
+}
+
 async function loadSettingsUi() {
   const s = await modHub.getSettings();
   state.settings = s;
@@ -1728,6 +1744,7 @@ async function loadSettingsUi() {
   } else {
     applyLiveChatFontSize(s.liveChatFontSize ?? 13);
   }
+  syncChatDisplaySettingsUi();
   const ah = Number(s.autodelHour ?? 23);
   const am = Number(s.autodelMinute ?? 59);
   if ($('autodelTime')) {
@@ -1777,6 +1794,8 @@ async function saveSettingsFromForm() {
     wsHost: ($('wsHost')?.value || 'stake.bet').trim() || 'stake.bet',
     maxChatRows: parseInt($('maxChatRows')?.value, 10) || 1000,
     liveChatFontSize: applyLiveChatFontSize($('liveChatFontSize')?.value ?? 13),
+    colorChatEnabled: $('colorChatSettings')?.checked ?? $('colorChat')?.checked ?? true,
+    showVipRankBadges: $('showVipRankBadgesSettings')?.checked ?? $('showVipRankBadges')?.checked ?? true,
     autodelHour: Number.isFinite(autodelHour) ? autodelHour : 23,
     autodelMinute: Number.isFinite(autodelMinute) ? autodelMinute : 59,
     rhCrashTimerMinutes: Math.max(0, Number($('rhTimerMinutes')?.value) || 0),
@@ -2437,6 +2456,9 @@ function ingestLiveMessageSync(m, { receivedAt } = {}) {
   const line = parseChatLine(m.username, m.message, m.kind, m.timestamp);
   line.receivedAt = receivedAt ?? Date.now();
   if (m.rain && typeof m.rain === 'object') line.rain = m.rain;
+  if (Array.isArray(m.flags) && m.flags.length) line.flags = m.flags;
+  if (Array.isArray(m.roles) && m.roles.length) line.roles = m.roles;
+  else if (isOwnModChatUser(line.username)) line.roles = ['moderator'];
   line.modMention = isMentionOfMod(line.message);
   pushChatLine(line);
 
@@ -2505,7 +2527,7 @@ function wireChatBoxDblClick(el) {
   el?.addEventListener('dblclick', (e) => {
     const userEl = e.target.closest('.user');
     if (userEl) {
-      fillValidateUsernameFromChat(userEl.textContent);
+      fillValidateUsernameFromChat(userEl.dataset.username || userEl.textContent);
       return;
     }
     const row = e.target.closest('[data-bet]');
@@ -2551,6 +2573,19 @@ function wireHub() {
       }
     }
     renderChats({ forceFull: true });
+  });
+
+  $('colorChat')?.addEventListener('change', async (e) => {
+    await saveChatDisplaySettings({ colorChatEnabled: !!e.target.checked });
+  });
+  $('showVipRankBadges')?.addEventListener('change', async (e) => {
+    await saveChatDisplaySettings({ showVipRankBadges: !!e.target.checked });
+  });
+  $('colorChatSettings')?.addEventListener('change', async (e) => {
+    await saveChatDisplaySettings({ colorChatEnabled: !!e.target.checked });
+  });
+  $('showVipRankBadgesSettings')?.addEventListener('change', async (e) => {
+    await saveChatDisplaySettings({ showVipRankBadges: !!e.target.checked });
   });
 
   $('btnClearLive')?.addEventListener('click', () => {
@@ -3375,13 +3410,14 @@ async function init() {
     esc,
     stripAt,
     formatChatTime,
-    isVeri2
+    isVeri2,
+    isOwnModChatUser
   });
-  Emotes?.init({
+  await Promise.all([Emotes?.init({
     button: $('btnEmotePicker'),
     panel: $('emotePicker'),
     textarea: $('chatMessage')
-  });
+  }), RankBadges?.load()]);
   startHubClock();
   initPolicyModal();
   wireTabs();

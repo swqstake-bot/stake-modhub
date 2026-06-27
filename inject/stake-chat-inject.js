@@ -88,6 +88,14 @@
     return `[RACE] ${race.name || 'Race'} (${race.status || ''})`;
   }
 
+  function pickFlags(cm) {
+    return (cm?.user?.flags || []).map((f) => f?.flag).filter(Boolean);
+  }
+
+  function pickRoles(cm) {
+    return (cm?.user?.roles || []).map((r) => r?.name).filter(Boolean);
+  }
+
   function tryExtractGraphqlMessage(obj) {
     if (!obj || typeof obj !== 'object') return;
     const cm = obj?.payload?.data?.chatMessages || obj?.data?.chatMessages || obj?.payload?.chatMessages;
@@ -97,6 +105,9 @@
     const ts = cm?.createdAt ? Date.parse(cm.createdAt) : Date.now();
     const typename = cm?.data?.__typename || '';
 
+    const flags = pickFlags(cm);
+    const roles = pickRoles(cm);
+
     if (typename.includes('Rain') || cm?.data?.rain) {
       const rainFmt = formatRain(cm);
       push({
@@ -104,24 +115,26 @@
         message: rainFmt.summary,
         kind: 'rain',
         timestamp: ts,
-        rain: rainFmt.rain
+        rain: rainFmt.rain,
+        flags,
+        roles
       });
       return;
     }
     if (typename.includes('Tip') || cm?.data?.tip) {
       const tipUser = stripAt(cm?.data?.tip?.sendBy?.name || cm?.data?.tip?.sender?.name || username);
-      push({ username: tipUser, message: formatTip(cm), kind: 'tip', timestamp: ts });
+      push({ username: tipUser, message: formatTip(cm), kind: 'tip', timestamp: ts, flags, roles });
       return;
     }
     if (
       typename.includes('Trivia') ||
       (cm?.data?.question != null && !cm?.data?.tip && !cm?.data?.rain && !cm?.data?.race)
     ) {
-      push({ username: username || 'Trivia', message: formatTrivia(cm), kind: 'trivia', timestamp: ts });
+      push({ username: username || 'Trivia', message: formatTrivia(cm), kind: 'trivia', timestamp: ts, flags, roles });
       return;
     }
     if (typename.includes('Race') || cm?.data?.race) {
-      push({ username: username || 'Race', message: formatRace(cm), kind: 'race', timestamp: ts });
+      push({ username: username || 'Race', message: formatRace(cm), kind: 'race', timestamp: ts, flags, roles });
       return;
     }
 
@@ -132,7 +145,9 @@
         username,
         message: String(text),
         kind: botMsg ? 'bot' : 'text',
-        timestamp: ts
+        timestamp: ts,
+        flags,
+        roles
       });
     }
   }
