@@ -10,7 +10,7 @@ const {
   MOD_CHAT_HISTORY_MAX,
   normalizeModName,
   isAllowedModChatUser
-} = require('../lib/modchat-config');
+} = require('./config');
 
 const PORT = Number(process.env.MODCHAT_PORT) || MOD_CHAT_PORT;
 
