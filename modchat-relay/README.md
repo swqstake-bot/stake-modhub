@@ -11,7 +11,9 @@ node server.js
 
 Windows: `start-relay.bat` · Port **3847**
 
-ModHub Settings: `ws://192.168.178.177:3847`
+ModHub Settings (Standard): `wss://announcement-anaheim-filled-ripe.trycloudflare.com`
+
+LAN-Fallback: `ws://192.168.178.177:3847`
 
 ## Cloudflare Tunnel (Remote-Mods, kein Port-Freigeben nötig)
 
@@ -22,10 +24,10 @@ ModHub Settings: `ws://192.168.178.177:3847`
 cloudflared tunnel --url http://127.0.0.1:3847
 ```
 
-3. Ausgabe z. B. `https://gratis-automatically-ministry-measurements.trycloudflare.com`
+3. Ausgabe z. B. `https://announcement-anaheim-filled-ripe.trycloudflare.com`
 4. **Alle Mods** in ModHub Settings eintragen:
 
-   - Server: `wss://gratis-automatically-ministry-measurements.trycloudflare.com`
+   - Server: `wss://announcement-anaheim-filled-ripe.trycloudflare.com`
    - **wss** (nicht ws), **kein** `/` am Ende
 
 5. **Sicherheit (Pflicht bei öffentlicher URL):** gemeinsames Token setzen

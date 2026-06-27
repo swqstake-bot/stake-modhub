@@ -115,5 +115,5 @@ window.MODHUB_CONST = {
     Crash: ['crash', 'multiplayer crash']
   },
   MOD_CHAT_ALLOWED: ['swaqline', 'droz', 'wheelyboy321', 'kartenstapel'],
-  MOD_CHAT_DEFAULT_URL: 'ws://192.168.178.177:3847'
+  MOD_CHAT_DEFAULT_URL: 'wss://announcement-anaheim-filled-ripe.trycloudflare.com'
 };

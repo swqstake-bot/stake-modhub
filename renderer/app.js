@@ -1747,7 +1747,7 @@ async function loadSettingsUi() {
   syncChatDisplaySettingsUi();
   if ($('modChatEnabled')) $('modChatEnabled').checked = s.modChatEnabled !== false;
   if ($('modChatUrl')) {
-    $('modChatUrl').value = s.modChatUrl || C.MOD_CHAT_DEFAULT_URL || 'ws://192.168.178.177:3847';
+    $('modChatUrl').value = s.modChatUrl || C.MOD_CHAT_DEFAULT_URL || 'wss://announcement-anaheim-filled-ripe.trycloudflare.com';
   }
   if ($('modChatToken')) $('modChatToken').value = s.modChatToken || '';
   const ah = Number(s.autodelHour ?? 23);
@@ -1802,7 +1802,7 @@ async function saveSettingsFromForm() {
     colorChatEnabled: $('colorChatSettings')?.checked ?? $('colorChat')?.checked ?? true,
     showVipRankBadges: $('showVipRankBadgesSettings')?.checked ?? $('showVipRankBadges')?.checked ?? true,
     modChatEnabled: $('modChatEnabled')?.checked !== false,
-    modChatUrl: ($('modChatUrl')?.value || C.MOD_CHAT_DEFAULT_URL || 'ws://192.168.178.177:3847').trim(),
+    modChatUrl: ($('modChatUrl')?.value || C.MOD_CHAT_DEFAULT_URL || 'wss://announcement-anaheim-filled-ripe.trycloudflare.com').trim(),
     modChatToken: ($('modChatToken')?.value || '').trim(),
     autodelHour: Number.isFinite(autodelHour) ? autodelHour : 23,
     autodelMinute: Number.isFinite(autodelMinute) ? autodelMinute : 59,

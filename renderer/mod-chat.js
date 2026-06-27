@@ -70,7 +70,7 @@
 
   function getUrl() {
     const fromSettings = String(ctx?.state?.settings?.modChatUrl || '').trim();
-    return fromSettings || global.MODHUB_CONST?.MOD_CHAT_DEFAULT_URL || 'ws://192.168.178.177:3847';
+    return fromSettings || global.MODHUB_CONST?.MOD_CHAT_DEFAULT_URL || 'wss://announcement-anaheim-filled-ripe.trycloudflare.com';
   }
 
   function setStatusText(text) {
@@ -384,7 +384,7 @@
     global.MODHUB_CONST = global.MODHUB_CONST || {};
     global.MODHUB_CONST.MOD_CHAT_ALLOWED = ALLOWED;
     global.MODHUB_CONST.MOD_CHAT_DEFAULT_URL =
-      global.MODHUB_CONST.MOD_CHAT_DEFAULT_URL || 'ws://192.168.178.177:3847';
+      global.MODHUB_CONST.MOD_CHAT_DEFAULT_URL || 'wss://announcement-anaheim-filled-ripe.trycloudflare.com';
 
     $('modChatToggle')?.addEventListener('click', toggleExpanded);
 

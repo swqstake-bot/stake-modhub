@@ -2,7 +2,7 @@
 
 const MOD_CHAT_ALLOWED = Object.freeze(['swaqline', 'droz', 'wheelyboy321', 'kartenstapel']);
 
-const MOD_CHAT_DEFAULT_URL = 'ws://192.168.178.177:3847';
+const MOD_CHAT_DEFAULT_URL = 'wss://announcement-anaheim-filled-ripe.trycloudflare.com';
 
 const MOD_CHAT_PORT = 3847;
 
