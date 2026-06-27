@@ -45,6 +45,7 @@ const state = {
   rhStatusTimer: null,
   policyPending: null,
   chatHistoryLimit: 200,
+  chatHistoryHighlight: '',
   muteHistoryCache: [],
   bets: [],
   betByKey: {},
@@ -1459,7 +1460,7 @@ function renderIndexList(el, items, onDbl) {
 function renderHubIndexes() {
   renderIndexList($('tagIndex'), state.tagged, (it) => scrollToLine(it.idx));
   renderIndexList($('rainIndex'), state.rains, (it) => scrollToLine(it.idx));
-  renderIndexList($('flaggedIndex'), state.flagged, (it) => scrollToLine(it.idx));
+  renderIndexList($('flaggedIndex'), state.flagged, (it) => openFlaggedChatHistory(it));
 }
 
 function scrollToLine(idx) {
@@ -2181,6 +2182,25 @@ function updatePolicySuggestion() {
   }
 }
 
+async function openFlaggedChatHistory(item) {
+  if (!item?.username) return;
+  state.chatHistoryHighlight = item.text || item.preview || '';
+  const ok = await validateAndOpenModAction(item.username, 'chat');
+  if (!ok) state.chatHistoryHighlight = '';
+}
+
+function scrollChatHistoryHighlight() {
+  const el = $('policyChatHistory');
+  if (!el) return;
+  const row = el.querySelector('.hist-row-highlight');
+  if (!row) return;
+  row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  row.style.outline = '2px solid #ffb347';
+  setTimeout(() => {
+    row.style.outline = '';
+  }, 2500);
+}
+
 async function loadPolicyChatTab(loadMore = false) {
   const el = $('policyChatHistory');
   const meta = $('policyChatHistoryMeta');
@@ -2203,7 +2223,13 @@ async function loadPolicyChatTab(loadMore = false) {
   }
 
   const items = res.data?.user?.chatHistory || [];
-  el.innerHTML = window.HistoryFormat?.formatChatHistory(res.data) || '<p class="hist-empty">—</p>';
+  const highlightText = state.chatHistoryHighlight || '';
+  el.innerHTML =
+    window.HistoryFormat?.formatChatHistory(res.data, { highlightText }) || '<p class="hist-empty">—</p>';
+  if (highlightText) {
+    requestAnimationFrame(() => scrollChatHistoryHighlight());
+    state.chatHistoryHighlight = '';
+  }
   if (meta) {
     meta.textContent =
       items.length >= state.chatHistoryLimit

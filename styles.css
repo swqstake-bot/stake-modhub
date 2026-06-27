@@ -1313,6 +1313,19 @@ button:disabled {
   position: sticky;
   top: 0;
   background: var(--stake-bg-surface);
+  z-index: 1;
+}
+
+.hist-row-highlight td {
+  background: rgba(255, 179, 71, 0.14);
+}
+
+.hist-row-highlight td:last-child {
+  font-weight: 600;
+}
+
+.hist-highlight-miss {
+  margin: 0 0 6px;
 }
 
 .settings-panel {

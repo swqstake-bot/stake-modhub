@@ -31,18 +31,48 @@
     return '(kein Text)';
   }
 
-  function formatChatHistory(data) {
+  function normHistMatchText(s) {
+    return String(s || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  function messageMatchesHighlight(msg, highlightText) {
+    const a = normHistMatchText(msg);
+    const b = normHistMatchText(highlightText);
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (a.length >= 8 && b.length >= 8 && (a.includes(b) || b.includes(a))) return true;
+    return false;
+  }
+
+  function formatChatHistory(data, opts = {}) {
     const items = data?.user?.chatHistory;
-    if (!Array.isArray(items) || !items.length) return '<p class="hist-empty">Keine Chat-Historie.</p>';
+    const highlightText = opts.highlightText || '';
+    if (!Array.isArray(items) || !items.length) {
+      if (highlightText) {
+        return `<p class="hist-empty">Keine Chat-Historie in der API. Live-Nachricht: <em>${esc(highlightText)}</em></p>`;
+      }
+      return '<p class="hist-empty">Keine Chat-Historie.</p>';
+    }
+    let highlightFound = false;
     const rows = items
-      .map((h) => {
+      .map((h, i) => {
         const room = h.chat?.name || '—';
         const ts = h.createdAt ? new Date(h.createdAt).toLocaleString('de-DE') : '—';
         const msg = chatHistoryItemText(h);
-        return `<tr><td>${esc(ts)}</td><td>${esc(room)}</td><td>${esc(msg)}</td></tr>`;
+        const hl = highlightText && messageMatchesHighlight(msg, highlightText);
+        if (hl) highlightFound = true;
+        const cls = hl ? 'hist-row-highlight' : '';
+        return `<tr class="${cls}" data-hist-i="${i}"><td>${esc(ts)}</td><td>${esc(room)}</td><td>${esc(msg)}</td></tr>`;
       })
       .join('');
-    return `<table class="hist-table"><thead><tr><th>Zeit</th><th>Raum</th><th>Nachricht</th></tr></thead><tbody>${rows}</tbody></table>`;
+    const note =
+      highlightText && !highlightFound
+        ? `<p class="hist-highlight-miss hint">Live-Treffer noch nicht in der API — zeigt den API-Verlauf:</p>`
+        : '';
+    return `${note}<table class="hist-table"><thead><tr><th>Zeit</th><th>Raum</th><th>Nachricht</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   function formatTipHistory(data) {
@@ -121,6 +151,8 @@
 
   window.HistoryFormat = {
     chatHistoryItemText,
+    normHistMatchText,
+    messageMatchesHighlight,
     formatChatHistory,
     formatTipHistory,
     formatMuteHistory,
