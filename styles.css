@@ -305,6 +305,30 @@ body {
   display: none;
 }
 
+.mod-chat-status {
+  margin: 0;
+  padding: 4px 8px 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--stake-text-muted);
+}
+
+.mod-chat-status:empty {
+  display: none;
+}
+
+.mod-chat-panel[data-status='error'] .mod-chat-status {
+  color: #ff9a9a;
+}
+
+.mod-chat-empty {
+  margin: 0;
+  padding: 8px 4px;
+  color: var(--stake-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .mod-chat-log {
   height: 120px;
   overflow-y: auto;

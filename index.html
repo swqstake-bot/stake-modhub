@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.37</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.38</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -141,10 +141,12 @@
               <span id="modChatChevron" class="mod-chat-chevron">▼</span>
             </button>
             <div id="modChatBody" class="mod-chat-body hidden">
+              <p id="modChatStatus" class="mod-chat-status"></p>
               <div id="modChatLog" class="mod-chat-log"></div>
               <div class="mod-chat-input-row">
                 <input id="modChatInput" type="text" maxlength="500" placeholder="Nachricht an Mods…" autocomplete="off" />
                 <button type="button" id="modChatSend" class="primary sm">Send</button>
+                <button type="button" id="modChatReconnect" class="sm" title="Neu verbinden">↻</button>
               </div>
             </div>
           </div>
@@ -438,7 +440,7 @@
           <label class="check"><input type="checkbox" id="modChatEnabled" checked /> Mod-Team-Chat (Relay)</label>
           <label>Mod-Chat Server <input id="modChatUrl" type="text" value="ws://192.168.178.177:3847" placeholder="ws://192.168.178.177:3847" /></label>
         </div>
-        <p class="hint mod-chat-hint">Nur für swaqline, droz, wheelyboy321, kartenstapel · Relay auf dem Root-Server starten (<code>modchat-relay/</code>).</p>
+        <p class="hint mod-chat-hint">Nur für swaqline, droz, wheelyboy321, kartenstapel · Relay auf <code>192.168.178.177:3847</code> (nur gleiches WLAN/VPN, z. B. Tailscale wenn remote).</p>
         <label class="check"><input type="checkbox" id="logHash" checked /> Auto IP-Hash (1×/Tag pro User)</label>
         <label class="check"><input type="checkbox" id="useNativeWs" checked /> Native WebSocket (empfohlen)</label>
         <div class="grid-2">

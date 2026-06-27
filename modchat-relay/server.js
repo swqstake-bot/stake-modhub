@@ -77,6 +77,7 @@ wss.on('connection', (ws) => {
       }
       const user = normalizeModName(msg.name);
       if (!isAllowedModChatUser(user)) {
+        console.log(`[modchat] REJECTED name=${JSON.stringify(msg.name)} -> ${user}`);
         send(ws, { type: 'error', message: 'not_allowed' });
         ws.close(4003, 'not_allowed');
         return;
@@ -88,6 +89,12 @@ wss.on('connection', (ws) => {
       send(ws, { type: 'auth_ok', user, history: [...history] });
       broadcast({ type: 'presence', user, online: true, ts: Date.now() }, ws);
       console.log(`[modchat] + ${user} (${clients.size} online)`);
+      return;
+    }
+
+    if (msg?.type === 'auth') {
+      send(ws, { type: 'error', message: 'auth_required' });
+      ws.close(4003, 'auth_required');
       return;
     }
 

@@ -25,6 +25,12 @@ Nur den Ordner `modchat-relay/` auf den Server kopieren (enthält alles Nötige)
 - `config.js`
 - `package.json`
 
-Dann `npm install` und `node server.js`. Firewall: TCP 3847 im LAN.
+Dann `npm install` und `node server.js`. **Firewall:** TCP **3847** eingehend im LAN freigeben.
 
 Optional: `MODCHAT_PORT=3847 node server.js`
+
+## Remote-Mods (nicht im gleichen WLAN)
+
+`192.168.178.x` ist nur im lokalen Netz erreichbar. Mods von unterwegs brauchen z. B. **Tailscale** auf dem Relay-Server und in ModHub unter Settings die Tailscale-IP eintragen (`ws://100.x.x.x:3847`).
+
+Bei Verbindungsproblemen im Relay-Fenster: `[modchat] REJECTED …` = falscher Name; kein Log = Client kommt gar nicht an (Firewall/VPN).

@@ -9,6 +9,14 @@
     'kartenstapel'
   ]).map((n) => String(n).toLowerCase());
 
+  const ERROR_LABELS = {
+    not_allowed: 'Name nicht auf der Mod-Whitelist (Server config.js prüfen).',
+    auth_required: 'Auth fehlgeschlagen.',
+    auth_timeout: 'Auth-Timeout — Relay antwortet nicht.',
+    invalid_json: 'Ungültige Server-Antwort.',
+    message_too_long: 'Nachricht zu lang (max. 500).'
+  };
+
   /** @type {object | null} */
   let ctx = null;
   /** @type {WebSocket | null} */
@@ -20,6 +28,9 @@
   let reconnectAttempt = 0;
   let reconnectTimer = null;
   let pingTimer = null;
+  let authTimer = null;
+  let haltReconnect = false;
+  let lastError = '';
   let status = 'off'; // off | connecting | online | error
 
   function normalizeName(name) {
@@ -57,6 +68,12 @@
     return fromSettings || global.MODHUB_CONST?.MOD_CHAT_DEFAULT_URL || 'ws://192.168.178.177:3847';
   }
 
+  function setStatusText(text) {
+    lastError = text || '';
+    const el = $('modChatStatus');
+    if (el) el.textContent = text || '';
+  }
+
   function setStatus(next) {
     status = next;
     const dot = $('modChatDot');
@@ -68,6 +85,31 @@
       else if (next === 'error') dot.classList.add('is-error');
     }
     if (panel) panel.dataset.status = next;
+
+    if (next === 'online') {
+      setStatusText('Verbunden');
+    } else if (next === 'connecting') {
+      setStatusText(`Verbinde… ${getUrl()}`);
+    } else if (next === 'off') {
+      setStatusText('');
+    }
+  }
+
+  function failFatal(message) {
+    haltReconnect = true;
+    clearTimers();
+    setStatus('error');
+    setStatusText(message);
+    try {
+      ws?.close();
+    } catch (_) {
+      /* ignore */
+    }
+    ws = null;
+  }
+
+  function networkHint() {
+    return 'Server nicht erreichbar. 192.168.x nur im gleichen WLAN/VPN (z. B. Tailscale). Relay läuft? Firewall Port 3847?';
   }
 
   function updateUnreadUi() {
@@ -85,6 +127,10 @@
     const el = $('modChatLog');
     if (!el) return;
     const self = normalizeName(ctx?.state?.modUser);
+    if (!lines.length) {
+      el.innerHTML = `<p class="mod-chat-empty">${esc(status === 'online' ? 'Noch keine Nachrichten.' : lastError || 'Warte auf Verbindung…')}</p>`;
+      return;
+    }
     const html = lines
       .map((m) => {
         const isSelf = normalizeName(m.user) === self;
@@ -105,11 +151,17 @@
   }
 
   function scheduleReconnect() {
+    if (haltReconnect) return;
     if (reconnectTimer) return;
     if (!ctx?.state?.loggedIn || !isAllowedMod(ctx.state.modUser)) return;
     if (ctx.state.settings?.modChatEnabled === false) return;
     const delay = Math.min(30000, 1500 * 2 ** reconnectAttempt);
     reconnectAttempt += 1;
+    if (reconnectAttempt >= 2) {
+      setStatus('error');
+      setStatusText(networkHint());
+      renderLog();
+    }
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       connect();
@@ -125,6 +177,10 @@
       clearInterval(pingTimer);
       pingTimer = null;
     }
+    if (authTimer) {
+      clearTimeout(authTimer);
+      authTimer = null;
+    }
   }
 
   function disconnect() {
@@ -137,16 +193,27 @@
       }
       ws = null;
     }
-    setStatus('off');
+    if (!haltReconnect) setStatus('off');
   }
 
   function connect() {
     if (!ctx?.state?.loggedIn || !isAllowedMod(ctx.state.modUser)) return;
     if (ctx.state.settings?.modChatEnabled === false) return;
+    if (haltReconnect) return;
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
 
-    disconnect();
+    clearTimers();
+    if (ws) {
+      try {
+        ws.close();
+      } catch (_) {
+        /* ignore */
+      }
+      ws = null;
+    }
+
     setStatus('connecting');
+    renderLog();
 
     const url = getUrl();
     let socket;
@@ -154,6 +221,7 @@
       socket = new WebSocket(url);
     } catch (e) {
       setStatus('error');
+      setStatusText(networkHint());
       scheduleReconnect();
       return;
     }
@@ -162,6 +230,10 @@
     socket.addEventListener('open', () => {
       reconnectAttempt = 0;
       socket.send(JSON.stringify({ type: 'auth', name: ctx.state.modUser }));
+      authTimer = setTimeout(() => {
+        if (ws !== socket || socket.readyState !== WebSocket.OPEN) return;
+        failFatal('Auth-Timeout — Relay antwortet nicht.');
+      }, 12000);
       pingTimer = setInterval(() => {
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ type: 'ping' }));
@@ -178,16 +250,29 @@
       }
 
       if (msg.type === 'error') {
-        setStatus('error');
+        const label = ERROR_LABELS[msg.message] || msg.message || 'Relay-Fehler';
+        if (msg.message === 'not_allowed') {
+          failFatal(`${label} (Login: ${ctx.state.modUser})`);
+        } else if (msg.message === 'auth_timeout' || msg.message === 'auth_required') {
+          failFatal(label);
+        } else {
+          setStatus('error');
+          setStatusText(label);
+        }
         return;
       }
 
       if (msg.type === 'auth_ok') {
-        setStatus('online');
-        if (Array.isArray(msg.history) && !lines.length) {
-          lines = msg.history.slice(-200);
-          renderLog();
+        if (authTimer) {
+          clearTimeout(authTimer);
+          authTimer = null;
         }
+        haltReconnect = false;
+        setStatus('online');
+        if (Array.isArray(msg.history)) {
+          lines = msg.history.slice(-200);
+        }
+        renderLog();
         return;
       }
 
@@ -204,11 +289,18 @@
       }
     });
 
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', (ev) => {
       if (ws === socket) ws = null;
       clearTimers();
+      if (haltReconnect) return;
+      if (ev.code === 4003) {
+        failFatal(ERROR_LABELS.not_allowed + ` (Login: ${ctx.state.modUser})`);
+        return;
+      }
       if (ctx?.state?.loggedIn && isAllowedMod(ctx.state.modUser)) {
         setStatus('error');
+        if (!lastError || lastError === 'Verbunden') setStatusText(networkHint());
+        renderLog();
         scheduleReconnect();
       } else {
         setStatus('off');
@@ -216,13 +308,21 @@
     });
 
     socket.addEventListener('error', () => {
+      if (haltReconnect) return;
       setStatus('error');
+      setStatusText(networkHint());
+      renderLog();
     });
   }
 
   function send(text) {
     const trimmed = String(text || '').trim();
-    if (!trimmed || !ws || ws.readyState !== WebSocket.OPEN) return false;
+    if (!trimmed) return false;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setStatusText('Nicht verbunden — Nachricht nicht gesendet.');
+      renderLog();
+      return false;
+    }
     ws.send(JSON.stringify({ type: 'msg', text: trimmed }));
     return true;
   }
@@ -244,6 +344,8 @@
   }
 
   function onLogin(modUser) {
+    haltReconnect = false;
+    reconnectAttempt = 0;
     if (!isAllowedMod(modUser)) {
       setPanelVisible(false);
       disconnect();
@@ -258,12 +360,15 @@
   }
 
   function onLogout() {
+    haltReconnect = true;
     disconnect();
     lines = [];
     unread = 0;
+    lastError = '';
     updateUnreadUi();
     renderLog();
     setPanelVisible(false);
+    haltReconnect = false;
   }
 
   function init(context) {
@@ -275,6 +380,13 @@
       global.MODHUB_CONST.MOD_CHAT_DEFAULT_URL || 'ws://192.168.178.177:3847';
 
     $('modChatToggle')?.addEventListener('click', toggleExpanded);
+
+    $('modChatReconnect')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      haltReconnect = false;
+      reconnectAttempt = 0;
+      connect();
+    });
 
     $('modChatSend')?.addEventListener('click', () => {
       const input = $('modChatInput');
@@ -302,7 +414,7 @@
     onLogout,
     isAllowedMod,
     reconnect: () => {
-      disconnect();
+      haltReconnect = false;
       reconnectAttempt = 0;
       connect();
     }
