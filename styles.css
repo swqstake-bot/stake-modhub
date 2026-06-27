@@ -208,6 +208,149 @@ body {
   padding: 8px 10px;
 }
 
+.mod-chat-panel {
+  flex-shrink: 0;
+  margin-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mod-chat-panel.hidden {
+  display: none;
+}
+
+.mod-chat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--stake-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mod-chat-toggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--stake-text);
+}
+
+.mod-chat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5a6b75;
+  flex-shrink: 0;
+}
+
+.mod-chat-dot.is-online {
+  background: #53fc18;
+  box-shadow: 0 0 4px rgba(83, 252, 24, 0.5);
+}
+
+.mod-chat-dot.is-connecting {
+  background: #ffc440;
+  animation: mod-chat-pulse 1s ease-in-out infinite;
+}
+
+.mod-chat-dot.is-error {
+  background: #ff5a5a;
+}
+
+@keyframes mod-chat-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.mod-chat-toggle-label {
+  flex: 1;
+}
+
+.mod-chat-unread {
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+  color: #0f212e;
+  background: #53fc18;
+}
+
+.mod-chat-unread.hidden {
+  display: none;
+}
+
+.mod-chat-chevron {
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.mod-chat-body {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 0;
+}
+
+.mod-chat-body.hidden {
+  display: none;
+}
+
+.mod-chat-log {
+  height: 120px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 1.35;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.mod-chat-line {
+  margin-bottom: 3px;
+  word-break: break-word;
+}
+
+.mod-chat-line.is-self {
+  opacity: 0.95;
+}
+
+.mod-chat-time {
+  color: var(--stake-text-muted);
+  margin-right: 4px;
+  font-size: 10px;
+}
+
+.mod-chat-input-row {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px 8px;
+}
+
+.mod-chat-input-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+.mod-chat-settings {
+  margin-top: 4px;
+}
+
+.mod-chat-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+}
+
 .hub-mod-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

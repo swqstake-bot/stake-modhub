@@ -133,6 +133,21 @@
               </div>
             </div>
           </div>
+          <div id="modChatPanel" class="mod-chat-panel hidden" data-status="off">
+            <button type="button" id="modChatToggle" class="mod-chat-toggle" title="Team-Chat (nur DE-Mods)">
+              <span id="modChatDot" class="mod-chat-dot"></span>
+              <span class="mod-chat-toggle-label">Mod Chat</span>
+              <span id="modChatUnread" class="mod-chat-unread hidden">0</span>
+              <span id="modChatChevron" class="mod-chat-chevron">▼</span>
+            </button>
+            <div id="modChatBody" class="mod-chat-body hidden">
+              <div id="modChatLog" class="mod-chat-log"></div>
+              <div class="mod-chat-input-row">
+                <input id="modChatInput" type="text" maxlength="500" placeholder="Nachricht an Mods…" autocomplete="off" />
+                <button type="button" id="modChatSend" class="primary sm">Send</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -419,6 +434,11 @@
         <p class="hint">Alle Logs, Blueprints und CSVs liegen im Ordner <code>Datengrube/</code> neben der installierten App.</p>
         <label class="check"><input type="checkbox" id="colorChatSettings" checked /> Colour Chat (feste User-Farben)</label>
         <label class="check"><input type="checkbox" id="showVipRankBadgesSettings" checked /> VIP-Rank-Badges im Live-Chat</label>
+        <div class="grid-2 mod-chat-settings">
+          <label class="check"><input type="checkbox" id="modChatEnabled" checked /> Mod-Team-Chat (Relay)</label>
+          <label>Mod-Chat Server <input id="modChatUrl" type="text" value="ws://192.168.178.177:3847" placeholder="ws://192.168.178.177:3847" /></label>
+        </div>
+        <p class="hint mod-chat-hint">Nur für swaqline, droz, wheelyboy321, kartenstapel · Relay auf dem Root-Server starten (<code>modchat-relay/</code>).</p>
         <label class="check"><input type="checkbox" id="logHash" checked /> Auto IP-Hash (1×/Tag pro User)</label>
         <label class="check"><input type="checkbox" id="useNativeWs" checked /> Native WebSocket (empfohlen)</label>
         <div class="grid-2">
@@ -598,6 +618,7 @@
   <script src="./renderer/emotes.js"></script>
   <script src="./renderer/chat-colors.js"></script>
   <script src="./renderer/rank-badges.js"></script>
+  <script src="./renderer/mod-chat.js"></script>
   <script src="./renderer/live-chat.js"></script>
   <script src="./renderer/analyse.js"></script>
   <script src="./renderer/app.js"></script>

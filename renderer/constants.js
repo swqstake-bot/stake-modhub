@@ -113,5 +113,7 @@ window.MODHUB_CONST = {
     Tarot: ['tarot'],
     Slide: ['slide', 'multiplayer slide'],
     Crash: ['crash', 'multiplayer crash']
-  }
+  },
+  MOD_CHAT_ALLOWED: ['swaqline', 'droz', 'wheelyboy321', 'kartenstapel'],
+  MOD_CHAT_DEFAULT_URL: 'ws://192.168.178.177:3847'
 };

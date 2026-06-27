@@ -1745,6 +1745,10 @@ async function loadSettingsUi() {
     applyLiveChatFontSize(s.liveChatFontSize ?? 13);
   }
   syncChatDisplaySettingsUi();
+  if ($('modChatEnabled')) $('modChatEnabled').checked = s.modChatEnabled !== false;
+  if ($('modChatUrl')) {
+    $('modChatUrl').value = s.modChatUrl || C.MOD_CHAT_DEFAULT_URL || 'ws://192.168.178.177:3847';
+  }
   const ah = Number(s.autodelHour ?? 23);
   const am = Number(s.autodelMinute ?? 59);
   if ($('autodelTime')) {
@@ -1796,6 +1800,8 @@ async function saveSettingsFromForm() {
     liveChatFontSize: applyLiveChatFontSize($('liveChatFontSize')?.value ?? 13),
     colorChatEnabled: $('colorChatSettings')?.checked ?? $('colorChat')?.checked ?? true,
     showVipRankBadges: $('showVipRankBadgesSettings')?.checked ?? $('showVipRankBadges')?.checked ?? true,
+    modChatEnabled: $('modChatEnabled')?.checked !== false,
+    modChatUrl: ($('modChatUrl')?.value || C.MOD_CHAT_DEFAULT_URL || 'ws://192.168.178.177:3847').trim(),
     autodelHour: Number.isFinite(autodelHour) ? autodelHour : 23,
     autodelMinute: Number.isFinite(autodelMinute) ? autodelMinute : 59,
     rhCrashTimerMinutes: Math.max(0, Number($('rhTimerMinutes')?.value) || 0),
@@ -1827,6 +1833,7 @@ async function doLogin() {
   retagModMentions();
   await refreshMutedWarnedSets();
   status.textContent = `Eingeloggt als ${state.modUser}. Live-Chat gestartet.`;
+  ModChat?.onLogin?.(state.modUser);
   updateLoginUi();
   renderChats();
   renderHubIndexes();
@@ -3327,6 +3334,9 @@ function wireSettings() {
   $('btnSaveSettings')?.addEventListener('click', async () => {
     await saveSettingsFromForm();
     $('loginStatus').textContent = 'Einstellungen gespeichert.';
+    if (state.loggedIn && ModChat?.isAllowedMod?.(state.modUser)) {
+      ModChat.reconnect?.();
+    }
     if (state.settings.dataPath) {
       await refreshBlueprints();
       await refreshVeri2();
@@ -3360,6 +3370,19 @@ function wireSettings() {
       await refreshBlueprints();
       await refreshVeri2();
     }
+  });
+
+  $('modChatEnabled')?.addEventListener('change', async () => {
+    await saveSettingsFromForm();
+    if (state.loggedIn && ModChat?.isAllowedMod?.(state.modUser)) {
+      if (state.settings.modChatEnabled === false) ModChat.onLogout?.();
+      else ModChat.onLogin?.(state.modUser);
+    }
+  });
+
+  $('modChatUrl')?.addEventListener('change', async () => {
+    await saveSettingsFromForm();
+    if (state.loggedIn && ModChat?.isAllowedMod?.(state.modUser)) ModChat.reconnect?.();
   });
 
   $('btnSeedBlueprints')?.addEventListener('click', async () => {
@@ -3412,6 +3435,12 @@ async function init() {
     formatChatTime,
     isVeri2,
     isOwnModChatUser
+  });
+  ModChat?.init?.({
+    state,
+    $,
+    esc,
+    formatChatTime
   });
   await Promise.all([Emotes?.init({
     button: $('btnEmotePicker'),
