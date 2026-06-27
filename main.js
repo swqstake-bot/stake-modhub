@@ -744,9 +744,10 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('modhub-chat-history', async (_e, { name } = {}) => {
+  ipcMain.handle('modhub-chat-history', async (_e, { name, maxItems } = {}) => {
     try {
-      return { ok: true, data: await gql.getUserChatHistory(name) };
+      const data = await gql.getUserChatHistoryAll(name, { maxItems: maxItems || 200 });
+      return { ok: true, data };
     } catch (e) {
       return { ok: false, error: e.message };
     }

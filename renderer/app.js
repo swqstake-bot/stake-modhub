@@ -44,6 +44,7 @@ const state = {
   browserVisible: false,
   rhStatusTimer: null,
   policyPending: null,
+  chatHistoryLimit: 200,
   muteHistoryCache: [],
   bets: [],
   betByKey: {},
@@ -2180,16 +2181,40 @@ function updatePolicySuggestion() {
   }
 }
 
-async function loadPolicyChatTab() {
+async function loadPolicyChatTab(loadMore = false) {
   const el = $('policyChatHistory');
+  const meta = $('policyChatHistoryMeta');
+  const moreBtn = $('btnChatHistoryMore');
   if (!el || !state.validatedUser) return;
+
+  if (!loadMore) state.chatHistoryLimit = 200;
+  else state.chatHistoryLimit = Math.min(500, (state.chatHistoryLimit || 200) + 200);
+
   el.innerHTML = '<p class="hist-empty">Lade Chat-Historie…</p>';
-  const res = await modHub.chatHistory(state.validatedUser);
+  if (meta) meta.textContent = 'Lade…';
+  if (moreBtn) moreBtn.disabled = true;
+
+  const res = await modHub.chatHistory(state.validatedUser, { maxItems: state.chatHistoryLimit });
   if (!res.ok) {
     el.innerHTML = `<p class="hist-empty">Fehler: ${esc(res.error)}</p>`;
+    if (meta) meta.textContent = 'Fehler';
+    if (moreBtn) moreBtn.disabled = false;
     return;
   }
+
+  const items = res.data?.user?.chatHistory || [];
   el.innerHTML = window.HistoryFormat?.formatChatHistory(res.data) || '<p class="hist-empty">—</p>';
+  if (meta) {
+    meta.textContent =
+      items.length >= state.chatHistoryLimit
+        ? `${items.length} Nachrichten (API, Limit ${state.chatHistoryLimit})`
+        : `${items.length} Nachrichten (API, alles geladen)`;
+  }
+  if (moreBtn) {
+    const canMore = items.length >= state.chatHistoryLimit && state.chatHistoryLimit < 500;
+    moreBtn.classList.toggle('hidden', !canMore);
+    moreBtn.disabled = false;
+  }
 }
 
 async function loadPolicyTipsTab() {
@@ -2662,6 +2687,7 @@ function wireHub() {
       else if (tab === 'tips') loadPolicyTipsTab();
     });
   });
+  $('btnChatHistoryMore')?.addEventListener('click', () => loadPolicyChatTab(true));
   $('policyReason')?.addEventListener('input', updatePolicySuggestion);
   $('policyMuteMsg')?.addEventListener('input', () => {
     if ($('policyReason') && $('policyMuteMsg')?.value.trim()) {

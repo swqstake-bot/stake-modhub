@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-let version = '0.4.31';
+let version = '0.4.32';
 try {
   version = ipcRenderer.sendSync('modhub-get-version') || version;
 } catch (_) {}
@@ -28,7 +28,7 @@ contextBridge.exposeInMainWorld('modHub', {
   warnUser: (payload) => ipcRenderer.invoke('modhub-warn-user', payload || {}),
   userHash: (name) => ipcRenderer.invoke('modhub-user-hash', { name }),
   tipHistory: (name) => ipcRenderer.invoke('modhub-tip-history', { name }),
-  chatHistory: (name) => ipcRenderer.invoke('modhub-chat-history', { name }),
+  chatHistory: (name, opts) => ipcRenderer.invoke('modhub-chat-history', { name, ...(opts || {}) }),
   muteHistory: (name) => ipcRenderer.invoke('modhub-mute-history', { name }),
   appendLog: (line) => ipcRenderer.invoke('modhub-append-log', { line }),
   loadBlueprints: () => ipcRenderer.invoke('modhub-load-blueprints'),

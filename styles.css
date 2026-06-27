@@ -1920,7 +1920,20 @@ button:disabled {
 
 .stake-mod-chat-hist {
   max-height: 360px;
+  overflow-y: auto;
   font-size: 11px;
+}
+
+.stake-mod-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.stake-mod-chat-head .hint {
+  margin: 0;
 }
 
 #ctxMenu {
