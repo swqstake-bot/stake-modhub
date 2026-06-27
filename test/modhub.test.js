@@ -58,6 +58,50 @@ describe('gz-spam ratio', () => {
   });
 });
 
+describe('live-flag', () => {
+  const { scoreLiveMessage } = require('../lib/analyse/live-flag');
+
+  it('erkennt Toxic und Bettel live', () => {
+    const toxic = scoreLiveMessage({ username: 'baduser', message: 'du hurensohn', kind: 'text' });
+    assert.ok(toxic);
+    assert.equal(toxic.primary, 'Toxic');
+
+    const beg = scoreLiveMessage({ username: 'beggar', message: 'bitte rain jemand tip', kind: 'text' });
+    assert.ok(beg);
+    assert.equal(beg.primary, 'Bettel');
+  });
+
+  it('ignoriert rain-bot und Mod-User', () => {
+    assert.equal(scoreLiveMessage({ username: 'rain-bot', message: 'test', kind: 'text' }), null);
+    assert.equal(
+      scoreLiveMessage({ username: 'mod', message: 'du idiot', kind: 'text', isModUser: true }),
+      null
+    );
+  });
+
+  it('markiert Wiederholung bei lokal gemuteten Usern', () => {
+    const hit = scoreLiveMessage({
+      username: 'repeat',
+      message: 'hallo wieder',
+      kind: 'text',
+      mutedLocal: true
+    });
+    assert.ok(hit);
+    assert.ok(hit.tags.includes('Repeat'));
+  });
+
+  it('erkennt GZ-Spam über rolling window', () => {
+    const hit = scoreLiveMessage({
+      username: 'gzspammer',
+      message: 'gz',
+      kind: 'text',
+      recentTexts: ['gz', 'gg', 'gz', 'gz', 'gz']
+    });
+    assert.ok(hit);
+    assert.ok(hit.tags.includes('GZ-Spam'));
+  });
+});
+
 describe('sample-messages', () => {
   const { pickSampleMessages } = require('../lib/analyse/sample-messages');
 

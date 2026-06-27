@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.28</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.29</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -48,7 +48,14 @@
               <h2>Live Chat</h2>
               <time id="hubClock" class="hub-clock" datetime="">--:--:--</time>
             </div>
-            <button type="button" id="btnClearLive" class="sm">Clear</button>
+            <div class="panel-head-actions">
+              <div class="hub-font-size" title="Schriftgröße Live-Chat">
+                <button type="button" id="btnLiveChatFontDown" class="sm hub-font-btn" aria-label="Schrift kleiner">−</button>
+                <span id="liveChatFontSizeLabel" class="hub-font-label">13px</span>
+                <button type="button" id="btnLiveChatFontUp" class="sm hub-font-btn" aria-label="Schrift größer">+</button>
+              </div>
+              <button type="button" id="btnClearLive" class="sm">Clear</button>
+            </div>
           </div>
           <div id="liveChat" class="chat-box chat-box-live"></div>
           <div class="hub-subcols">
@@ -61,11 +68,8 @@
               <div id="rainIndex" class="index-list"></div>
             </div>
             <div class="subcol">
-              <div class="subcol-head">
-                <h4>Recent (API)</h4>
-                <button type="button" id="btnApiRecent" class="sm" disabled>API</button>
-              </div>
-              <div id="recentPanel" class="index-list"></div>
+              <h4 class="subcol-title" title="Live-Heuristik: Toxic, Bettel, Spam, Wiederholung">Auffällig</h4>
+              <div id="flaggedIndex" class="index-list"></div>
             </div>
           </div>
         </div>
@@ -373,8 +377,6 @@
           <p id="analyseDetailMsgsHint" class="hint analyse-detail-msgs-hint"></p>
           <ul id="analyseDetailMsgs" class="analyse-msg-list"></ul>
           <div class="row-inline analyse-detail-actions">
-            <button type="button" id="btnAnalyseMuteSpam" class="sm">Mute Spam</button>
-            <button type="button" id="btnAnalyseMuteBot" class="sm danger">Mute Bot</button>
             <button type="button" id="btnAnalyseModAction" class="sm primary">Mod Action</button>
           </div>
         </div>
@@ -408,6 +410,15 @@
         <label class="check"><input type="checkbox" id="useNativeWs" checked /> Native WebSocket (empfohlen)</label>
         <div class="grid-2">
           <label>Max Chat-Zeilen <input id="maxChatRows" type="number" min="100" max="5000" value="1000" /></label>
+          <label>Live-Chat Schrift
+            <select id="liveChatFontSize">
+              <option value="11">Klein (11px)</option>
+              <option value="12">Standard (12px)</option>
+              <option value="13">Größer (13px)</option>
+              <option value="14">Groß (14px)</option>
+              <option value="16">Sehr groß (16px)</option>
+            </select>
+          </label>
           <label>Hash-Reset (Uhrzeit) <input id="autodelTime" type="time" value="23:59" /></label>
         </div>
         <div class="panel compact">

@@ -35,8 +35,10 @@ const state = {
   blueprints: { chat: [], mute: [], warn: [], rh: [] },
   tagged: [],
   rains: [],
-  recentLines: [],
-  apiRecent: [],
+  flagged: [],
+  liveFlagRoll: new Map(),
+  mutedLocalSet: new Set(),
+  warnedLocalSet: new Set(),
   allmsgUser: '',
   modMarkUser: '',
   browserVisible: false,
@@ -190,6 +192,55 @@ function buildTaggedIndexEntry(line) {
   };
 }
 
+function buildFlaggedIndexEntry(line, flag) {
+  const displayTs = line.receivedAt ?? line.ts;
+  return {
+    username: line.username,
+    time: formatChatTime(displayTs),
+    text: line.message,
+    preview: line.message.slice(0, 120),
+    idx: line.idx,
+    flagLabel: flag.label,
+    flagPrimary: flag.primary,
+    tags: flag.tags
+  };
+}
+
+function trackLiveFlagRoll(userKey, message) {
+  if (!state.liveFlagRoll.has(userKey)) state.liveFlagRoll.set(userKey, []);
+  const roll = state.liveFlagRoll.get(userKey);
+  roll.push(message);
+  if (roll.length > 30) roll.shift();
+  return roll;
+}
+
+function scoreIncomingFlag(line) {
+  if (!modHub?.scoreLiveMessage) return null;
+  const userKey = String(line.username || '').toLowerCase();
+  const recentTexts = trackLiveFlagRoll(userKey, line.message);
+  return modHub.scoreLiveMessage({
+    username: line.username,
+    message: line.message,
+    kind: line.kind,
+    recentTexts,
+    mutedLocal: state.mutedLocalSet.has(userKey),
+    warnedLocal: state.warnedLocalSet.has(userKey),
+    veri2: isVeri2(line.username),
+    isModUser: isOwnModChatUser(line.username)
+  });
+}
+
+async function refreshMutedWarnedSets() {
+  try {
+    const res = await modHub.loadMutedWarned();
+    if (!res?.ok) return;
+    state.mutedLocalSet = new Set((res.muted || []).map((r) => String(r.user || '').toLowerCase()).filter(Boolean));
+    state.warnedLocalSet = new Set((res.warned || []).map((r) => String(r.user || '').toLowerCase()).filter(Boolean));
+  } catch (_) {
+    /* optional */
+  }
+}
+
 function retagModMentions() {
   for (const line of state.chatLines) {
     line.modMention = isMentionOfMod(line.message);
@@ -207,7 +258,7 @@ function syncMentionAliasesFromUi({ persist = false } = {}) {
   const aliases = parseMentionAliases($('mentionAliases')?.value ?? '');
   state.settings.mentionAliases = aliases;
   retagModMentions();
-  renderTaggedRainRecent();
+  renderHubIndexes();
   LiveChat.invalidateChatDom();
   renderChats({ forceFull: true });
   if (!persist) return;
@@ -1351,15 +1402,31 @@ function formatIndexItemHtml(it, i) {
 
   if (user || time) {
     const modRainHit = it.kind === 'rain' && it.shares?.some((s) => isModRainRecipient(s.name));
-    const itemCls = ['index-item', modRainHit ? 'index-item-mod-rain' : ''].filter(Boolean).join(' ');
+    const flagKey = String(it.flagPrimary || '').toLowerCase();
+    const flagCls =
+      flagKey === 'toxic'
+        ? 'index-item-flag-toxic'
+        : flagKey === 'bettel'
+          ? 'index-item-flag-bettel'
+          : flagKey === 'repeat'
+            ? 'index-item-flag-repeat'
+            : flagKey === 'spam'
+              ? 'index-item-flag-spam'
+              : '';
+    const itemCls = ['index-item', modRainHit ? 'index-item-mod-rain' : '', flagCls].filter(Boolean).join(' ');
     const sharesHtml = it.kind === 'rain' && it.shares?.length ? formatRainSharesHtml(it.shares) : '';
     const bodyHtml = sharesHtml || (msg ? esc(msg) : '');
+    const subHtml = it.flagLabel
+      ? `<div class="index-item-sub index-item-flag">${esc(it.flagLabel)}</div>`
+      : it.totalLabel
+        ? `<div class="index-item-sub">${esc(it.totalLabel)}</div>`
+        : '';
     return `<div class="${itemCls}" data-i="${i}" title="${esc(fullTitle)}">
       <div class="index-item-meta">
         ${user ? `<span class="index-item-user">${esc(user)}</span>` : '<span></span>'}
         ${time ? `<span class="index-item-time">${esc(time)}</span>` : ''}
       </div>
-      ${it.totalLabel ? `<div class="index-item-sub">${esc(it.totalLabel)}</div>` : ''}
+      ${subHtml}
       ${bodyHtml ? `<div class="index-item-msg">${bodyHtml}</div>` : ''}
     </div>`;
   }
@@ -1388,13 +1455,10 @@ function renderIndexList(el, items, onDbl) {
   });
 }
 
-function renderTaggedRainRecent() {
+function renderHubIndexes() {
   renderIndexList($('tagIndex'), state.tagged, (it) => scrollToLine(it.idx));
   renderIndexList($('rainIndex'), state.rains, (it) => scrollToLine(it.idx));
-  const recent = state.apiRecent.length ? state.apiRecent : state.recentLines;
-  renderIndexList($('recentPanel'), recent, (it) => {
-    if (it.idx != null) scrollToLine(it.idx);
-  });
+  renderIndexList($('flaggedIndex'), state.flagged, (it) => scrollToLine(it.idx));
 }
 
 function scrollToLine(idx) {
@@ -1440,8 +1504,7 @@ function setModActionsEnabled(on) {
     'btnShowBrowser',
     'btnAllMsg',
     'btnUndoMark',
-    'btnAltCheck',
-    'btnApiRecent'
+    'btnAltCheck'
   ];
   ids.forEach((id) => {
     const el = $(id);
@@ -1450,7 +1513,7 @@ function setModActionsEnabled(on) {
 }
 
 function setUserActionsEnabled(on) {
-  ['btnModAction', 'btnWarn', 'btnUserHash', 'btnAddVeri2', 'btnApiRecent'].forEach((id) => {
+  ['btnModAction', 'btnWarn', 'btnUserHash', 'btnAddVeri2'].forEach((id) => {
     const el = $(id);
     if (el) el.disabled = !on || !state.loggedIn;
   });
@@ -1506,7 +1569,7 @@ function updateLoginUi() {
   }
   setModActionsEnabled(state.loggedIn);
   syncAutoMsgTimers();
-  renderTaggedRainRecent();
+  renderHubIndexes();
 }
 
 async function refreshVeri2() {
@@ -1590,6 +1653,53 @@ function wireBlueprintSelect(selId, targetId, afterFill) {
   });
 }
 
+const LIVE_CHAT_FONT_MIN = 10;
+const LIVE_CHAT_FONT_MAX = 20;
+const LIVE_CHAT_FONT_PRESETS = [11, 12, 13, 14, 16];
+
+function applyLiveChatFontSize(sizePx) {
+  const px = Math.max(LIVE_CHAT_FONT_MIN, Math.min(LIVE_CHAT_FONT_MAX, Number(sizePx) || 13));
+  const el = $('liveChat');
+  if (el) el.style.setProperty('--live-chat-font-size', `${px}px`);
+  const label = $('liveChatFontSizeLabel');
+  if (label) label.textContent = `${px}px`;
+  const sel = $('liveChatFontSize');
+  if (sel && [...sel.options].some((o) => o.value === String(px))) {
+    sel.value = String(px);
+  }
+  if (state.settings) state.settings.liveChatFontSize = px;
+  const down = $('btnLiveChatFontDown');
+  const up = $('btnLiveChatFontUp');
+  if (down) down.disabled = px <= LIVE_CHAT_FONT_MIN;
+  if (up) up.disabled = px >= LIVE_CHAT_FONT_MAX;
+  return px;
+}
+
+function nearestLiveChatFontPreset(px) {
+  const n = Number(px) || 13;
+  let best = LIVE_CHAT_FONT_PRESETS[0];
+  let dist = Math.abs(n - best);
+  for (const p of LIVE_CHAT_FONT_PRESETS) {
+    const d = Math.abs(n - p);
+    if (d < dist) {
+      best = p;
+      dist = d;
+    }
+  }
+  return best;
+}
+
+async function stepLiveChatFontSize(delta) {
+  const cur = Number(state.settings?.liveChatFontSize) || 13;
+  let next = cur + delta;
+  if (delta > 0) next = Math.min(LIVE_CHAT_FONT_MAX, next);
+  else next = Math.max(LIVE_CHAT_FONT_MIN, next);
+  const px = applyLiveChatFontSize(next);
+  state.settings = await modHub.saveSettings({ liveChatFontSize: px });
+  const sel = $('liveChatFontSize');
+  if (sel) sel.value = String(nearestLiveChatFontPreset(px));
+}
+
 async function loadSettingsUi() {
   const s = await modHub.getSettings();
   state.settings = s;
@@ -1611,6 +1721,11 @@ async function loadSettingsUi() {
   $('logHash').checked = s.logHash !== false;
   $('useNativeWs').checked = s.useNativeWs !== false;
   $('maxChatRows').value = s.maxChatRows ?? 1000;
+  if ($('liveChatFontSize')) {
+    $('liveChatFontSize').value = String(applyLiveChatFontSize(s.liveChatFontSize ?? 13));
+  } else {
+    applyLiveChatFontSize(s.liveChatFontSize ?? 13);
+  }
   const ah = Number(s.autodelHour ?? 23);
   const am = Number(s.autodelMinute ?? 59);
   if ($('autodelTime')) {
@@ -1639,6 +1754,7 @@ async function loadSettingsUi() {
   }
   if (s.dataPath || state.settings.dataPath) {
     await refreshVeri2();
+    await refreshMutedWarnedSets();
   }
   loadAutoMsgUiFromSettings();
 }
@@ -1658,6 +1774,7 @@ async function saveSettingsFromForm() {
     useNativeWs: $('useNativeWs').checked,
     wsHost: ($('wsHost')?.value || 'stake.bet').trim() || 'stake.bet',
     maxChatRows: parseInt($('maxChatRows')?.value, 10) || 1000,
+    liveChatFontSize: applyLiveChatFontSize($('liveChatFontSize')?.value ?? 13),
     autodelHour: Number.isFinite(autodelHour) ? autodelHour : 23,
     autodelMinute: Number.isFinite(autodelMinute) ? autodelMinute : 59,
     rhCrashTimerMinutes: Math.max(0, Number($('rhTimerMinutes')?.value) || 0),
@@ -1687,10 +1804,11 @@ async function doLogin() {
   }
   await refreshConvRates();
   retagModMentions();
+  await refreshMutedWarnedSets();
   status.textContent = `Eingeloggt als ${state.modUser}. Live-Chat gestartet.`;
   updateLoginUi();
   renderChats();
-  renderTaggedRainRecent();
+  renderHubIndexes();
   if (state.settings.dataPath) {
     await refreshBlueprints();
     await refreshVeri2();
@@ -2173,7 +2291,10 @@ async function applyPolicyMute() {
   });
   if (btn) btn.disabled = false;
   $('validateStatus').textContent = res.ok ? `Gemutet: ${state.policyPending.username}` : `Fehler: ${res.error}`;
-  if (res.ok) closePolicyMuteModal();
+  if (res.ok) {
+    closePolicyMuteModal();
+    await refreshMutedWarnedSets();
+  }
 }
 
 async function processBetForRh(line) {
@@ -2281,6 +2402,12 @@ function ingestLiveMessageSync(m, { receivedAt } = {}) {
     if (state.rains.length > 50) state.rains.length = 50;
   }
 
+  const flag = scoreIncomingFlag(line);
+  if (flag) {
+    state.flagged.unshift(buildFlaggedIndexEntry(line, flag));
+    if (state.flagged.length > 50) state.flagged.length = 50;
+  }
+
   processRhTriviaHit(line);
   return line;
 }
@@ -2292,7 +2419,7 @@ function processLiveMessageBatch(messages, { baseTs } = {}) {
     if (line.betId) enqueueRhBet(line);
   }
   renderChats();
-  renderTaggedRainRecent();
+  renderHubIndexes();
 }
 
 function wireTabs() {
@@ -2379,10 +2506,15 @@ function wireHub() {
     state.chatLines = [];
     state.tagged = [];
     state.rains = [];
+    state.flagged = [];
+    state.liveFlagRoll = new Map();
     LiveChat.invalidateChatDom();
     renderChats({ forceFull: true });
-    renderTaggedRainRecent();
+    renderHubIndexes();
   });
+
+  $('btnLiveChatFontDown')?.addEventListener('click', () => stepLiveChatFontSize(-1));
+  $('btnLiveChatFontUp')?.addEventListener('click', () => stepLiveChatFontSize(1));
 
   $('liveChat')?.addEventListener('contextmenu', (e) => {
     const row = e.target.closest('.chat-line');
@@ -2550,6 +2682,7 @@ function wireHub() {
     $('validateStatus').textContent = res.ok
       ? `Warnung an @${state.validatedUser} gesendet`
       : `Fehler: ${res.error}`;
+    if (res.ok) await refreshMutedWarnedSets();
   });
 
   $('btnUserHash')?.addEventListener('click', async () => {
@@ -2608,33 +2741,6 @@ function wireHub() {
     showOverlay('Alt-Check — Duplicate IPs', text);
   });
 
-  $('btnApiRecent')?.addEventListener('click', async () => {
-    if (!state.validatedUser) {
-      $('validateStatus').textContent = 'Zuerst User validieren.';
-      return;
-    }
-    $('validateStatus').textContent = 'Lade API-Chat-Historie…';
-    const res = await modHub.chatHistory(state.validatedUser);
-    if (!res.ok) {
-      $('validateStatus').textContent = `Fehler: ${res.error}`;
-      return;
-    }
-    const items = res.data?.user?.chatHistory || [];
-    const fmtText = window.HistoryFormat?.chatHistoryItemText || ((h) => h?.data?.message || '(kein Text)');
-    state.apiRecent = items.slice(0, 40).map((h) => {
-      const time = h.createdAt
-        ? new Date(h.createdAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
-        : '—';
-      const room = h.chat?.name || '';
-      const msg = fmtText(h);
-      const text = room ? `${msg} · ${room}` : msg;
-      return { label: time, time, text: text.slice(0, 140), preview: text };
-    });
-    state.recentLines = [];
-    renderTaggedRainRecent();
-    $('validateStatus').textContent = `API Recent: ${state.apiRecent.length} Zeilen`;
-  });
-
   $('btnAllMsg')?.addEventListener('click', () => {
     const name = state.validatedUser || $('validateUsername').value.trim();
     if (!name) {
@@ -2642,19 +2748,7 @@ function wireHub() {
       return;
     }
     state.allmsgUser = name;
-    state.apiRecent = [];
     const matches = state.chatLines.filter((l) => l.username.toLowerCase() === name.toLowerCase());
-    state.recentLines = matches.slice(-30).map((l) => {
-      const time = new Date(l.ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-      return {
-        label: `${time} @${l.username}`,
-        time,
-        text: l.message,
-        idx: l.idx,
-        preview: l.message
-      };
-    });
-    renderTaggedRainRecent();
     LiveChat.invalidateChatDom();
     renderChats({ forceFull: true });
     $('validateStatus').textContent = `Allmsg: ${matches.length} Zeilen für ${name}`;
@@ -3131,6 +3225,11 @@ function wireAutomsg() {
 }
 
 function wireSettings() {
+  $('liveChatFontSize')?.addEventListener('change', async () => {
+    const px = applyLiveChatFontSize($('liveChatFontSize').value);
+    state.settings = await modHub.saveSettings({ liveChatFontSize: px });
+  });
+
   $('btnSaveSettings')?.addEventListener('click', async () => {
     await saveSettingsFromForm();
     $('loginStatus').textContent = 'Einstellungen gespeichert.';

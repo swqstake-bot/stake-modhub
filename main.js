@@ -12,6 +12,7 @@ const {
 const { ensureDataPath, getDatengrubePath } = require('./lib/data-path');
 const dataFiles = require('./lib/data-files');
 const analyseEngine = require('./lib/analyse');
+const { scoreLiveMessage } = require('./lib/analyse/live-flag');
 const { StakeChatWebSocket } = require('./lib/stake-chat-ws');
 const { AutoHashQueue } = require('./lib/auto-hash-queue');
 const { CHATROOMS, LOCKDOWN_TOKEN, DEFAULT_WS_HOST } = require('./lib/stake-constants');
@@ -479,6 +480,9 @@ async function openStakeChatCapture(showWindow = false) {
 function registerIpc() {
   ipcMain.on('modhub-get-version', (event) => {
     event.returnValue = app.getVersion();
+  });
+  ipcMain.on('modhub-live-flag', (event, input) => {
+    event.returnValue = scoreLiveMessage(input || {});
   });
   ipcMain.handle('modhub-settings-get', async () => loadSettings());
   ipcMain.handle('modhub-settings-set', async (_e, partial) => {

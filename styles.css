@@ -487,6 +487,43 @@ body {
   margin-bottom: 2px;
 }
 
+.index-item-flag {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.index-item-flag-toxic {
+  border-left: 3px solid #ff6b6b;
+}
+
+.index-item-flag-bettel {
+  border-left: 3px solid #ffb347;
+}
+
+.index-item-flag-spam {
+  border-left: 3px solid #9eb4ff;
+}
+
+.index-item-flag-repeat {
+  border-left: 3px solid #c9b3ff;
+}
+
+.index-item-flag-toxic .index-item-flag {
+  color: #ff8a8a;
+}
+
+.index-item-flag-bettel .index-item-flag {
+  color: #ffc978;
+}
+
+.index-item-flag-spam .index-item-flag {
+  color: #b8c8ff;
+}
+
+.index-item-flag-repeat .index-item-flag {
+  color: #d4b8ff;
+}
+
 .index-item-mod-rain {
   background: rgba(0, 231, 1, 0.06);
   border-left: 3px solid var(--stake-success);
@@ -814,6 +851,33 @@ body {
   gap: 8px;
 }
 
+.panel-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hub-font-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.hub-font-btn {
+  min-width: 1.6rem;
+  padding: 2px 6px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.hub-font-label {
+  min-width: 2.4rem;
+  text-align: center;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--stake-text-muted);
+}
+
 .hub-clock {
   font-size: 11px;
   font-weight: 500;
@@ -834,6 +898,12 @@ body {
 
 .chat-box-live {
   min-height: 0;
+  font-size: var(--live-chat-font-size, 13px);
+  line-height: 1.45;
+}
+
+.chat-box-live .chat-line .chat-time {
+  font-size: 0.85em;
 }
 
 .chat-box-rh-chat,

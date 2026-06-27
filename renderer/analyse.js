@@ -9,7 +9,6 @@
     detailUser: null,
     picks: [],
     picksMonth: '',
-    blueprints: { mute: [] },
     loading: false,
     enforcementBucket: 'spam',
     sort: {
@@ -51,7 +50,7 @@
     enforcementTier:
       'Zuordnung: Spam, Toxic, Bot, Bettel, Multi, Flood oder Grenzfall (unscharfe Signale, manuell prüfen).',
     flags: 'Kurzsignale (Chips) — vor allem bei Grenzfällen. User anklicken für Beispiel-Nachrichten.',
-    action: 'Hub öffnet den User im Mod-Hub; Mute startet Validierung + Mute mit passendem Blueprint.'
+    action: 'Hub öffnet den User direkt im Mod Action Modal.'
   };
 
   const FRIENDLIST_COLS = [
@@ -341,20 +340,6 @@
     el.innerHTML = `Auswahl <strong>${state.picks.length}/${MAX_PICKS}</strong>: ${state.picks.map((u) => esc(u)).join(', ')}`;
   }
 
-  function findBlueprint(substr) {
-    const list = state.blueprints.mute || [];
-    const low = substr.toLowerCase();
-    const hit = list.find((b) => b.toLowerCase().includes(low));
-    return hit || '';
-  }
-
-  function suggestMuteExpire(categoryId) {
-    const Policy = window.StakeModPolicy || {};
-    const mins = Policy.getSuggestedMinutes?.(categoryId, 0);
-    if (mins == null) return '1 day';
-    return Policy.minutesToDurationString?.(mins) || '1 day';
-  }
-
   function openHubModModal(name) {
     if (!name) return;
     const user = name.replace(/^@/, '');
@@ -426,7 +411,6 @@
         return `<li><time>${esc(m.time)}</time>${gap}${tag}<span>${esc(m.message)}</span></li>`;
       })
       .join('');
-    $('btnAnalyseMuteBot').style.display = row.enforcementTier === 'bot' || row.botLevel ? '' : 'none';
   }
 
   function hideDetail() {
@@ -551,11 +535,9 @@
   function renderEnforcementRow(r, i, bucket) {
     const muteCls = r.mutedLocal ? ' analyse-row-muted' : '';
     const u = attrEsc(r.username);
-    const muteDisabled = r.mutedLocal ? ' disabled title="Bereits gemutet (lokal)"' : '';
     const match = bucketMatchValue(r, bucket);
     const act = `<td class="analyse-act">
             <button type="button" class="sm analyse-validate" data-user="${u}">Hub</button>
-            <button type="button" class="sm danger analyse-mute-spam" data-user="${u}"${muteDisabled}>Mute</button>
           </td>`;
     if (bucket === 'toxic') {
       return `<tr class="analyse-row${muteCls}">
@@ -788,32 +770,6 @@
     }
   }
 
-  async function muteUser(username, blueprintHint, categoryId) {
-    const msg = findBlueprint(blueprintHint);
-    if (!msg) {
-      setStatus('Kein passender Mute-Blueprint gefunden.', true);
-      return;
-    }
-    setStatus(`Validiere ${esc(username)}…`);
-    const v = await modHub.validateUser(username.replace(/^@/, ''));
-    if (!v?.ok || !v?.data?.user?.id) {
-      setStatus(`User nicht gefunden: ${esc(username)}`, true);
-      return;
-    }
-    const expire = suggestMuteExpire(categoryId || 'minor_spam_caps');
-    const res = await modHub.muteUser({
-      userId: v.data.user.id,
-      message: msg,
-      expire
-    });
-    if (res.ok) {
-      setStatus(`Gemutet: ${esc(username)} (${esc(expire)})`);
-      await runAnalyse();
-    } else {
-      setStatus(`Mute-Fehler: ${esc(res.error)}`, true);
-    }
-  }
-
   let wired = false;
 
   function wire() {
@@ -847,14 +803,6 @@
       renderFriendlist();
     });
 
-    $('btnAnalyseMuteSpam')?.addEventListener('click', () => {
-      if (state.detailUser) {
-        muteUser(state.detailUser.username, 'nonsense chat-talk/spam', 'minor_spam_caps');
-      }
-    });
-    $('btnAnalyseMuteBot')?.addEventListener('click', () => {
-      if (state.detailUser) muteUser(state.detailUser.username, 'chat-bot using', 'custom');
-    });
     $('btnAnalyseModAction')?.addEventListener('click', () => {
       if (state.detailUser) openHubModModal(state.detailUser.username);
     });
@@ -881,27 +829,6 @@
         openHubModModal(val.dataset.user);
         return;
       }
-      const mute = e.target.closest('.analyse-mute-spam');
-      if (mute && !mute.disabled) {
-        const row = findRow(mute.dataset.user);
-        const cat =
-          row?.enforcementTier === 'begging'
-            ? 'begging'
-            : row?.enforcementTier === 'bot'
-              ? 'custom'
-              : row?.enforcementTier === 'toxic'
-                ? 'toxic_behavior'
-                : 'minor_spam_caps';
-        const hint =
-          row?.enforcementTier === 'bot'
-            ? 'chat-bot using'
-            : row?.enforcementTier === 'begging'
-              ? 'begging'
-              : row?.enforcementTier === 'toxic'
-                ? 'toxic'
-                : 'nonsense chat-talk/spam';
-        muteUser(mute.dataset.user, hint, cat);
-      }
     });
   }
 
@@ -922,12 +849,6 @@
     if (!modHub?.analyseRun) {
       setStatus('Analyse-API nicht verfügbar — App neu starten.', true);
       return;
-    }
-    try {
-      const bp = await modHub.loadBlueprints();
-      if (bp?.mute) state.blueprints.mute = bp.mute;
-    } catch (_) {
-      /* ignore */
     }
   }
 
