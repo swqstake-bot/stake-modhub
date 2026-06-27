@@ -1036,7 +1036,7 @@ function buildRainIndexEntry(m, line) {
   });
   const shares = buildRainRecipientDisplay(rain, recipients);
   const recipientText = shares.length
-    ? shares.map((s) => `@${s.name}: ${s.label}`).join(' · ')
+    ? shares.map((s) => `${s.name}: ${s.label}`).join(' · ')
     : String(line.message || '').trim();
   const totalLabel =
     rain.amount != null
@@ -1065,7 +1065,7 @@ function formatRainSharesHtml(shares) {
     .map((s) => {
       const modHit = isModRainRecipient(s.name);
       const cls = modHit ? 'rain-share index-rain-mod' : 'rain-share';
-      return `<span class="${cls}">@${esc(s.name)}: ${esc(s.label)}</span>`;
+      return `<span class="${cls}">${esc(s.name)}: ${esc(s.label)}</span>`;
     })
     .join('<span class="rain-share-sep"> · </span>');
 }
