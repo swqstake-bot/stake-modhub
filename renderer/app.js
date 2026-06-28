@@ -190,7 +190,8 @@ function buildTaggedIndexEntry(line) {
     time: formatChatTime(displayTs),
     text: line.message,
     preview: line.message.slice(0, 120),
-    idx: line.idx
+    idx: line.idx,
+    uid: line.uid
   };
 }
 
@@ -622,13 +623,29 @@ function updateRhGameModeUi() {
   const crashMode = isHighestMultiRhGame(game);
   $('rhMinMultiWrap')?.classList.toggle('hidden', crashMode);
   $('rhCrashDeadlineWrap')?.classList.toggle('hidden', !crashMode);
+  if (crashMode) {
+    $('rhPayoutWrap')?.classList.add('hidden');
+  } else {
+    RhPayoutTables?.refresh?.(game, rhPayoutElements());
+  }
   const hint = $('rhModeHint');
   if (hint) {
+    const payoutHint = !crashMode && RhPayoutTables?.hasGame?.(game) ? ' Payout-Tabelle unten.' : '';
     hint.textContent = crashMode
       ? 'Crash/Slide: Timer → Verlängerung bis Stop. Platz 1–3 posten (max. 160 Zeichen). ● = hidden.'
-      : 'Klassisch: Wetten ab Min-Multi. Platz 1–3 posten (max. 160 Zeichen). Max. 1 RH/Spiel. ● = hidden.';
+      : `Klassisch: Wetten ab Min-Multi. Platz 1–3 posten (max. 160 Zeichen). Max. 1 RH/Spiel. ● = hidden.${payoutHint}`;
   }
   updateRhLeaderPostUi();
+}
+
+function rhPayoutElements() {
+  return {
+    wrap: $('rhPayoutWrap'),
+    variantEl: $('rhPayoutVariant'),
+    multiEl: $('rhPayoutMulti'),
+    minMultiEl: $('rhMinMulti'),
+    getGame: () => $('rhGame')?.value || ''
+  };
 }
 
 function refreshRhStatusLine() {
@@ -1458,9 +1475,43 @@ function renderIndexList(el, items, onDbl) {
 }
 
 function renderHubIndexes() {
-  renderIndexList($('tagIndex'), state.tagged, (it) => scrollToLine(it.idx));
+  renderIndexList($('tagIndex'), state.tagged, (it) => openTaggedItem(it));
   renderIndexList($('rainIndex'), state.rains, (it) => scrollToLine(it.idx));
   renderIndexList($('flaggedIndex'), state.flagged, (it) => openFlaggedChatHistory(it));
+}
+
+function scrollToLiveChatUid(uid) {
+  if (uid == null) return false;
+  const el = $('liveChat')?.querySelector(`[data-uid="${uid}"]`);
+  if (!el) return false;
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.style.outline = '2px solid #0072ff';
+  setTimeout(() => {
+    el.style.outline = '';
+  }, 1500);
+  return true;
+}
+
+function resolveTaggedLineUid(item) {
+  if (item?.uid != null) return item.uid;
+  const line = state.chatLines.find(
+    (l) => l.modMention && l.username === item.username && l.message === item.text
+  );
+  return line?.uid ?? null;
+}
+
+async function openTaggedItem(item) {
+  if (!item) return;
+  const uid = resolveTaggedLineUid(item);
+  if (uid != null && scrollToLiveChatUid(uid)) return;
+  await openIndexChatHistory(item);
+}
+
+async function openIndexChatHistory(item) {
+  if (!item?.username) return;
+  state.chatHistoryHighlight = item.text || item.preview || '';
+  const ok = await validateAndOpenModAction(item.username, 'chat');
+  if (!ok) state.chatHistoryHighlight = '';
 }
 
 function scrollToLine(idx) {
@@ -2209,10 +2260,7 @@ function updatePolicySuggestion() {
 }
 
 async function openFlaggedChatHistory(item) {
-  if (!item?.username) return;
-  state.chatHistoryHighlight = item.text || item.preview || '';
-  const ok = await validateAndOpenModAction(item.username, 'chat');
-  if (!ok) state.chatHistoryHighlight = '';
+  await openIndexChatHistory(item);
 }
 
 function scrollChatHistoryHighlight() {
@@ -3442,11 +3490,15 @@ async function init() {
     esc,
     formatChatTime
   });
-  await Promise.all([Emotes?.init({
-    button: $('btnEmotePicker'),
-    panel: $('emotePicker'),
-    textarea: $('chatMessage')
-  }), RankBadges?.load()]);
+  await Promise.all([
+    Emotes?.init({
+      button: $('btnEmotePicker'),
+      panel: $('emotePicker'),
+      textarea: $('chatMessage')
+    }),
+    RankBadges?.load(),
+    RhPayoutTables?.init(rhPayoutElements())
+  ]);
   startHubClock();
   initPolicyModal();
   wireTabs();

@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.43</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.44</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -66,7 +66,7 @@
           <div id="liveChat" class="chat-box chat-box-live"></div>
           <div class="hub-subcols">
             <div class="subcol">
-              <h4 class="subcol-title" title="Wer dich @ erwähnt hat · Zeit · Nachricht">Tagged</h4>
+              <h4 class="subcol-title" title="Wer dich @ erwähnt hat · Doppelklick = Live-Scroll oder API-Chat-Historie">Tagged</h4>
               <div id="tagIndex" class="index-list"></div>
             </div>
             <div class="subcol">
@@ -178,6 +178,14 @@
             <label id="rhMinMultiWrap">Ab Multi (x)
               <input id="rhMinMulti" type="number" step="0.01" min="0" value="1000" />
             </label>
+            <div id="rhPayoutWrap" class="rh-payout-wrap hidden span-all">
+              <label class="rh-payout-variant-label">Setting
+                <select id="rhPayoutVariant"></select>
+              </label>
+              <label>Payout-Multi
+                <select id="rhPayoutMulti"></select>
+              </label>
+            </div>
             <label id="rhCrashDeadlineWrap" class="hidden rh-timer-wrap">Countdown (Crash/Slide)
               <div class="rh-timer-fields">
                 <input id="rhTimerMinutes" type="number" min="0" max="600" step="1" value="60" />
@@ -624,6 +632,7 @@
   <script src="./renderer/mod-policy.js"></script>
   <script src="./renderer/history-format.js"></script>
   <script src="./renderer/emotes.js"></script>
+  <script src="./renderer/rh-payout-tables.js"></script>
   <script src="./renderer/chat-colors.js"></script>
   <script src="./renderer/rank-badges.js"></script>
   <script src="./renderer/mod-chat.js"></script>

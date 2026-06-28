@@ -1333,6 +1333,32 @@ body {
   margin-right: 4px;
 }
 
+.rh-payout-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+  margin-top: 2px;
+}
+
+.rh-payout-wrap label {
+  margin: 0;
+}
+
+.rh-payout-wrap select {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.rh-payout-wrap select.rh-payout-multi--list {
+  min-height: 11.5em;
+  max-height: 14em;
+  overflow-y: auto;
+}
+
+.rh-payout-variant-label.hidden {
+  display: none;
+}
+
 .hidden {
   display: none !important;
 }

@@ -1,6 +1,6 @@
 {
   "name": "stake-modhub",
-  "version": "0.4.43",
+  "version": "0.4.44",
   "description": "Stake Mod Hub — Electron (ModHub + RH + Extension APIs)",
   "main": "main.js",
   "private": true,
@@ -13,6 +13,7 @@
     "start": "electron .",
     "test": "node --test test/*.test.js",
     "audit": "node scripts/audit-analyse.js",
+    "build:rh-payout": "node scripts/build-rh-payout-tables.js",
     "dist": "electron-builder --win nsis --publish never",
     "dist:publish": "electron-builder --win nsis --publish always",
     "dist:win": "electron-builder --win nsis --publish never"
@@ -23,7 +24,8 @@
   },
   "devDependencies": {
     "electron": "^34.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "xlsx": "^0.18.5"
   },
   "build": {
     "npmRebuild": false,

@@ -1,0 +1,3027 @@
+{
+  "version": 2,
+  "games": {
+    "Dragon Tower": {
+      "type": "variants",
+      "variants": [
+        {
+          "id": "easy",
+          "label": "Easy",
+          "setup": "3 Eier / 4 Felder",
+          "options": [
+            {
+              "label": "Stufe 1 — 1.31x",
+              "multi": 1.31,
+              "stage": 1
+            },
+            {
+              "label": "Stufe 2 — 1.74x",
+              "multi": 1.74,
+              "stage": 2
+            },
+            {
+              "label": "Stufe 3 — 2.32x",
+              "multi": 2.32,
+              "stage": 3
+            },
+            {
+              "label": "Stufe 4 — 3.1x",
+              "multi": 3.1,
+              "stage": 4
+            },
+            {
+              "label": "Stufe 5 — 4.13x",
+              "multi": 4.13,
+              "stage": 5
+            },
+            {
+              "label": "Stufe 6 — 5.51x",
+              "multi": 5.51,
+              "stage": 6
+            },
+            {
+              "label": "Stufe 7 — 7.34x",
+              "multi": 7.34,
+              "stage": 7
+            },
+            {
+              "label": "Stufe 8 — 9.79x",
+              "multi": 9.79,
+              "stage": 8
+            },
+            {
+              "label": "Stufe 9 — 13.05x",
+              "multi": 13.05,
+              "stage": 9
+            }
+          ]
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "setup": "2 Eier / 3 Felder",
+          "options": [
+            {
+              "label": "Stufe 1 — 1.47x",
+              "multi": 1.47,
+              "stage": 1
+            },
+            {
+              "label": "Stufe 2 — 2.21x",
+              "multi": 2.21,
+              "stage": 2
+            },
+            {
+              "label": "Stufe 3 — 3.31x",
+              "multi": 3.31,
+              "stage": 3
+            },
+            {
+              "label": "Stufe 4 — 4.96x",
+              "multi": 4.96,
+              "stage": 4
+            },
+            {
+              "label": "Stufe 5 — 7.44x",
+              "multi": 7.44,
+              "stage": 5
+            },
+            {
+              "label": "Stufe 6 — 11.16x",
+              "multi": 11.16,
+              "stage": 6
+            },
+            {
+              "label": "Stufe 7 — 16.74x",
+              "multi": 16.74,
+              "stage": 7
+            },
+            {
+              "label": "Stufe 8 — 25.12x",
+              "multi": 25.12,
+              "stage": 8
+            },
+            {
+              "label": "Stufe 9 — 37.67x",
+              "multi": 37.67,
+              "stage": 9
+            }
+          ]
+        },
+        {
+          "id": "hard",
+          "label": "Hard",
+          "setup": "1 Ei / 2 Felder",
+          "options": [
+            {
+              "label": "Stufe 1 — 1.96x",
+              "multi": 1.96,
+              "stage": 1
+            },
+            {
+              "label": "Stufe 2 — 3.92x",
+              "multi": 3.92,
+              "stage": 2
+            },
+            {
+              "label": "Stufe 3 — 7.84x",
+              "multi": 7.84,
+              "stage": 3
+            },
+            {
+              "label": "Stufe 4 — 15.68x",
+              "multi": 15.68,
+              "stage": 4
+            },
+            {
+              "label": "Stufe 5 — 31.36x",
+              "multi": 31.36,
+              "stage": 5
+            },
+            {
+              "label": "Stufe 6 — 62.72x",
+              "multi": 62.72,
+              "stage": 6
+            },
+            {
+              "label": "Stufe 7 — 125.44x",
+              "multi": 125.44,
+              "stage": 7
+            },
+            {
+              "label": "Stufe 8 — 250.88x",
+              "multi": 250.88,
+              "stage": 8
+            },
+            {
+              "label": "Stufe 9 — 501.76x",
+              "multi": 501.76,
+              "stage": 9
+            }
+          ]
+        },
+        {
+          "id": "expert",
+          "label": "Expert",
+          "setup": "1 Ei / 3 Felder",
+          "options": [
+            {
+              "label": "Stufe 1 — 2.94x",
+              "multi": 2.94,
+              "stage": 1
+            },
+            {
+              "label": "Stufe 2 — 8.82x",
+              "multi": 8.82,
+              "stage": 2
+            },
+            {
+              "label": "Stufe 3 — 26.46x",
+              "multi": 26.46,
+              "stage": 3
+            },
+            {
+              "label": "Stufe 4 — 79.38x",
+              "multi": 79.38,
+              "stage": 4
+            },
+            {
+              "label": "Stufe 5 — 238.14x",
+              "multi": 238.14,
+              "stage": 5
+            },
+            {
+              "label": "Stufe 6 — 714.42x",
+              "multi": 714.42,
+              "stage": 6
+            },
+            {
+              "label": "Stufe 7 — 2.143,26x",
+              "multi": 2143.26,
+              "stage": 7
+            },
+            {
+              "label": "Stufe 8 — 6.429,78x",
+              "multi": 6429.78,
+              "stage": 8
+            },
+            {
+              "label": "Stufe 9 — 19.289,34x",
+              "multi": 19289.34,
+              "stage": 9
+            }
+          ]
+        },
+        {
+          "id": "master",
+          "label": "Master",
+          "setup": "1 Ei / 4 Felder",
+          "options": [
+            {
+              "label": "Stufe 1 — 3.92x",
+              "multi": 3.92,
+              "stage": 1
+            },
+            {
+              "label": "Stufe 2 — 15.68x",
+              "multi": 15.68,
+              "stage": 2
+            },
+            {
+              "label": "Stufe 3 — 62.72x",
+              "multi": 62.72,
+              "stage": 3
+            },
+            {
+              "label": "Stufe 4 — 250.88x",
+              "multi": 250.88,
+              "stage": 4
+            },
+            {
+              "label": "Stufe 5 — 1.003,52x",
+              "multi": 1003.52,
+              "stage": 5
+            },
+            {
+              "label": "Stufe 6 — 4.014,08x",
+              "multi": 4014.08,
+              "stage": 6
+            },
+            {
+              "label": "Stufe 7 — 16.056,32x",
+              "multi": 16056.32,
+              "stage": 7
+            },
+            {
+              "label": "Stufe 8 — 64.225,28x",
+              "multi": 64225.28,
+              "stage": 8
+            },
+            {
+              "label": "Stufe 9 — 256.901,12x",
+              "multi": 256901.12,
+              "stage": 9
+            }
+          ]
+        }
+      ]
+    },
+    "Drill": {
+      "type": "levels",
+      "options": [
+        {
+          "label": "1 — 1.05x",
+          "multi": 1.05
+        },
+        {
+          "label": "2 — 1.12x",
+          "multi": 1.12
+        },
+        {
+          "label": "3 — 1.22x",
+          "multi": 1.22
+        },
+        {
+          "label": "4 — 1.38x",
+          "multi": 1.38
+        },
+        {
+          "label": "5 — 1.61x",
+          "multi": 1.61
+        },
+        {
+          "label": "6 — 1.95x",
+          "multi": 1.95
+        },
+        {
+          "label": "7 — 2.5x",
+          "multi": 2.5
+        },
+        {
+          "label": "8 — 3.4x",
+          "multi": 3.4
+        },
+        {
+          "label": "9 — 5x",
+          "multi": 5
+        },
+        {
+          "label": "10 — 8x",
+          "multi": 8
+        }
+      ]
+    },
+    "Moles": {
+      "type": "variants",
+      "variants": [
+        {
+          "id": "1-mole",
+          "label": "1 Mole",
+          "options": [
+            {
+              "label": "Hit 1 — 6.86x",
+              "multi": 6.86,
+              "hit": 1
+            },
+            {
+              "label": "Hit 2 — 48.02x",
+              "multi": 48.02,
+              "hit": 2
+            },
+            {
+              "label": "Hit 3 — 336.14x",
+              "multi": 336.14,
+              "hit": 3
+            },
+            {
+              "label": "Hit 4 — 2.352,98x",
+              "multi": 2352.98,
+              "hit": 4
+            },
+            {
+              "label": "Hit 5 — 16.470,86x",
+              "multi": 16470.86,
+              "hit": 5
+            },
+            {
+              "label": "Hit 6 — 115.296,02x",
+              "multi": 115296.02,
+              "hit": 6
+            },
+            {
+              "label": "Hit 7 — 807.072,14x",
+              "multi": 807072.14,
+              "hit": 7
+            },
+            {
+              "label": "Hit 8 — 5.649.504,98x",
+              "multi": 5649504.98,
+              "hit": 8
+            }
+          ]
+        },
+        {
+          "id": "2-moles",
+          "label": "2 Moles",
+          "options": [
+            {
+              "label": "Hit 1 — 3.43x",
+              "multi": 3.43,
+              "hit": 1
+            },
+            {
+              "label": "Hit 2 — 12x",
+              "multi": 12,
+              "hit": 2
+            },
+            {
+              "label": "Hit 3 — 42.01x",
+              "multi": 42.01,
+              "hit": 3
+            },
+            {
+              "label": "Hit 4 — 147.06x",
+              "multi": 147.06,
+              "hit": 4
+            },
+            {
+              "label": "Hit 5 — 514.71x",
+              "multi": 514.71,
+              "hit": 5
+            },
+            {
+              "label": "Hit 6 — 1.801,5x",
+              "multi": 1801.5,
+              "hit": 6
+            },
+            {
+              "label": "Hit 7 — 6.305,25x",
+              "multi": 6305.25,
+              "hit": 7
+            },
+            {
+              "label": "Hit 8 — 22.068,37x",
+              "multi": 22068.37,
+              "hit": 8
+            },
+            {
+              "label": "Hit 9 — 77.239,32x",
+              "multi": 77239.32,
+              "hit": 9
+            }
+          ]
+        },
+        {
+          "id": "3-moles",
+          "label": "3 Moles",
+          "options": [
+            {
+              "label": "Hit 1 — 2.28x",
+              "multi": 2.28,
+              "hit": 1
+            },
+            {
+              "label": "Hit 2 — 5.33x",
+              "multi": 5.33,
+              "hit": 2
+            },
+            {
+              "label": "Hit 3 — 12.45x",
+              "multi": 12.45,
+              "hit": 3
+            },
+            {
+              "label": "Hit 4 — 29.04x",
+              "multi": 29.04,
+              "hit": 4
+            },
+            {
+              "label": "Hit 5 — 67.78x",
+              "multi": 67.78,
+              "hit": 5
+            },
+            {
+              "label": "Hit 6 — 158.15x",
+              "multi": 158.15,
+              "hit": 6
+            },
+            {
+              "label": "Hit 7 — 369.03x",
+              "multi": 369.03,
+              "hit": 7
+            },
+            {
+              "label": "Hit 8 — 861.07x",
+              "multi": 861.07,
+              "hit": 8
+            },
+            {
+              "label": "Hit 9 — 2.009,17x",
+              "multi": 2009.17,
+              "hit": 9
+            }
+          ]
+        },
+        {
+          "id": "4-moles",
+          "label": "4 Moles",
+          "options": [
+            {
+              "label": "Hit 1 — 1.71x",
+              "multi": 1.71,
+              "hit": 1
+            },
+            {
+              "label": "Hit 2 — 3x",
+              "multi": 3,
+              "hit": 2
+            },
+            {
+              "label": "Hit 3 — 5.25x",
+              "multi": 5.25,
+              "hit": 3
+            },
+            {
+              "label": "Hit 4 — 9.19x",
+              "multi": 9.19,
+              "hit": 4
+            },
+            {
+              "label": "Hit 5 — 16.08x",
+              "multi": 16.08,
+              "hit": 5
+            },
+            {
+              "label": "Hit 6 — 28.14x",
+              "multi": 28.14,
+              "hit": 6
+            },
+            {
+              "label": "Hit 7 — 49.26x",
+              "multi": 49.26,
+              "hit": 7
+            },
+            {
+              "label": "Hit 8 — 86.2x",
+              "multi": 86.2,
+              "hit": 8
+            },
+            {
+              "label": "Hit 9 — 150.85x",
+              "multi": 150.85,
+              "hit": 9
+            }
+          ]
+        },
+        {
+          "id": "5-moles",
+          "label": "5 Moles",
+          "options": [
+            {
+              "label": "Hit 1 — 1.37x",
+              "multi": 1.37,
+              "hit": 1
+            },
+            {
+              "label": "Hit 2 — 1.92x",
+              "multi": 1.92,
+              "hit": 2
+            },
+            {
+              "label": "Hit 3 — 2.68x",
+              "multi": 2.68,
+              "hit": 3
+            },
+            {
+              "label": "Hit 4 — 3.87x",
+              "multi": 3.87,
+              "hit": 4
+            },
+            {
+              "label": "Hit 5 — 5.27x",
+              "multi": 5.27,
+              "hit": 5
+            },
+            {
+              "label": "Hit 6 — 7.37x",
+              "multi": 7.37,
+              "hit": 6
+            },
+            {
+              "label": "Hit 7 — 10.33x",
+              "multi": 10.33,
+              "hit": 7
+            },
+            {
+              "label": "Hit 8 — 14.46x",
+              "multi": 14.46,
+              "hit": 8
+            },
+            {
+              "label": "Hit 9 — 20.24x",
+              "multi": 20.24,
+              "hit": 9
+            }
+          ]
+        },
+        {
+          "id": "6-moles",
+          "label": "6 Moles",
+          "options": [
+            {
+              "label": "Hit 1 — 1.14x",
+              "multi": 1.14,
+              "hit": 1
+            },
+            {
+              "label": "Hit 2 — 1.33x",
+              "multi": 1.33,
+              "hit": 2
+            },
+            {
+              "label": "Hit 3 — 1.55x",
+              "multi": 1.55,
+              "hit": 3
+            },
+            {
+              "label": "Hit 4 — 1.81x",
+              "multi": 1.81,
+              "hit": 4
+            },
+            {
+              "label": "Hit 5 — 2.11x",
+              "multi": 2.11,
+              "hit": 5
+            },
+            {
+              "label": "Hit 6 — 2.47x",
+              "multi": 2.47,
+              "hit": 6
+            },
+            {
+              "label": "Hit 7 — 2.88x",
+              "multi": 2.88,
+              "hit": 7
+            },
+            {
+              "label": "Hit 8 — 3.36x",
+              "multi": 3.36,
+              "hit": 8
+            },
+            {
+              "label": "Hit 9 — 3.92x",
+              "multi": 3.92,
+              "hit": 9
+            }
+          ]
+        }
+      ]
+    },
+    "Pump": {
+      "type": "levels",
+      "options": [
+        {
+          "label": "1 — 1.2x",
+          "multi": 1.2
+        },
+        {
+          "label": "2 — 1.5x",
+          "multi": 1.5
+        },
+        {
+          "label": "3 — 2.1x",
+          "multi": 2.1
+        },
+        {
+          "label": "4 — 3.2x",
+          "multi": 3.2
+        },
+        {
+          "label": "5 — 5x",
+          "multi": 5
+        },
+        {
+          "label": "6 — 8.5x",
+          "multi": 8.5
+        },
+        {
+          "label": "7 — 15x",
+          "multi": 15
+        },
+        {
+          "label": "8 — 30x",
+          "multi": 30
+        },
+        {
+          "label": "9 — 75x",
+          "multi": 75
+        },
+        {
+          "label": "10 — 150x",
+          "multi": 150
+        }
+      ]
+    },
+    "Tarot": {
+      "type": "levels",
+      "options": [
+        {
+          "label": "I — 1.1x",
+          "multi": 1.1
+        },
+        {
+          "label": "II — 1.25x",
+          "multi": 1.25
+        },
+        {
+          "label": "III — 1.5x",
+          "multi": 1.5
+        },
+        {
+          "label": "IV — 2x",
+          "multi": 2
+        },
+        {
+          "label": "V — 3x",
+          "multi": 3
+        },
+        {
+          "label": "VI — 5x",
+          "multi": 5
+        },
+        {
+          "label": "VII — 8x",
+          "multi": 8
+        },
+        {
+          "label": "VIII — 13x",
+          "multi": 13
+        },
+        {
+          "label": "IX — 21x",
+          "multi": 21
+        },
+        {
+          "label": "X — 34x",
+          "multi": 34
+        }
+      ]
+    },
+    "Rock Paper Scissors": {
+      "type": "levels",
+      "options": [
+        {
+          "label": "Runde 1 — 1.96x",
+          "multi": 1.96,
+          "round": 1
+        },
+        {
+          "label": "Runde 2 — 3.92x",
+          "multi": 3.92,
+          "round": 2
+        },
+        {
+          "label": "Runde 3 — 7.84x",
+          "multi": 7.84,
+          "round": 3
+        },
+        {
+          "label": "Runde 4 — 15.68x",
+          "multi": 15.68,
+          "round": 4
+        },
+        {
+          "label": "Runde 5 — 31.36x",
+          "multi": 31.36,
+          "round": 5
+        },
+        {
+          "label": "Runde 6 — 62.72x",
+          "multi": 62.72,
+          "round": 6
+        },
+        {
+          "label": "Runde 7 — 125.44x",
+          "multi": 125.44,
+          "round": 7
+        },
+        {
+          "label": "Runde 8 — 250.88x",
+          "multi": 250.88,
+          "round": 8
+        },
+        {
+          "label": "Runde 9 — 501.76x",
+          "multi": 501.76,
+          "round": 9
+        },
+        {
+          "label": "Runde 10 — 1.003,52x",
+          "multi": 1003.52,
+          "round": 10
+        },
+        {
+          "label": "Runde 11 — 2.007,04x",
+          "multi": 2007.04,
+          "round": 11
+        },
+        {
+          "label": "Runde 12 — 4.014,08x",
+          "multi": 4014.08,
+          "round": 12
+        },
+        {
+          "label": "Runde 13 — 8.028,16x",
+          "multi": 8028.16,
+          "round": 13
+        },
+        {
+          "label": "Runde 14 — 16.056,32x",
+          "multi": 16056.32,
+          "round": 14
+        },
+        {
+          "label": "Runde 15 — 32.112,64x",
+          "multi": 32112.64,
+          "round": 15
+        },
+        {
+          "label": "Runde 16 — 64.225,28x",
+          "multi": 64225.28,
+          "round": 16
+        },
+        {
+          "label": "Runde 17 — 128.450,56x",
+          "multi": 128450.56,
+          "round": 17
+        },
+        {
+          "label": "Runde 18 — 256.901,12x",
+          "multi": 256901.12,
+          "round": 18
+        },
+        {
+          "label": "Runde 19 — 513.802,24x",
+          "multi": 513802.24,
+          "round": 19
+        },
+        {
+          "label": "Runde 20 — 1.027.604,48x",
+          "multi": 1027604.48,
+          "round": 20
+        }
+      ],
+      "meta": {
+        "rtpBase": 1.96,
+        "maxRounds": 20
+      }
+    },
+    "Chicken": {
+      "type": "variants",
+      "variants": [
+        {
+          "id": "easy",
+          "label": "Easy",
+          "options": [
+            {
+              "label": "Schritt 1 — 1.03x",
+              "multi": 1.03,
+              "stage": 1
+            },
+            {
+              "label": "Schritt 2 — 1.09x",
+              "multi": 1.09,
+              "stage": 2
+            },
+            {
+              "label": "Schritt 3 — 1.15x",
+              "multi": 1.15,
+              "stage": 3
+            },
+            {
+              "label": "Schritt 4 — 1.23x",
+              "multi": 1.23,
+              "stage": 4
+            },
+            {
+              "label": "Schritt 5 — 1.31x",
+              "multi": 1.31,
+              "stage": 5
+            },
+            {
+              "label": "Schritt 6 — 1.4x",
+              "multi": 1.4,
+              "stage": 6
+            },
+            {
+              "label": "Schritt 7 — 1.51x",
+              "multi": 1.51,
+              "stage": 7
+            },
+            {
+              "label": "Schritt 8 — 1.63x",
+              "multi": 1.63,
+              "stage": 8
+            },
+            {
+              "label": "Schritt 9 — 1.78x",
+              "multi": 1.78,
+              "stage": 9
+            },
+            {
+              "label": "Schritt 10 — 1.96x",
+              "multi": 1.96,
+              "stage": 10
+            }
+          ]
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "options": [
+            {
+              "label": "Schritt 1 — 1.15x",
+              "multi": 1.15,
+              "stage": 1
+            },
+            {
+              "label": "Schritt 2 — 1.37x",
+              "multi": 1.37,
+              "stage": 2
+            },
+            {
+              "label": "Schritt 3 — 1.64x",
+              "multi": 1.64,
+              "stage": 3
+            },
+            {
+              "label": "Schritt 4 — 2x",
+              "multi": 2,
+              "stage": 4
+            },
+            {
+              "label": "Schritt 5 — 2.46x",
+              "multi": 2.46,
+              "stage": 5
+            },
+            {
+              "label": "Schritt 6 — 3.07x",
+              "multi": 3.07,
+              "stage": 6
+            },
+            {
+              "label": "Schritt 7 — 3.91x",
+              "multi": 3.91,
+              "stage": 7
+            },
+            {
+              "label": "Schritt 8 — 5.08x",
+              "multi": 5.08,
+              "stage": 8
+            },
+            {
+              "label": "Schritt 9 — 6.77x",
+              "multi": 6.77,
+              "stage": 9
+            },
+            {
+              "label": "Schritt 10 — 9.31x",
+              "multi": 9.31,
+              "stage": 10
+            }
+          ]
+        },
+        {
+          "id": "hard",
+          "label": "Hard",
+          "options": [
+            {
+              "label": "Schritt 1 — 1.31x",
+              "multi": 1.31,
+              "stage": 1
+            },
+            {
+              "label": "Schritt 2 — 1.77x",
+              "multi": 1.77,
+              "stage": 2
+            },
+            {
+              "label": "Schritt 3 — 2.46x",
+              "multi": 2.46,
+              "stage": 3
+            },
+            {
+              "label": "Schritt 4 — 3.48x",
+              "multi": 3.48,
+              "stage": 4
+            },
+            {
+              "label": "Schritt 5 — 5.06x",
+              "multi": 5.06,
+              "stage": 5
+            },
+            {
+              "label": "Schritt 6 — 7.59x",
+              "multi": 7.59,
+              "stage": 6
+            },
+            {
+              "label": "Schritt 7 — 11.81x",
+              "multi": 11.81,
+              "stage": 7
+            },
+            {
+              "label": "Schritt 8 — 19.18x",
+              "multi": 19.18,
+              "stage": 8
+            },
+            {
+              "label": "Schritt 9 — 32.89x",
+              "multi": 32.89,
+              "stage": 9
+            },
+            {
+              "label": "Schritt 10 — 60.29x",
+              "multi": 60.29,
+              "stage": 10
+            }
+          ]
+        },
+        {
+          "id": "expert",
+          "label": "Expert",
+          "options": [
+            {
+              "label": "Schritt 1 — 1.96x",
+              "multi": 1.96,
+              "stage": 1
+            },
+            {
+              "label": "Schritt 2 — 4.14x",
+              "multi": 4.14,
+              "stage": 2
+            },
+            {
+              "label": "Schritt 3 — 9.31x",
+              "multi": 9.31,
+              "stage": 3
+            },
+            {
+              "label": "Schritt 4 — 22.61x",
+              "multi": 22.61,
+              "stage": 4
+            },
+            {
+              "label": "Schritt 5 — 60.29x",
+              "multi": 60.29,
+              "stage": 5
+            },
+            {
+              "label": "Schritt 6 — 180.88x",
+              "multi": 180.88,
+              "stage": 6
+            },
+            {
+              "label": "Schritt 7 — 633.08x",
+              "multi": 633.08,
+              "stage": 7
+            },
+            {
+              "label": "Schritt 8 — 2.743,35x",
+              "multi": 2743.35,
+              "stage": 8
+            },
+            {
+              "label": "Schritt 9 — 16.460,08x",
+              "multi": 16460.08,
+              "stage": 9
+            },
+            {
+              "label": "Schritt 10 — 181.060,88x",
+              "multi": 181060.88,
+              "stage": 10
+            }
+          ]
+        }
+      ]
+    },
+    "Mines": {
+      "type": "variants",
+      "variants": [
+        {
+          "id": "1",
+          "label": "1 Mine",
+          "mines": 1,
+          "options": [
+            {
+              "label": "1 Diamant — 1.03x",
+              "multi": 1.03,
+              "diamonds": 1,
+              "mines": 1
+            },
+            {
+              "label": "2 Diamanten — 1.08x",
+              "multi": 1.08,
+              "diamonds": 2,
+              "mines": 1
+            },
+            {
+              "label": "3 Diamanten — 1.12x",
+              "multi": 1.12,
+              "diamonds": 3,
+              "mines": 1
+            },
+            {
+              "label": "4 Diamanten — 1.18x",
+              "multi": 1.18,
+              "diamonds": 4,
+              "mines": 1
+            },
+            {
+              "label": "5 Diamanten — 1.24x",
+              "multi": 1.24,
+              "diamonds": 5,
+              "mines": 1
+            },
+            {
+              "label": "6 Diamanten — 1.3x",
+              "multi": 1.3,
+              "diamonds": 6,
+              "mines": 1
+            },
+            {
+              "label": "7 Diamanten — 1.38x",
+              "multi": 1.38,
+              "diamonds": 7,
+              "mines": 1
+            },
+            {
+              "label": "8 Diamanten — 1.46x",
+              "multi": 1.46,
+              "diamonds": 8,
+              "mines": 1
+            },
+            {
+              "label": "9 Diamanten — 1.55x",
+              "multi": 1.55,
+              "diamonds": 9,
+              "mines": 1
+            },
+            {
+              "label": "10 Diamanten — 1.65x",
+              "multi": 1.65,
+              "diamonds": 10,
+              "mines": 1
+            },
+            {
+              "label": "11 Diamanten — 1.77x",
+              "multi": 1.77,
+              "diamonds": 11,
+              "mines": 1
+            },
+            {
+              "label": "12 Diamanten — 1.9x",
+              "multi": 1.9,
+              "diamonds": 12,
+              "mines": 1
+            },
+            {
+              "label": "13 Diamanten — 2.06x",
+              "multi": 2.06,
+              "diamonds": 13,
+              "mines": 1
+            },
+            {
+              "label": "14 Diamanten — 2.25x",
+              "multi": 2.25,
+              "diamonds": 14,
+              "mines": 1
+            },
+            {
+              "label": "15 Diamanten — 2.47x",
+              "multi": 2.47,
+              "diamonds": 15,
+              "mines": 1
+            },
+            {
+              "label": "16 Diamanten — 2.75x",
+              "multi": 2.75,
+              "diamonds": 16,
+              "mines": 1
+            },
+            {
+              "label": "17 Diamanten — 3.09x",
+              "multi": 3.09,
+              "diamonds": 17,
+              "mines": 1
+            },
+            {
+              "label": "18 Diamanten — 3.54x",
+              "multi": 3.54,
+              "diamonds": 18,
+              "mines": 1
+            },
+            {
+              "label": "19 Diamanten — 4.12x",
+              "multi": 4.12,
+              "diamonds": 19,
+              "mines": 1
+            },
+            {
+              "label": "20 Diamanten — 4.95x",
+              "multi": 4.95,
+              "diamonds": 20,
+              "mines": 1
+            },
+            {
+              "label": "21 Diamanten — 6.19x",
+              "multi": 6.19,
+              "diamonds": 21,
+              "mines": 1
+            },
+            {
+              "label": "22 Diamanten — 8.25x",
+              "multi": 8.25,
+              "diamonds": 22,
+              "mines": 1
+            },
+            {
+              "label": "23 Diamanten — 12.37x",
+              "multi": 12.37,
+              "diamonds": 23,
+              "mines": 1
+            },
+            {
+              "label": "24 Diamanten — 24.75x",
+              "multi": 24.75,
+              "diamonds": 24,
+              "mines": 1
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "label": "2 Minen",
+          "mines": 2,
+          "options": [
+            {
+              "label": "1 Diamant — 1.08x",
+              "multi": 1.08,
+              "diamonds": 1,
+              "mines": 2
+            },
+            {
+              "label": "2 Diamanten — 1.17x",
+              "multi": 1.17,
+              "diamonds": 2,
+              "mines": 2
+            },
+            {
+              "label": "3 Diamanten — 1.29x",
+              "multi": 1.29,
+              "diamonds": 3,
+              "mines": 2
+            },
+            {
+              "label": "4 Diamanten — 1.41x",
+              "multi": 1.41,
+              "diamonds": 4,
+              "mines": 2
+            },
+            {
+              "label": "5 Diamanten — 1.56x",
+              "multi": 1.56,
+              "diamonds": 5,
+              "mines": 2
+            },
+            {
+              "label": "6 Diamanten — 1.74x",
+              "multi": 1.74,
+              "diamonds": 6,
+              "mines": 2
+            },
+            {
+              "label": "7 Diamanten — 1.94x",
+              "multi": 1.94,
+              "diamonds": 7,
+              "mines": 2
+            },
+            {
+              "label": "8 Diamanten — 2.18x",
+              "multi": 2.18,
+              "diamonds": 8,
+              "mines": 2
+            },
+            {
+              "label": "9 Diamanten — 2.48x",
+              "multi": 2.48,
+              "diamonds": 9,
+              "mines": 2
+            },
+            {
+              "label": "10 Diamanten — 2.83x",
+              "multi": 2.83,
+              "diamonds": 10,
+              "mines": 2
+            },
+            {
+              "label": "11 Diamanten — 3.26x",
+              "multi": 3.26,
+              "diamonds": 11,
+              "mines": 2
+            },
+            {
+              "label": "12 Diamanten — 3.81x",
+              "multi": 3.81,
+              "diamonds": 12,
+              "mines": 2
+            },
+            {
+              "label": "13 Diamanten — 4.5x",
+              "multi": 4.5,
+              "diamonds": 13,
+              "mines": 2
+            },
+            {
+              "label": "14 Diamanten — 5.4x",
+              "multi": 5.4,
+              "diamonds": 14,
+              "mines": 2
+            },
+            {
+              "label": "15 Diamanten — 6.6x",
+              "multi": 6.6,
+              "diamonds": 15,
+              "mines": 2
+            },
+            {
+              "label": "16 Diamanten — 8.25x",
+              "multi": 8.25,
+              "diamonds": 16,
+              "mines": 2
+            },
+            {
+              "label": "17 Diamanten — 10.61x",
+              "multi": 10.61,
+              "diamonds": 17,
+              "mines": 2
+            },
+            {
+              "label": "18 Diamanten — 14.14x",
+              "multi": 14.14,
+              "diamonds": 18,
+              "mines": 2
+            },
+            {
+              "label": "19 Diamanten — 19.8x",
+              "multi": 19.8,
+              "diamonds": 19,
+              "mines": 2
+            },
+            {
+              "label": "20 Diamanten — 29.7x",
+              "multi": 29.7,
+              "diamonds": 20,
+              "mines": 2
+            },
+            {
+              "label": "21 Diamanten — 49.5x",
+              "multi": 49.5,
+              "diamonds": 21,
+              "mines": 2
+            },
+            {
+              "label": "22 Diamanten — 99x",
+              "multi": 99,
+              "diamonds": 22,
+              "mines": 2
+            },
+            {
+              "label": "23 Diamanten — 297x",
+              "multi": 297,
+              "diamonds": 23,
+              "mines": 2
+            }
+          ]
+        },
+        {
+          "id": "3",
+          "label": "3 Minen",
+          "mines": 3,
+          "options": [
+            {
+              "label": "1 Diamant — 1.13x",
+              "multi": 1.13,
+              "diamonds": 1,
+              "mines": 3
+            },
+            {
+              "label": "2 Diamanten — 1.29x",
+              "multi": 1.29,
+              "diamonds": 2,
+              "mines": 3
+            },
+            {
+              "label": "3 Diamanten — 1.48x",
+              "multi": 1.48,
+              "diamonds": 3,
+              "mines": 3
+            },
+            {
+              "label": "4 Diamanten — 1.71x",
+              "multi": 1.71,
+              "diamonds": 4,
+              "mines": 3
+            },
+            {
+              "label": "5 Diamanten — 2x",
+              "multi": 2,
+              "diamonds": 5,
+              "mines": 3
+            },
+            {
+              "label": "6 Diamanten — 2.35x",
+              "multi": 2.35,
+              "diamonds": 6,
+              "mines": 3
+            },
+            {
+              "label": "7 Diamanten — 2.79x",
+              "multi": 2.79,
+              "diamonds": 7,
+              "mines": 3
+            },
+            {
+              "label": "8 Diamanten — 3.35x",
+              "multi": 3.35,
+              "diamonds": 8,
+              "mines": 3
+            },
+            {
+              "label": "9 Diamanten — 4.07x",
+              "multi": 4.07,
+              "diamonds": 9,
+              "mines": 3
+            },
+            {
+              "label": "10 Diamanten — 5x",
+              "multi": 5,
+              "diamonds": 10,
+              "mines": 3
+            },
+            {
+              "label": "11 Diamanten — 6.26x",
+              "multi": 6.26,
+              "diamonds": 11,
+              "mines": 3
+            },
+            {
+              "label": "12 Diamanten — 7.96x",
+              "multi": 7.96,
+              "diamonds": 12,
+              "mines": 3
+            },
+            {
+              "label": "13 Diamanten — 10.35x",
+              "multi": 10.35,
+              "diamonds": 13,
+              "mines": 3
+            },
+            {
+              "label": "14 Diamanten — 13.8x",
+              "multi": 13.8,
+              "diamonds": 14,
+              "mines": 3
+            },
+            {
+              "label": "15 Diamanten — 18.98x",
+              "multi": 18.98,
+              "diamonds": 15,
+              "mines": 3
+            },
+            {
+              "label": "16 Diamanten — 27.11x",
+              "multi": 27.11,
+              "diamonds": 16,
+              "mines": 3
+            },
+            {
+              "label": "17 Diamanten — 40.66x",
+              "multi": 40.66,
+              "diamonds": 17,
+              "mines": 3
+            },
+            {
+              "label": "18 Diamanten — 65.06x",
+              "multi": 65.06,
+              "diamonds": 18,
+              "mines": 3
+            },
+            {
+              "label": "19 Diamanten — 113.85x",
+              "multi": 113.85,
+              "diamonds": 19,
+              "mines": 3
+            },
+            {
+              "label": "20 Diamanten — 227.7x",
+              "multi": 227.7,
+              "diamonds": 20,
+              "mines": 3
+            },
+            {
+              "label": "21 Diamanten — 569.25x",
+              "multi": 569.25,
+              "diamonds": 21,
+              "mines": 3
+            },
+            {
+              "label": "22 Diamanten — 2.277x",
+              "multi": 2277,
+              "diamonds": 22,
+              "mines": 3
+            }
+          ]
+        },
+        {
+          "id": "4",
+          "label": "4 Minen",
+          "mines": 4,
+          "options": [
+            {
+              "label": "1 Diamant — 1.18x",
+              "multi": 1.18,
+              "diamonds": 1,
+              "mines": 4
+            },
+            {
+              "label": "2 Diamanten — 1.41x",
+              "multi": 1.41,
+              "diamonds": 2,
+              "mines": 4
+            },
+            {
+              "label": "3 Diamanten — 1.71x",
+              "multi": 1.71,
+              "diamonds": 3,
+              "mines": 4
+            },
+            {
+              "label": "4 Diamanten — 2.09x",
+              "multi": 2.09,
+              "diamonds": 4,
+              "mines": 4
+            },
+            {
+              "label": "5 Diamanten — 2.58x",
+              "multi": 2.58,
+              "diamonds": 5,
+              "mines": 4
+            },
+            {
+              "label": "6 Diamanten — 3.23x",
+              "multi": 3.23,
+              "diamonds": 6,
+              "mines": 4
+            },
+            {
+              "label": "7 Diamanten — 4.09x",
+              "multi": 4.09,
+              "diamonds": 7,
+              "mines": 4
+            },
+            {
+              "label": "8 Diamanten — 5.26x",
+              "multi": 5.26,
+              "diamonds": 8,
+              "mines": 4
+            },
+            {
+              "label": "9 Diamanten — 6.88x",
+              "multi": 6.88,
+              "diamonds": 9,
+              "mines": 4
+            },
+            {
+              "label": "10 Diamanten — 9.17x",
+              "multi": 9.17,
+              "diamonds": 10,
+              "mines": 4
+            },
+            {
+              "label": "11 Diamanten — 12.51x",
+              "multi": 12.51,
+              "diamonds": 11,
+              "mines": 4
+            },
+            {
+              "label": "12 Diamanten — 17.52x",
+              "multi": 17.52,
+              "diamonds": 12,
+              "mines": 4
+            },
+            {
+              "label": "13 Diamanten — 25.3x",
+              "multi": 25.3,
+              "diamonds": 13,
+              "mines": 4
+            },
+            {
+              "label": "14 Diamanten — 37.95x",
+              "multi": 37.95,
+              "diamonds": 14,
+              "mines": 4
+            },
+            {
+              "label": "15 Diamanten — 59.64x",
+              "multi": 59.64,
+              "diamonds": 15,
+              "mines": 4
+            },
+            {
+              "label": "16 Diamanten — 99.39x",
+              "multi": 99.39,
+              "diamonds": 16,
+              "mines": 4
+            },
+            {
+              "label": "17 Diamanten — 178.91x",
+              "multi": 178.91,
+              "diamonds": 17,
+              "mines": 4
+            },
+            {
+              "label": "18 Diamanten — 357.81x",
+              "multi": 357.81,
+              "diamonds": 18,
+              "mines": 4
+            },
+            {
+              "label": "19 Diamanten — 834.9x",
+              "multi": 834.9,
+              "diamonds": 19,
+              "mines": 4
+            },
+            {
+              "label": "20 Diamanten — 2.504,7x",
+              "multi": 2504.7,
+              "diamonds": 20,
+              "mines": 4
+            },
+            {
+              "label": "21 Diamanten — 12.523,5x",
+              "multi": 12523.5,
+              "diamonds": 21,
+              "mines": 4
+            }
+          ]
+        },
+        {
+          "id": "5",
+          "label": "5 Minen",
+          "mines": 5,
+          "options": [
+            {
+              "label": "1 Diamant — 1.24x",
+              "multi": 1.24,
+              "diamonds": 1,
+              "mines": 5
+            },
+            {
+              "label": "2 Diamanten — 1.56x",
+              "multi": 1.56,
+              "diamonds": 2,
+              "mines": 5
+            },
+            {
+              "label": "3 Diamanten — 2x",
+              "multi": 2,
+              "diamonds": 3,
+              "mines": 5
+            },
+            {
+              "label": "4 Diamanten — 2.58x",
+              "multi": 2.58,
+              "diamonds": 4,
+              "mines": 5
+            },
+            {
+              "label": "5 Diamanten — 3.39x",
+              "multi": 3.39,
+              "diamonds": 5,
+              "mines": 5
+            },
+            {
+              "label": "6 Diamanten — 4.52x",
+              "multi": 4.52,
+              "diamonds": 6,
+              "mines": 5
+            },
+            {
+              "label": "7 Diamanten — 6.14x",
+              "multi": 6.14,
+              "diamonds": 7,
+              "mines": 5
+            },
+            {
+              "label": "8 Diamanten — 8.5x",
+              "multi": 8.5,
+              "diamonds": 8,
+              "mines": 5
+            },
+            {
+              "label": "9 Diamanten — 12.04x",
+              "multi": 12.04,
+              "diamonds": 9,
+              "mines": 5
+            },
+            {
+              "label": "10 Diamanten — 17.52x",
+              "multi": 17.52,
+              "diamonds": 10,
+              "mines": 5
+            },
+            {
+              "label": "11 Diamanten — 26.27x",
+              "multi": 26.27,
+              "diamonds": 11,
+              "mines": 5
+            },
+            {
+              "label": "12 Diamanten — 40.87x",
+              "multi": 40.87,
+              "diamonds": 12,
+              "mines": 5
+            },
+            {
+              "label": "13 Diamanten — 66.41x",
+              "multi": 66.41,
+              "diamonds": 13,
+              "mines": 5
+            },
+            {
+              "label": "14 Diamanten — 113.85x",
+              "multi": 113.85,
+              "diamonds": 14,
+              "mines": 5
+            },
+            {
+              "label": "15 Diamanten — 208.73x",
+              "multi": 208.73,
+              "diamonds": 15,
+              "mines": 5
+            },
+            {
+              "label": "16 Diamanten — 417.45x",
+              "multi": 417.45,
+              "diamonds": 16,
+              "mines": 5
+            },
+            {
+              "label": "17 Diamanten — 939.26x",
+              "multi": 939.26,
+              "diamonds": 17,
+              "mines": 5
+            },
+            {
+              "label": "18 Diamanten — 2.504,7x",
+              "multi": 2504.7,
+              "diamonds": 18,
+              "mines": 5
+            },
+            {
+              "label": "19 Diamanten — 8.766,45x",
+              "multi": 8766.45,
+              "diamonds": 19,
+              "mines": 5
+            },
+            {
+              "label": "20 Diamanten — 52.598,7x",
+              "multi": 52598.7,
+              "diamonds": 20,
+              "mines": 5
+            }
+          ]
+        },
+        {
+          "id": "6",
+          "label": "6 Minen",
+          "mines": 6,
+          "options": [
+            {
+              "label": "1 Diamant — 1.3x",
+              "multi": 1.3,
+              "diamonds": 1,
+              "mines": 6
+            },
+            {
+              "label": "2 Diamanten — 1.74x",
+              "multi": 1.74,
+              "diamonds": 2,
+              "mines": 6
+            },
+            {
+              "label": "3 Diamanten — 2.35x",
+              "multi": 2.35,
+              "diamonds": 3,
+              "mines": 6
+            },
+            {
+              "label": "4 Diamanten — 3.23x",
+              "multi": 3.23,
+              "diamonds": 4,
+              "mines": 6
+            },
+            {
+              "label": "5 Diamanten — 4.52x",
+              "multi": 4.52,
+              "diamonds": 5,
+              "mines": 6
+            },
+            {
+              "label": "6 Diamanten — 6.46x",
+              "multi": 6.46,
+              "diamonds": 6,
+              "mines": 6
+            },
+            {
+              "label": "7 Diamanten — 9.44x",
+              "multi": 9.44,
+              "diamonds": 7,
+              "mines": 6
+            },
+            {
+              "label": "8 Diamanten — 14.17x",
+              "multi": 14.17,
+              "diamonds": 8,
+              "mines": 6
+            },
+            {
+              "label": "9 Diamanten — 21.89x",
+              "multi": 21.89,
+              "diamonds": 9,
+              "mines": 6
+            },
+            {
+              "label": "10 Diamanten — 35.03x",
+              "multi": 35.03,
+              "diamonds": 10,
+              "mines": 6
+            },
+            {
+              "label": "11 Diamanten — 58.38x",
+              "multi": 58.38,
+              "diamonds": 11,
+              "mines": 6
+            },
+            {
+              "label": "12 Diamanten — 102.17x",
+              "multi": 102.17,
+              "diamonds": 12,
+              "mines": 6
+            },
+            {
+              "label": "13 Diamanten — 189.75x",
+              "multi": 189.75,
+              "diamonds": 13,
+              "mines": 6
+            },
+            {
+              "label": "14 Diamanten — 379.5x",
+              "multi": 379.5,
+              "diamonds": 14,
+              "mines": 6
+            },
+            {
+              "label": "15 Diamanten — 834.9x",
+              "multi": 834.9,
+              "diamonds": 15,
+              "mines": 6
+            },
+            {
+              "label": "16 Diamanten — 2.087,25x",
+              "multi": 2087.25,
+              "diamonds": 16,
+              "mines": 6
+            },
+            {
+              "label": "17 Diamanten — 6.261,75x",
+              "multi": 6261.75,
+              "diamonds": 17,
+              "mines": 6
+            },
+            {
+              "label": "18 Diamanten — 25.047x",
+              "multi": 25047,
+              "diamonds": 18,
+              "mines": 6
+            },
+            {
+              "label": "19 Diamanten — 175.329x",
+              "multi": 175329,
+              "diamonds": 19,
+              "mines": 6
+            }
+          ]
+        },
+        {
+          "id": "7",
+          "label": "7 Minen",
+          "mines": 7,
+          "options": [
+            {
+              "label": "1 Diamant — 1.38x",
+              "multi": 1.38,
+              "diamonds": 1,
+              "mines": 7
+            },
+            {
+              "label": "2 Diamanten — 1.94x",
+              "multi": 1.94,
+              "diamonds": 2,
+              "mines": 7
+            },
+            {
+              "label": "3 Diamanten — 2.79x",
+              "multi": 2.79,
+              "diamonds": 3,
+              "mines": 7
+            },
+            {
+              "label": "4 Diamanten — 4.09x",
+              "multi": 4.09,
+              "diamonds": 4,
+              "mines": 7
+            },
+            {
+              "label": "5 Diamanten — 6.14x",
+              "multi": 6.14,
+              "diamonds": 5,
+              "mines": 7
+            },
+            {
+              "label": "6 Diamanten — 9.44x",
+              "multi": 9.44,
+              "diamonds": 6,
+              "mines": 7
+            },
+            {
+              "label": "7 Diamanten — 14.95x",
+              "multi": 14.95,
+              "diamonds": 7,
+              "mines": 7
+            },
+            {
+              "label": "8 Diamanten — 24.47x",
+              "multi": 24.47,
+              "diamonds": 8,
+              "mines": 7
+            },
+            {
+              "label": "9 Diamanten — 41.6x",
+              "multi": 41.6,
+              "diamonds": 9,
+              "mines": 7
+            },
+            {
+              "label": "10 Diamanten — 73.95x",
+              "multi": 73.95,
+              "diamonds": 10,
+              "mines": 7
+            },
+            {
+              "label": "11 Diamanten — 138.66x",
+              "multi": 138.66,
+              "diamonds": 11,
+              "mines": 7
+            },
+            {
+              "label": "12 Diamanten — 277.33x",
+              "multi": 277.33,
+              "diamonds": 12,
+              "mines": 7
+            },
+            {
+              "label": "13 Diamanten — 600.88x",
+              "multi": 600.88,
+              "diamonds": 13,
+              "mines": 7
+            },
+            {
+              "label": "14 Diamanten — 1.442,1x",
+              "multi": 1442.1,
+              "diamonds": 14,
+              "mines": 7
+            },
+            {
+              "label": "15 Diamanten — 3.965,78x",
+              "multi": 3965.78,
+              "diamonds": 15,
+              "mines": 7
+            },
+            {
+              "label": "16 Diamanten — 13.219,25x",
+              "multi": 13219.25,
+              "diamonds": 16,
+              "mines": 7
+            },
+            {
+              "label": "17 Diamanten — 59.486,63x",
+              "multi": 59486.63,
+              "diamonds": 17,
+              "mines": 7
+            },
+            {
+              "label": "18 Diamanten — 475.893x",
+              "multi": 475893,
+              "diamonds": 18,
+              "mines": 7
+            }
+          ]
+        },
+        {
+          "id": "8",
+          "label": "8 Minen",
+          "mines": 8,
+          "options": [
+            {
+              "label": "1 Diamant — 1.46x",
+              "multi": 1.46,
+              "diamonds": 1,
+              "mines": 8
+            },
+            {
+              "label": "2 Diamanten — 2.18x",
+              "multi": 2.18,
+              "diamonds": 2,
+              "mines": 8
+            },
+            {
+              "label": "3 Diamanten — 3.35x",
+              "multi": 3.35,
+              "diamonds": 3,
+              "mines": 8
+            },
+            {
+              "label": "4 Diamanten — 5.26x",
+              "multi": 5.26,
+              "diamonds": 4,
+              "mines": 8
+            },
+            {
+              "label": "5 Diamanten — 8.5x",
+              "multi": 8.5,
+              "diamonds": 5,
+              "mines": 8
+            },
+            {
+              "label": "6 Diamanten — 14.17x",
+              "multi": 14.17,
+              "diamonds": 6,
+              "mines": 8
+            },
+            {
+              "label": "7 Diamanten — 24.47x",
+              "multi": 24.47,
+              "diamonds": 7,
+              "mines": 8
+            },
+            {
+              "label": "8 Diamanten — 44.05x",
+              "multi": 44.05,
+              "diamonds": 8,
+              "mines": 8
+            },
+            {
+              "label": "9 Diamanten — 83.2x",
+              "multi": 83.2,
+              "diamonds": 9,
+              "mines": 8
+            },
+            {
+              "label": "10 Diamanten — 166.4x",
+              "multi": 166.4,
+              "diamonds": 10,
+              "mines": 8
+            },
+            {
+              "label": "11 Diamanten — 356.56x",
+              "multi": 356.56,
+              "diamonds": 11,
+              "mines": 8
+            },
+            {
+              "label": "12 Diamanten — 831.98x",
+              "multi": 831.98,
+              "diamonds": 12,
+              "mines": 8
+            },
+            {
+              "label": "13 Diamanten — 2.163,15x",
+              "multi": 2163.15,
+              "diamonds": 13,
+              "mines": 8
+            },
+            {
+              "label": "14 Diamanten — 6.489,45x",
+              "multi": 6489.45,
+              "diamonds": 14,
+              "mines": 8
+            },
+            {
+              "label": "15 Diamanten — 23.794,65x",
+              "multi": 23794.65,
+              "diamonds": 15,
+              "mines": 8
+            },
+            {
+              "label": "16 Diamanten — 118.973,25x",
+              "multi": 118973.25,
+              "diamonds": 16,
+              "mines": 8
+            },
+            {
+              "label": "17 Diamanten — 1.070.759,25x",
+              "multi": 1070759.25,
+              "diamonds": 17,
+              "mines": 8
+            }
+          ]
+        },
+        {
+          "id": "9",
+          "label": "9 Minen",
+          "mines": 9,
+          "options": [
+            {
+              "label": "1 Diamant — 1.55x",
+              "multi": 1.55,
+              "diamonds": 1,
+              "mines": 9
+            },
+            {
+              "label": "2 Diamanten — 2.48x",
+              "multi": 2.48,
+              "diamonds": 2,
+              "mines": 9
+            },
+            {
+              "label": "3 Diamanten — 4.07x",
+              "multi": 4.07,
+              "diamonds": 3,
+              "mines": 9
+            },
+            {
+              "label": "4 Diamanten — 6.88x",
+              "multi": 6.88,
+              "diamonds": 4,
+              "mines": 9
+            },
+            {
+              "label": "5 Diamanten — 12.04x",
+              "multi": 12.04,
+              "diamonds": 5,
+              "mines": 9
+            },
+            {
+              "label": "6 Diamanten — 21.89x",
+              "multi": 21.89,
+              "diamonds": 6,
+              "mines": 9
+            },
+            {
+              "label": "7 Diamanten — 41.6x",
+              "multi": 41.6,
+              "diamonds": 7,
+              "mines": 9
+            },
+            {
+              "label": "8 Diamanten — 83.2x",
+              "multi": 83.2,
+              "diamonds": 8,
+              "mines": 9
+            },
+            {
+              "label": "9 Diamanten — 176.8x",
+              "multi": 176.8,
+              "diamonds": 9,
+              "mines": 9
+            },
+            {
+              "label": "10 Diamanten — 404.1x",
+              "multi": 404.1,
+              "diamonds": 10,
+              "mines": 9
+            },
+            {
+              "label": "11 Diamanten — 1.010,26x",
+              "multi": 1010.26,
+              "diamonds": 11,
+              "mines": 9
+            },
+            {
+              "label": "12 Diamanten — 2.828,73x",
+              "multi": 2828.73,
+              "diamonds": 12,
+              "mines": 9
+            },
+            {
+              "label": "13 Diamanten — 9.193,39x",
+              "multi": 9193.39,
+              "diamonds": 13,
+              "mines": 9
+            },
+            {
+              "label": "14 Diamanten — 36.773,55x",
+              "multi": 36773.55,
+              "diamonds": 14,
+              "mines": 9
+            },
+            {
+              "label": "15 Diamanten — 202.254,52x",
+              "multi": 202254.52,
+              "diamonds": 15,
+              "mines": 9
+            },
+            {
+              "label": "16 Diamanten — 2.022.545,25x",
+              "multi": 2022545.25,
+              "diamonds": 16,
+              "mines": 9
+            }
+          ]
+        },
+        {
+          "id": "10",
+          "label": "10 Minen",
+          "mines": 10,
+          "options": [
+            {
+              "label": "1 Diamant — 1.65x",
+              "multi": 1.65,
+              "diamonds": 1,
+              "mines": 10
+            },
+            {
+              "label": "2 Diamanten — 2.83x",
+              "multi": 2.83,
+              "diamonds": 2,
+              "mines": 10
+            },
+            {
+              "label": "3 Diamanten — 5x",
+              "multi": 5,
+              "diamonds": 3,
+              "mines": 10
+            },
+            {
+              "label": "4 Diamanten — 9.17x",
+              "multi": 9.17,
+              "diamonds": 4,
+              "mines": 10
+            },
+            {
+              "label": "5 Diamanten — 17.52x",
+              "multi": 17.52,
+              "diamonds": 5,
+              "mines": 10
+            },
+            {
+              "label": "6 Diamanten — 35.03x",
+              "multi": 35.03,
+              "diamonds": 6,
+              "mines": 10
+            },
+            {
+              "label": "7 Diamanten — 73.95x",
+              "multi": 73.95,
+              "diamonds": 7,
+              "mines": 10
+            },
+            {
+              "label": "8 Diamanten — 166.4x",
+              "multi": 166.4,
+              "diamonds": 8,
+              "mines": 10
+            },
+            {
+              "label": "9 Diamanten — 404.1x",
+              "multi": 404.1,
+              "diamonds": 9,
+              "mines": 10
+            },
+            {
+              "label": "10 Diamanten — 1.077,61x",
+              "multi": 1077.61,
+              "diamonds": 10,
+              "mines": 10
+            },
+            {
+              "label": "11 Diamanten — 3.232,84x",
+              "multi": 3232.84,
+              "diamonds": 11,
+              "mines": 10
+            },
+            {
+              "label": "12 Diamanten — 11.314,94x",
+              "multi": 11314.94,
+              "diamonds": 12,
+              "mines": 10
+            },
+            {
+              "label": "13 Diamanten — 49.031,4x",
+              "multi": 49031.4,
+              "diamonds": 13,
+              "mines": 10
+            },
+            {
+              "label": "14 Diamanten — 294.188,4x",
+              "multi": 294188.4,
+              "diamonds": 14,
+              "mines": 10
+            },
+            {
+              "label": "15 Diamanten — 3.236.072,4x",
+              "multi": 3236072.4,
+              "diamonds": 15,
+              "mines": 10
+            }
+          ]
+        },
+        {
+          "id": "11",
+          "label": "11 Minen",
+          "mines": 11,
+          "options": [
+            {
+              "label": "1 Diamant — 1.77x",
+              "multi": 1.77,
+              "diamonds": 1,
+              "mines": 11
+            },
+            {
+              "label": "2 Diamanten — 3.26x",
+              "multi": 3.26,
+              "diamonds": 2,
+              "mines": 11
+            },
+            {
+              "label": "3 Diamanten — 6.26x",
+              "multi": 6.26,
+              "diamonds": 3,
+              "mines": 11
+            },
+            {
+              "label": "4 Diamanten — 12.51x",
+              "multi": 12.51,
+              "diamonds": 4,
+              "mines": 11
+            },
+            {
+              "label": "5 Diamanten — 26.27x",
+              "multi": 26.27,
+              "diamonds": 5,
+              "mines": 11
+            },
+            {
+              "label": "6 Diamanten — 58.38x",
+              "multi": 58.38,
+              "diamonds": 6,
+              "mines": 11
+            },
+            {
+              "label": "7 Diamanten — 138.66x",
+              "multi": 138.66,
+              "diamonds": 7,
+              "mines": 11
+            },
+            {
+              "label": "8 Diamanten — 356.56x",
+              "multi": 356.56,
+              "diamonds": 8,
+              "mines": 11
+            },
+            {
+              "label": "9 Diamanten — 1.010,26x",
+              "multi": 1010.26,
+              "diamonds": 9,
+              "mines": 11
+            },
+            {
+              "label": "10 Diamanten — 3.232,84x",
+              "multi": 3232.84,
+              "diamonds": 10,
+              "mines": 11
+            },
+            {
+              "label": "11 Diamanten — 12.123,15x",
+              "multi": 12123.15,
+              "diamonds": 11,
+              "mines": 11
+            },
+            {
+              "label": "12 Diamanten — 56.574,69x",
+              "multi": 56574.69,
+              "diamonds": 12,
+              "mines": 11
+            },
+            {
+              "label": "13 Diamanten — 367.735,5x",
+              "multi": 367735.5,
+              "diamonds": 13,
+              "mines": 11
+            },
+            {
+              "label": "14 Diamanten — 4.412.826x",
+              "multi": 4412826,
+              "diamonds": 14,
+              "mines": 11
+            }
+          ]
+        },
+        {
+          "id": "12",
+          "label": "12 Minen",
+          "mines": 12,
+          "options": [
+            {
+              "label": "1 Diamant — 1.9x",
+              "multi": 1.9,
+              "diamonds": 1,
+              "mines": 12
+            },
+            {
+              "label": "2 Diamanten — 3.81x",
+              "multi": 3.81,
+              "diamonds": 2,
+              "mines": 12
+            },
+            {
+              "label": "3 Diamanten — 7.96x",
+              "multi": 7.96,
+              "diamonds": 3,
+              "mines": 12
+            },
+            {
+              "label": "4 Diamanten — 17.52x",
+              "multi": 17.52,
+              "diamonds": 4,
+              "mines": 12
+            },
+            {
+              "label": "5 Diamanten — 40.87x",
+              "multi": 40.87,
+              "diamonds": 5,
+              "mines": 12
+            },
+            {
+              "label": "6 Diamanten — 102.17x",
+              "multi": 102.17,
+              "diamonds": 6,
+              "mines": 12
+            },
+            {
+              "label": "7 Diamanten — 277.33x",
+              "multi": 277.33,
+              "diamonds": 7,
+              "mines": 12
+            },
+            {
+              "label": "8 Diamanten — 831.98x",
+              "multi": 831.98,
+              "diamonds": 8,
+              "mines": 12
+            },
+            {
+              "label": "9 Diamanten — 2.828,73x",
+              "multi": 2828.73,
+              "diamonds": 9,
+              "mines": 12
+            },
+            {
+              "label": "10 Diamanten — 11.314,94x",
+              "multi": 11314.94,
+              "diamonds": 10,
+              "mines": 12
+            },
+            {
+              "label": "11 Diamanten — 56.574,69x",
+              "multi": 56574.69,
+              "diamonds": 11,
+              "mines": 12
+            },
+            {
+              "label": "12 Diamanten — 396.022,85x",
+              "multi": 396022.85,
+              "diamonds": 12,
+              "mines": 12
+            },
+            {
+              "label": "13 Diamanten — 5.148.297x",
+              "multi": 5148297,
+              "diamonds": 13,
+              "mines": 12
+            }
+          ]
+        },
+        {
+          "id": "13",
+          "label": "13 Minen",
+          "mines": 13,
+          "options": [
+            {
+              "label": "1 Diamant — 2.06x",
+              "multi": 2.06,
+              "diamonds": 1,
+              "mines": 13
+            },
+            {
+              "label": "2 Diamanten — 4.5x",
+              "multi": 4.5,
+              "diamonds": 2,
+              "mines": 13
+            },
+            {
+              "label": "3 Diamanten — 10.35x",
+              "multi": 10.35,
+              "diamonds": 3,
+              "mines": 13
+            },
+            {
+              "label": "4 Diamanten — 25.3x",
+              "multi": 25.3,
+              "diamonds": 4,
+              "mines": 13
+            },
+            {
+              "label": "5 Diamanten — 66.41x",
+              "multi": 66.41,
+              "diamonds": 5,
+              "mines": 13
+            },
+            {
+              "label": "6 Diamanten — 189.75x",
+              "multi": 189.75,
+              "diamonds": 6,
+              "mines": 13
+            },
+            {
+              "label": "7 Diamanten — 600.88x",
+              "multi": 600.88,
+              "diamonds": 7,
+              "mines": 13
+            },
+            {
+              "label": "8 Diamanten — 2.163,15x",
+              "multi": 2163.15,
+              "diamonds": 8,
+              "mines": 13
+            },
+            {
+              "label": "9 Diamanten — 9.193,39x",
+              "multi": 9193.39,
+              "diamonds": 9,
+              "mines": 13
+            },
+            {
+              "label": "10 Diamanten — 49.031,4x",
+              "multi": 49031.4,
+              "diamonds": 10,
+              "mines": 13
+            },
+            {
+              "label": "11 Diamanten — 367.735,5x",
+              "multi": 367735.5,
+              "diamonds": 11,
+              "mines": 13
+            },
+            {
+              "label": "12 Diamanten — 5.148.297x",
+              "multi": 5148297,
+              "diamonds": 12,
+              "mines": 13
+            }
+          ]
+        },
+        {
+          "id": "14",
+          "label": "14 Minen",
+          "mines": 14,
+          "options": [
+            {
+              "label": "1 Diamant — 2.25x",
+              "multi": 2.25,
+              "diamonds": 1,
+              "mines": 14
+            },
+            {
+              "label": "2 Diamanten — 5.4x",
+              "multi": 5.4,
+              "diamonds": 2,
+              "mines": 14
+            },
+            {
+              "label": "3 Diamanten — 13.8x",
+              "multi": 13.8,
+              "diamonds": 3,
+              "mines": 14
+            },
+            {
+              "label": "4 Diamanten — 37.95x",
+              "multi": 37.95,
+              "diamonds": 4,
+              "mines": 14
+            },
+            {
+              "label": "5 Diamanten — 113.85x",
+              "multi": 113.85,
+              "diamonds": 5,
+              "mines": 14
+            },
+            {
+              "label": "6 Diamanten — 379.5x",
+              "multi": 379.5,
+              "diamonds": 6,
+              "mines": 14
+            },
+            {
+              "label": "7 Diamanten — 1.442,1x",
+              "multi": 1442.1,
+              "diamonds": 7,
+              "mines": 14
+            },
+            {
+              "label": "8 Diamanten — 6.489,45x",
+              "multi": 6489.45,
+              "diamonds": 8,
+              "mines": 14
+            },
+            {
+              "label": "9 Diamanten — 36.773,55x",
+              "multi": 36773.55,
+              "diamonds": 9,
+              "mines": 14
+            },
+            {
+              "label": "10 Diamanten — 294.188,4x",
+              "multi": 294188.4,
+              "diamonds": 10,
+              "mines": 14
+            },
+            {
+              "label": "11 Diamanten — 4.412.826x",
+              "multi": 4412826,
+              "diamonds": 11,
+              "mines": 14
+            }
+          ]
+        },
+        {
+          "id": "15",
+          "label": "15 Minen",
+          "mines": 15,
+          "options": [
+            {
+              "label": "1 Diamant — 2.48x",
+              "multi": 2.48,
+              "diamonds": 1,
+              "mines": 15
+            },
+            {
+              "label": "2 Diamanten — 6.6x",
+              "multi": 6.6,
+              "diamonds": 2,
+              "mines": 15
+            },
+            {
+              "label": "3 Diamanten — 18.97x",
+              "multi": 18.97,
+              "diamonds": 3,
+              "mines": 15
+            },
+            {
+              "label": "4 Diamanten — 59.64x",
+              "multi": 59.64,
+              "diamonds": 4,
+              "mines": 15
+            },
+            {
+              "label": "5 Diamanten — 208.72x",
+              "multi": 208.72,
+              "diamonds": 5,
+              "mines": 15
+            },
+            {
+              "label": "6 Diamanten — 834.9x",
+              "multi": 834.9,
+              "diamonds": 6,
+              "mines": 15
+            },
+            {
+              "label": "7 Diamanten — 3.965,77x",
+              "multi": 3965.77,
+              "diamonds": 7,
+              "mines": 15
+            },
+            {
+              "label": "8 Diamanten — 23.794,65x",
+              "multi": 23794.65,
+              "diamonds": 8,
+              "mines": 15
+            },
+            {
+              "label": "9 Diamanten — 202.254,52x",
+              "multi": 202254.52,
+              "diamonds": 9,
+              "mines": 15
+            },
+            {
+              "label": "10 Diamanten — 3.236.072,4x",
+              "multi": 3236072.4,
+              "diamonds": 10,
+              "mines": 15
+            }
+          ]
+        },
+        {
+          "id": "16",
+          "label": "16 Minen",
+          "mines": 16,
+          "options": [
+            {
+              "label": "1 Diamant — 2.75x",
+              "multi": 2.75,
+              "diamonds": 1,
+              "mines": 16
+            },
+            {
+              "label": "2 Diamanten — 8.25x",
+              "multi": 8.25,
+              "diamonds": 2,
+              "mines": 16
+            },
+            {
+              "label": "3 Diamanten — 27.11x",
+              "multi": 27.11,
+              "diamonds": 3,
+              "mines": 16
+            },
+            {
+              "label": "4 Diamanten — 99.39x",
+              "multi": 99.39,
+              "diamonds": 4,
+              "mines": 16
+            },
+            {
+              "label": "5 Diamanten — 417.45x",
+              "multi": 417.45,
+              "diamonds": 5,
+              "mines": 16
+            },
+            {
+              "label": "6 Diamanten — 2.087,25x",
+              "multi": 2087.25,
+              "diamonds": 6,
+              "mines": 16
+            },
+            {
+              "label": "7 Diamanten — 13.219,25x",
+              "multi": 13219.25,
+              "diamonds": 7,
+              "mines": 16
+            },
+            {
+              "label": "8 Diamanten — 118.973,25x",
+              "multi": 118973.25,
+              "diamonds": 8,
+              "mines": 16
+            },
+            {
+              "label": "9 Diamanten — 2.022.545,25x",
+              "multi": 2022545.25,
+              "diamonds": 9,
+              "mines": 16
+            }
+          ]
+        },
+        {
+          "id": "17",
+          "label": "17 Minen",
+          "mines": 17,
+          "options": [
+            {
+              "label": "1 Diamant — 3.09x",
+              "multi": 3.09,
+              "diamonds": 1,
+              "mines": 17
+            },
+            {
+              "label": "2 Diamanten — 10.61x",
+              "multi": 10.61,
+              "diamonds": 2,
+              "mines": 17
+            },
+            {
+              "label": "3 Diamanten — 40.66x",
+              "multi": 40.66,
+              "diamonds": 3,
+              "mines": 17
+            },
+            {
+              "label": "4 Diamanten — 178.91x",
+              "multi": 178.91,
+              "diamonds": 4,
+              "mines": 17
+            },
+            {
+              "label": "5 Diamanten — 939.26x",
+              "multi": 939.26,
+              "diamonds": 5,
+              "mines": 17
+            },
+            {
+              "label": "6 Diamanten — 6.261,75x",
+              "multi": 6261.75,
+              "diamonds": 6,
+              "mines": 17
+            },
+            {
+              "label": "7 Diamanten — 59.486,63x",
+              "multi": 59486.63,
+              "diamonds": 7,
+              "mines": 17
+            },
+            {
+              "label": "8 Diamanten — 1.070.759,25x",
+              "multi": 1070759.25,
+              "diamonds": 8,
+              "mines": 17
+            }
+          ]
+        },
+        {
+          "id": "18",
+          "label": "18 Minen",
+          "mines": 18,
+          "options": [
+            {
+              "label": "1 Diamant — 3.54x",
+              "multi": 3.54,
+              "diamonds": 1,
+              "mines": 18
+            },
+            {
+              "label": "2 Diamanten — 14.14x",
+              "multi": 14.14,
+              "diamonds": 2,
+              "mines": 18
+            },
+            {
+              "label": "3 Diamanten — 65.06x",
+              "multi": 65.06,
+              "diamonds": 3,
+              "mines": 18
+            },
+            {
+              "label": "4 Diamanten — 357.81x",
+              "multi": 357.81,
+              "diamonds": 4,
+              "mines": 18
+            },
+            {
+              "label": "5 Diamanten — 2.504,7x",
+              "multi": 2504.7,
+              "diamonds": 5,
+              "mines": 18
+            },
+            {
+              "label": "6 Diamanten — 25.047x",
+              "multi": 25047,
+              "diamonds": 6,
+              "mines": 18
+            },
+            {
+              "label": "7 Diamanten — 475.893x",
+              "multi": 475893,
+              "diamonds": 7,
+              "mines": 18
+            }
+          ]
+        },
+        {
+          "id": "19",
+          "label": "19 Minen",
+          "mines": 19,
+          "options": [
+            {
+              "label": "1 Diamant — 4.13x",
+              "multi": 4.13,
+              "diamonds": 1,
+              "mines": 19
+            },
+            {
+              "label": "2 Diamanten — 19.8x",
+              "multi": 19.8,
+              "diamonds": 2,
+              "mines": 19
+            },
+            {
+              "label": "3 Diamanten — 113.85x",
+              "multi": 113.85,
+              "diamonds": 3,
+              "mines": 19
+            },
+            {
+              "label": "4 Diamanten — 834.9x",
+              "multi": 834.9,
+              "diamonds": 4,
+              "mines": 19
+            },
+            {
+              "label": "5 Diamanten — 8.766,45x",
+              "multi": 8766.45,
+              "diamonds": 5,
+              "mines": 19
+            },
+            {
+              "label": "6 Diamanten — 175.329x",
+              "multi": 175329,
+              "diamonds": 6,
+              "mines": 19
+            }
+          ]
+        },
+        {
+          "id": "20",
+          "label": "20 Minen",
+          "mines": 20,
+          "options": [
+            {
+              "label": "1 Diamant — 4.95x",
+              "multi": 4.95,
+              "diamonds": 1,
+              "mines": 20
+            },
+            {
+              "label": "2 Diamanten — 29.7x",
+              "multi": 29.7,
+              "diamonds": 2,
+              "mines": 20
+            },
+            {
+              "label": "3 Diamanten — 227.7x",
+              "multi": 227.7,
+              "diamonds": 3,
+              "mines": 20
+            },
+            {
+              "label": "4 Diamanten — 2.504,7x",
+              "multi": 2504.7,
+              "diamonds": 4,
+              "mines": 20
+            },
+            {
+              "label": "5 Diamanten — 52.598,7x",
+              "multi": 52598.7,
+              "diamonds": 5,
+              "mines": 20
+            }
+          ]
+        },
+        {
+          "id": "21",
+          "label": "21 Minen",
+          "mines": 21,
+          "options": [
+            {
+              "label": "1 Diamant — 6.19x",
+              "multi": 6.19,
+              "diamonds": 1,
+              "mines": 21
+            },
+            {
+              "label": "2 Diamanten — 49.5x",
+              "multi": 49.5,
+              "diamonds": 2,
+              "mines": 21
+            },
+            {
+              "label": "3 Diamanten — 569.25x",
+              "multi": 569.25,
+              "diamonds": 3,
+              "mines": 21
+            },
+            {
+              "label": "4 Diamanten — 12.523,5x",
+              "multi": 12523.5,
+              "diamonds": 4,
+              "mines": 21
+            }
+          ]
+        },
+        {
+          "id": "22",
+          "label": "22 Minen",
+          "mines": 22,
+          "options": [
+            {
+              "label": "1 Diamant — 8.25x",
+              "multi": 8.25,
+              "diamonds": 1,
+              "mines": 22
+            },
+            {
+              "label": "2 Diamanten — 99x",
+              "multi": 99,
+              "diamonds": 2,
+              "mines": 22
+            },
+            {
+              "label": "3 Diamanten — 2.277x",
+              "multi": 2277,
+              "diamonds": 3,
+              "mines": 22
+            }
+          ]
+        },
+        {
+          "id": "23",
+          "label": "23 Minen",
+          "mines": 23,
+          "options": [
+            {
+              "label": "1 Diamant — 12.38x",
+              "multi": 12.38,
+              "diamonds": 1,
+              "mines": 23
+            },
+            {
+              "label": "2 Diamanten — 297x",
+              "multi": 297,
+              "diamonds": 2,
+              "mines": 23
+            }
+          ]
+        },
+        {
+          "id": "24",
+          "label": "24 Minen",
+          "mines": 24,
+          "options": [
+            {
+              "label": "1 Diamant — 24.75x",
+              "multi": 24.75,
+              "diamonds": 1,
+              "mines": 24
+            }
+          ]
+        }
+      ],
+      "meta": {
+        "grid": 25,
+        "rtp": 0.99,
+        "source": "Stake Mines payout formula (25 tiles)"
+      }
+    }
+  }
+}
