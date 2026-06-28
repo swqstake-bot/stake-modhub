@@ -210,6 +210,26 @@ function parseRockPaperScissors(wb) {
   return { type: 'levels', options, meta: { rtpBase: RTP_BASE, maxRounds: MAX_ROUNDS } };
 }
 
+/** Stake Bars — Schwierigkeit × Anzahl Bars (offizielle Payout-Tabelle). */
+function generateBarsTable() {
+  const DATA = {
+    Easy: [9, 4.5, 3, 2.25, 1.8],
+    Medium: [33, 16.5, 11, 8.25, 6.6],
+    Hard: [705, 352.5, 235, 176.25, 141],
+    Expert: [3000, 1500, 1000, 750, 600]
+  };
+  const variants = Object.entries(DATA).map(([label, multis]) => ({
+    id: label.toLowerCase(),
+    label,
+    options: multis.map((multi, i) => {
+      const bars = i + 1;
+      const barLabel = bars === 1 ? '1 Bar' : `${bars} Bars`;
+      return option(`${barLabel} — ${formatMulti(multi)}x`, multi, { bars });
+    })
+  }));
+  return { type: 'variants', variants };
+}
+
 /** Stake Mines 5×5 — Multiplikator aus Minen + Diamanten (RTP ~99 %). */
 function generateMinesTable() {
   const GRID = 25;
@@ -318,6 +338,11 @@ function main() {
   const minesCount = countOptions(out.games.Mines);
   total += minesCount;
   console.log(`Mines: 24 Minen-Settings, ${minesCount} Multis`);
+
+  out.games.Bars = generateBarsTable();
+  const barsCount = countOptions(out.games.Bars);
+  total += barsCount;
+  console.log(`Bars: 4 Schwierigkeiten, ${barsCount} Multis`);
 
   fs.writeFileSync(OUT, JSON.stringify(out, null, 2));
   console.log(`→ ${OUT} (${total} Multis gesamt${missing ? `, ${missing} Dateien fehlend` : ''})`);

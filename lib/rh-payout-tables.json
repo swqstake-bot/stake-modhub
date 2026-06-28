@@ -1045,6 +1045,55 @@
         }
       ]
     },
+    "Bars": {
+      "type": "variants",
+      "variants": [
+        {
+          "id": "easy",
+          "label": "Easy",
+          "options": [
+            { "label": "1 Bar — 9x", "multi": 9, "bars": 1 },
+            { "label": "2 Bars — 4.5x", "multi": 4.5, "bars": 2 },
+            { "label": "3 Bars — 3x", "multi": 3, "bars": 3 },
+            { "label": "4 Bars — 2.25x", "multi": 2.25, "bars": 4 },
+            { "label": "5 Bars — 1.8x", "multi": 1.8, "bars": 5 }
+          ]
+        },
+        {
+          "id": "medium",
+          "label": "Medium",
+          "options": [
+            { "label": "1 Bar — 33x", "multi": 33, "bars": 1 },
+            { "label": "2 Bars — 16.5x", "multi": 16.5, "bars": 2 },
+            { "label": "3 Bars — 11x", "multi": 11, "bars": 3 },
+            { "label": "4 Bars — 8.25x", "multi": 8.25, "bars": 4 },
+            { "label": "5 Bars — 6.6x", "multi": 6.6, "bars": 5 }
+          ]
+        },
+        {
+          "id": "hard",
+          "label": "Hard",
+          "options": [
+            { "label": "1 Bar — 705x", "multi": 705, "bars": 1 },
+            { "label": "2 Bars — 352.5x", "multi": 352.5, "bars": 2 },
+            { "label": "3 Bars — 235x", "multi": 235, "bars": 3 },
+            { "label": "4 Bars — 176.25x", "multi": 176.25, "bars": 4 },
+            { "label": "5 Bars — 141x", "multi": 141, "bars": 5 }
+          ]
+        },
+        {
+          "id": "expert",
+          "label": "Expert",
+          "options": [
+            { "label": "1 Bar — 3.000x", "multi": 3000, "bars": 1 },
+            { "label": "2 Bars — 1.500x", "multi": 1500, "bars": 2 },
+            { "label": "3 Bars — 1.000x", "multi": 1000, "bars": 3 },
+            { "label": "4 Bars — 750x", "multi": 750, "bars": 4 },
+            { "label": "5 Bars — 600x", "multi": 600, "bars": 5 }
+          ]
+        }
+      ]
+    },
     "Mines": {
       "type": "variants",
       "variants": [
