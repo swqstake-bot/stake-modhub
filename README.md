@@ -22,7 +22,7 @@ Ergebnis: `dist/Stake-ModHub-<version>-Setup.exe`
 **Kollegen laden den Setup-Installer** von [Releases](https://github.com/swqstake-bot/stake-modhub/releases):
 
 1. `Stake-ModHub-<version>-Setup.exe` ausführen und installieren
-2. Beim ersten Start legt die App `Datengrube/` neben der EXE an (Standard-Blueprints werden importiert)
+2. Beim ersten Start legt die App `Datengrube/` unter `%APPDATA%` an (überlebt Updates; alte Logs neben der EXE werden automatisch migriert)
 3. Auto-Update läuft über `latest.yml` auf GitHub
 
 Neues Release bauen:
