@@ -99,6 +99,7 @@
     if (!Array.isArray(list) || !list.length) {
       return '<p class="stake-mod-hist-empty">Keine Mute-Historie.</p>';
     }
+    const fmtDur = window.MuteDuration?.formatMuteDuration;
     const rows = list
       .map((m) => {
         const grund = m.message || '—';
@@ -107,24 +108,26 @@
         const ts = d
           ? `${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} ${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`
           : '—';
-        return `<tr><td>${esc(grund)}</td><td>${esc(mod)}</td><td>${esc(ts)}</td></tr>`;
+        const duration = fmtDur ? fmtDur(m.createdAt, m.expireAt) : '—';
+        return `<tr><td>${esc(grund)}</td><td>${esc(mod)}</td><td>${esc(duration)}</td><td>${esc(ts)}</td></tr>`;
       })
       .join('');
-    return `<table class="stake-mod-hist-table"><thead><tr><th>Grund</th><th>Stummgeschaltet von</th><th>Erstellt am</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `<table class="stake-mod-hist-table"><thead><tr><th>Grund</th><th>Stummgeschaltet von</th><th>Dauer</th><th>Erstellt am</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   function formatMuteHistory(data) {
     const list = data?.user?.community?.muteList;
     if (!Array.isArray(list) || !list.length) return '<p class="hist-empty">Keine Mute-Historie.</p>';
+    const fmtDur = window.MuteDuration?.formatMuteDuration;
     const rows = list
       .map((m) => {
         const mod = m.authUser?.name || '—';
         const ts = m.createdAt ? new Date(m.createdAt).toLocaleString('de-DE') : '—';
-        const exp = m.expireAt ? new Date(m.expireAt).toLocaleString('de-DE') : 'permanent';
-        return `<tr><td>${esc(ts)}</td><td>@${esc(mod)}</td><td>${esc(m.message)}</td><td>${esc(exp)}</td></tr>`;
+        const duration = fmtDur ? fmtDur(m.createdAt, m.expireAt) : '—';
+        return `<tr><td>${esc(ts)}</td><td>@${esc(mod)}</td><td>${esc(m.message)}</td><td>${esc(duration)}</td></tr>`;
       })
       .join('');
-    return `<table class="hist-table"><thead><tr><th>Zeit</th><th>Mod</th><th>Grund</th><th>Bis</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `<table class="hist-table"><thead><tr><th>Zeit</th><th>Mod</th><th>Grund</th><th>Dauer</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   function formatUserDetails(data) {

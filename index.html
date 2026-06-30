@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Stake Mod Hub</h1>
-      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.45</span></p>
+      <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.46</span></p>
     </div>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
@@ -66,15 +66,24 @@
           <div id="liveChat" class="chat-box chat-box-live"></div>
           <div class="hub-subcols">
             <div class="subcol">
-              <h4 class="subcol-title" title="Wer dich @ erwähnt hat · Doppelklick = Live-Scroll oder API-Chat-Historie">Tagged</h4>
+              <div class="subcol-head">
+                <h4 class="subcol-title" title="Wer dich @ erwähnt hat · Doppelklick = Live-Scroll oder API-Chat-Historie">Tagged</h4>
+                <button type="button" id="btnClearTagged" class="sm" title="Tagged-Liste leeren">Clear</button>
+              </div>
               <div id="tagIndex" class="index-list"></div>
             </div>
             <div class="subcol">
-              <h4 class="subcol-title">Rains</h4>
+              <div class="subcol-head">
+                <h4 class="subcol-title">Rains</h4>
+                <button type="button" id="btnClearRains" class="sm" title="Rain-Liste leeren">Clear</button>
+              </div>
               <div id="rainIndex" class="index-list"></div>
             </div>
             <div class="subcol">
-              <h4 class="subcol-title" title="Live-Heuristik — Doppelklick öffnet API-Chat-Historie">Auffällig</h4>
+              <div class="subcol-head">
+                <h4 class="subcol-title" title="Live-Heuristik — Doppelklick öffnet API-Chat-Historie">Auffällig</h4>
+                <button type="button" id="btnClearFlagged" class="sm" title="Auffälligkeiten-Liste leeren">Clear</button>
+              </div>
               <div id="flaggedIndex" class="index-list"></div>
             </div>
           </div>
@@ -629,6 +638,7 @@
 
   <script src="./renderer/constants.js"></script>
   <script src="./renderer/bet-id-parse.js"></script>
+  <script src="./renderer/mute-duration.js"></script>
   <script src="./renderer/mod-policy.js"></script>
   <script src="./renderer/history-format.js"></script>
   <script src="./renderer/emotes.js"></script>

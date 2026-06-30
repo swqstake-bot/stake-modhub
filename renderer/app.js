@@ -2654,6 +2654,19 @@ function wireHub() {
     renderHubIndexes();
   });
 
+  $('btnClearTagged')?.addEventListener('click', () => {
+    state.tagged = [];
+    renderHubIndexes();
+  });
+  $('btnClearRains')?.addEventListener('click', () => {
+    state.rains = [];
+    renderHubIndexes();
+  });
+  $('btnClearFlagged')?.addEventListener('click', () => {
+    state.flagged = [];
+    renderHubIndexes();
+  });
+
   $('btnLiveChatFontDown')?.addEventListener('click', () => stepLiveChatFontSize(-1));
   $('btnLiveChatFontUp')?.addEventListener('click', () => stepLiveChatFontSize(1));
 
