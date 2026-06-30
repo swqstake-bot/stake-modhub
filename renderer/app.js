@@ -3482,11 +3482,43 @@ function startHubClock() {
   state.hubClockTimer = setInterval(tick, 1000);
 }
 
+function initWindowControls() {
+  const wrap = $('windowControls');
+  if (!wrap || !modHub.isFrameless) return;
+  wrap.hidden = false;
+
+  const maxBtn = wrap.querySelector('[data-action="maximize"]');
+  const setMaxIcon = async () => {
+    const res = await modHub.windowIsMaximized?.();
+    const maximized = !!res?.maximized;
+    if (!maxBtn) return;
+    maxBtn.innerHTML = maximized
+      ? '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 0.5h5v2h2.5v7h-7.5v-9zm1 1v7h5.5v-5.5h-1.5v-1h-4z" fill="currentColor" /></svg>'
+      : '<svg viewBox="0 0 10 10" aria-hidden="true"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1" /></svg>';
+    maxBtn.setAttribute('aria-label', maximized ? 'Restore window' : 'Maximize window');
+  };
+
+  wrap.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    if (action === 'minimize') void modHub.windowMinimize();
+    if (action === 'maximize') void modHub.windowMaximize().then(() => setMaxIcon());
+    if (action === 'close') void modHub.windowClose();
+  });
+
+  window.addEventListener('resize', () => {
+    void setMaxIcon();
+  });
+  void setMaxIcon();
+}
+
 async function init() {
   if (!window.modHub) {
     document.body.innerHTML = '<p>modHub bridge missing — preload error</p>';
     return;
   }
+  initWindowControls();
   $('appVersion').textContent = modHub.version || '0.3';
   LiveChat.init({
     state,

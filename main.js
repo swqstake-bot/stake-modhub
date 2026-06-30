@@ -304,6 +304,7 @@ function hideMainWindowToTray() {
 
 function createMainWindow() {
   const appIcon = loadAppIcon();
+  const frameless = process.platform === 'win32' || process.platform === 'linux';
   mainWin = new BrowserWindow({
     width: 1440,
     height: 920,
@@ -312,6 +313,9 @@ function createMainWindow() {
     title: 'Stake Mod Hub',
     icon: appIcon || undefined,
     show: false,
+    frame: !frameless,
+    backgroundColor: '#0f212e',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -901,11 +905,36 @@ function registerIpc() {
     hideMainWindowToTray();
     return { ok: true };
   });
+
+  ipcMain.handle('modhub-window-minimize', () => {
+    const win = BrowserWindow.getFocusedWindow() || mainWin;
+    win?.minimize();
+    return { ok: true };
+  });
+  ipcMain.handle('modhub-window-maximize', () => {
+    const win = BrowserWindow.getFocusedWindow() || mainWin;
+    if (!win || win.isDestroyed()) return { ok: false, maximized: false };
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+    return { ok: true, maximized: win.isMaximized() };
+  });
+  ipcMain.handle('modhub-window-close', () => {
+    const win = BrowserWindow.getFocusedWindow() || mainWin;
+    win?.close();
+    return { ok: true };
+  });
+  ipcMain.handle('modhub-window-is-maximized', () => {
+    const win = BrowserWindow.getFocusedWindow() || mainWin;
+    return { ok: true, maximized: !!(win && !win.isDestroyed() && win.isMaximized()) };
+  });
 }
 
 app.whenReady().then(async () => {
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.stake.modhub');
+    Menu.setApplicationMenu(null);
+  } else if (process.platform === 'linux') {
+    Menu.setApplicationMenu(null);
   }
   const appIcon = loadAppIcon();
   if (appIcon && process.platform === 'darwin') {

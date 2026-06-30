@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-let version = '0.4.46';
+let version = '0.4.47';
 try {
   version = ipcRenderer.sendSync('modhub-get-version') || version;
 } catch (_) {}
@@ -77,6 +77,11 @@ contextBridge.exposeInMainWorld('modHub', {
     return () => ipcRenderer.removeListener('modhub-bets-loaded', w);
   },
   hideToTray: () => ipcRenderer.invoke('modhub-hide-to-tray'),
+  isFrameless: process.platform === 'win32' || process.platform === 'linux',
+  windowMinimize: () => ipcRenderer.invoke('modhub-window-minimize'),
+  windowMaximize: () => ipcRenderer.invoke('modhub-window-maximize'),
+  windowClose: () => ipcRenderer.invoke('modhub-window-close'),
+  windowIsMaximized: () => ipcRenderer.invoke('modhub-window-is-maximized'),
   checkForUpdates: () => ipcRenderer.invoke('modhub-check-updates'),
   startUpdateDownload: () => ipcRenderer.invoke('modhub-start-download'),
   quitAndInstallUpdate: () => ipcRenderer.invoke('modhub-quit-and-install'),
