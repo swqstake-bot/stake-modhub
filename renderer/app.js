@@ -505,12 +505,28 @@ function formatRhCasinoTag(bet) {
 }
 
 function buildRhPlaceMessage(bet, session, place) {
-  const medal = { 1: '🥇', 2: '🥈', 3: '🥉' }[place] || '🏆';
   const user = stripAt(bet.username);
   const multi = (bet.multiplier || 0).toFixed(2);
   const game = String(bet.game || session?.game || '').trim();
   const casino = formatRhCasinoTag(bet);
   const gameShort = game.length > 12 ? game.slice(0, 12) : game;
+  const gameLabel = game.toLowerCase();
+
+  if (isHighestMultiRhGame(session?.game || game) && place === 1) {
+    const variants = [
+      `@${user} ist auf Platz 1 und hält den 🥇🥇höchsten Multi🥇🥇 mit ${multi}x — ${gameLabel} — ${casino}`,
+      `@${user} ist auf Platz 1 und hält den 🥇🥇höchsten Multi🥇🥇 mit ${multi}x — ${gameShort.toLowerCase()} — ${casino}`,
+      `@${user} ist auf Platz 1 und hält den 🥇🥇höchsten Multi🥇🥇 mit ${multi}x — ${casino}`,
+      `@${user} ist auf Platz 1 und hält den 🥇🥇höchsten Multi🥇🥇 mit ${multi}x`
+    ];
+    for (const msg of variants) {
+      if (msg.length <= RH_CHAT_MAX_LEN) return msg;
+    }
+    const shortUser = user.length > 10 ? `${user.slice(0, 10)}…` : user;
+    return `@${shortUser} ist auf Platz 1 mit ${multi}x`.slice(0, RH_CHAT_MAX_LEN);
+  }
+
+  const medal = { 1: '🥇', 2: '🥈', 3: '🥉' }[place] || '🏆';
   const variants = [
     `${medal} @${user} ${multi}x — ${game} — ${casino}`,
     `${medal} @${user} ${multi}x — ${gameShort} — ${casino}`,
