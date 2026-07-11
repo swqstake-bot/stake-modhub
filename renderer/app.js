@@ -491,17 +491,15 @@ function formatRhLeaderLine(leader) {
 }
 
 function formatRhCasinoTag(bet) {
-  const raw = String(bet?.betId || bet?.casinoId || '')
+  if (bet?.casinoId) return bet.casinoId;
+  const raw = String(bet?.betId || '')
     .replace(/^casino:/i, '')
+    .replace(/^house:/i, '')
     .trim();
   if (/^[a-f0-9-]{36}$/i.test(raw)) return `casino:${raw}`;
   const digits = raw.replace(/\D/g, '');
-  if (!digits) return '#—';
-  const parts = [];
-  for (let i = digits.length; i > 0; i -= 3) {
-    parts.unshift(digits.slice(Math.max(0, i - 3), i));
-  }
-  return `#${parts.join('.')}`;
+  if (!digits) return 'casino:—';
+  return `casino:${digits}`;
 }
 
 function buildRhPlaceMessage(bet, session, place) {
