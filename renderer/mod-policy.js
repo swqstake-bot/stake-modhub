@@ -16,7 +16,7 @@
 
   const DURATION_OPTIONS = [
     '10 minutes', '30 minutes', '1 hour', '2 hours', '4 hours', '1 day', '2 days', '3 days',
-    '5 days', '1 week', '2 weeks', '1 month', '6 months', '1 year', 'indefinite'
+    '5 days', '1 week', '2 weeks', '1 month', '2 months', '3 months', '6 months', '1 year', 'indefinite'
   ];
 
   function minutesToLabel(mins) {

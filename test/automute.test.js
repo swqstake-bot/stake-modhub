@@ -64,6 +64,12 @@ describe('automute periods', () => {
       '@spammer123 Muted - Spam'
     );
   });
+
+  it('kennt 3 months als Stake-Option', () => {
+    const { MUTE_PERIODS } = require('../lib/automute-periods');
+    assert.ok(MUTE_PERIODS.includes('3 months'));
+    assert.ok(MUTE_PERIODS.includes('2 months'));
+  });
 });
 
 describe('automute strikes', () => {
