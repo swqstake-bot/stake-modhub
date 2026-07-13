@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-let version = '0.4.51';
+let version = '0.4.52';
 try {
   version = ipcRenderer.sendSync('modhub-get-version') || version;
 } catch (_) {}
@@ -38,6 +38,13 @@ contextBridge.exposeInMainWorld('modHub', {
   addVeri2: (username) => ipcRenderer.invoke('modhub-add-veri2', { username }),
   loadMutedWarned: () => ipcRenderer.invoke('modhub-load-muted-warned'),
   duplicateIps: () => ipcRenderer.invoke('modhub-duplicate-ips'),
+  automuteStatus: () => ipcRenderer.invoke('modhub-automute-status'),
+  automuteLog: (limit) => ipcRenderer.invoke('modhub-automute-log', { limit }),
+  automuteTest: (payload) => ipcRenderer.invoke('modhub-automute-test', payload || {}),
+  notifySoundsList: () => ipcRenderer.invoke('modhub-notify-sounds-list'),
+  notifySoundImport: () => ipcRenderer.invoke('modhub-notify-sound-import'),
+  notifySoundDelete: (id) => ipcRenderer.invoke('modhub-notify-sound-delete', { id }),
+  notifySoundData: (id) => ipcRenderer.invoke('modhub-notify-sound-data', { id }),
   scoreLiveMessage: (input) => ipcRenderer.sendSync('modhub-live-flag', input || {}),
   analyseRun: (opts) => ipcRenderer.invoke('modhub-analyse-run', opts || {}),
   analyseListFiles: () => ipcRenderer.invoke('modhub-analyse-list-files'),
@@ -75,6 +82,11 @@ contextBridge.exposeInMainWorld('modHub', {
     const w = (_e, p) => handler(p);
     ipcRenderer.on('modhub-bets-loaded', w);
     return () => ipcRenderer.removeListener('modhub-bets-loaded', w);
+  },
+  onAutomuteAction: (handler) => {
+    const w = (_e, p) => handler(p);
+    ipcRenderer.on('modhub-automute-action', w);
+    return () => ipcRenderer.removeListener('modhub-automute-action', w);
   },
   hideToTray: () => ipcRenderer.invoke('modhub-hide-to-tray'),
   isFrameless: process.platform === 'win32' || process.platform === 'linux',

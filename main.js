@@ -15,6 +15,8 @@ const analyseEngine = require('./lib/analyse');
 const { scoreLiveMessage } = require('./lib/analyse/live-flag');
 const { StakeChatWebSocket } = require('./lib/stake-chat-ws');
 const { AutoHashQueue } = require('./lib/auto-hash-queue');
+const { AutoMuteEngine } = require('./lib/automute-engine');
+const notifySoundsStore = require('./lib/notify-sounds-store');
 const { CHATROOMS, LOCKDOWN_TOKEN, DEFAULT_WS_HOST } = require('./lib/stake-constants');
 const { createBetRegistry } = require('./lib/bet-registry');
 const { extractBetIds } = require('./lib/bet-id-parse');
@@ -86,6 +88,58 @@ const autoHashQueue = new AutoHashQueue({
   fetchUserHash: (name) => gql.getUserHash(name)
 });
 
+function getModNamesForAutomute() {
+  const s = loadSettings();
+  const names = [];
+  if (loggedInModUser) names.push(loggedInModUser);
+  for (const a of s.mentionAliases || []) {
+    const n = String(a || '').trim();
+    if (n) names.push(n);
+  }
+  return names;
+}
+
+async function resolveUserIdForAutomute(name) {
+  const { normalizeUsername } = require('./lib/username');
+  const queryName = normalizeUsername(name);
+  if (!queryName) return null;
+  let data = await gql.getUserDetails(queryName);
+  if (!data?.user?.id) {
+    const fallback = await gql.getUserHash(queryName);
+    if (fallback?.user?.id) data = fallback;
+  }
+  return data?.user?.id || null;
+}
+
+const autoMuteEngine = new AutoMuteEngine({
+  getSettings: () => loadSettings(),
+  getDataDir: () => dataDir(),
+  resolveUserId: resolveUserIdForAutomute,
+  muteUser: async ({ userId, expire, message }) => {
+    const data = await gql.muteUser(userId, expire, message);
+    if (data?.muteUser?.name) {
+      fileLogs.appendMuted(dataDir(), data.muteUser.name, message || '', expire || '');
+    }
+    return data;
+  },
+  getModNames: getModNamesForAutomute,
+  onAction: (entry) => {
+    if (mainWin && !mainWin.isDestroyed()) {
+      mainWin.webContents.send('modhub-automute-action', entry);
+    }
+    const label = entry.dryRun ? '[dry-run]' : entry.ok ? '[muted]' : '[fail]';
+    console.log(`[automute] ${label} @${entry.username} · ${entry.ruleLabel} · Strike ${entry.strike} · ${entry.expire || entry.skipped || entry.error || ''}`);
+  }
+});
+
+function processAutomuteBatch(batch) {
+  const s = loadSettings();
+  if (!s.automuteEnabled) return;
+  for (const m of batch) {
+    if (m.kind === 'text' && m.username) autoMuteEngine.processMessage(m);
+  }
+}
+
 function dataDir() {
   return ensureDataPath();
 }
@@ -139,6 +193,7 @@ const chatWs = new StakeChatWebSocket({
         if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username);
       }
     }
+    processAutomuteBatch(batch);
     broadcastLiveBatch(batch, 'ws');
   },
   onStatus(status) {
@@ -520,6 +575,67 @@ function registerIpc() {
     return next;
   });
 
+  ipcMain.handle('modhub-automute-status', async () => ({
+    ok: true,
+    ...autoMuteEngine.getStatus()
+  }));
+
+  ipcMain.handle('modhub-automute-log', async (_e, { limit } = {}) => ({
+    ok: true,
+    log: autoMuteEngine.getRecentLog(limit || 50)
+  }));
+
+  ipcMain.handle('modhub-automute-test', async (_e, { message, username, rules } = {}) => {
+    const { migrateAutoMuteRules } = require('./lib/automute-defaults');
+    const { previewAutomute } = require('./lib/automute-engine');
+    const s = loadSettings();
+    const list = Array.isArray(rules) && rules.length ? rules.map((r) => require('./lib/automute-defaults').normalizeRule(r)) : migrateAutoMuteRules(s);
+    const strikes = dataFiles.loadAutomuteStrikes(dataDir());
+    return {
+      ok: true,
+      result: previewAutomute(String(message || ''), list, { username, strikes })
+    };
+  });
+
+  ipcMain.handle('modhub-notify-sounds-list', async () => {
+    const s = loadSettings();
+    return { ok: true, sounds: notifySoundsStore.listCustomSounds(s) };
+  });
+
+  ipcMain.handle('modhub-notify-sound-import', async () => {
+    const win = mainWin && !mainWin.isDestroyed() ? mainWin : BrowserWindow.getFocusedWindow();
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Benachrichtigungston importieren',
+      filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'webm'] }],
+      properties: ['openFile']
+    });
+    if (result.canceled || !result.filePaths?.[0]) return { ok: false, canceled: true };
+    try {
+      const src = result.filePaths[0];
+      const label = path.basename(src, path.extname(src));
+      const s = loadSettings();
+      const { entry, customNotifySounds } = notifySoundsStore.importCustomSound(dataDir(), s, src, label);
+      saveSettings({ customNotifySounds });
+      return { ok: true, entry, sounds: customNotifySounds };
+    } catch (e) {
+      return { ok: false, error: e.message || String(e) };
+    }
+  });
+
+  ipcMain.handle('modhub-notify-sound-delete', async (_e, { id } = {}) => {
+    const s = loadSettings();
+    const customNotifySounds = notifySoundsStore.deleteCustomSound(dataDir(), s, id);
+    saveSettings({ customNotifySounds });
+    return { ok: true, sounds: customNotifySounds };
+  });
+
+  ipcMain.handle('modhub-notify-sound-data', async (_e, { id } = {}) => {
+    const s = loadSettings();
+    const dataUrl = notifySoundsStore.readCustomSoundDataUrl(dataDir(), s, id);
+    if (!dataUrl) return { ok: false, error: 'not_found' };
+    return { ok: true, dataUrl };
+  });
+
   ipcMain.handle('modhub-pick-data-path', async () => {
     const dataPath = initDataStorage();
     const bundled = readBundledBlueprints();
@@ -889,6 +1005,7 @@ function registerIpc() {
         if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username);
       }
     }
+    processAutomuteBatch(batch);
     broadcastLiveBatch(batch, 'browser');
   });
 

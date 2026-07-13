@@ -1181,10 +1181,10 @@ async function persistAutoMsgSettings(partial = {}) {
     autoMessages,
     mentionNotifyEnabled:
       partial.mentionNotifyEnabled ?? !!$('mentionNotifyEnabled')?.checked,
-    mentionNotifySound: Math.min(
-      5,
-      Math.max(1, Number(partial.mentionNotifySound ?? $('mentionNotifySound')?.value) || 1)
-    ),
+    mentionNotifySound:
+      partial.mentionNotifySound ??
+      $('mentionNotifySound')?.value ??
+      String(state.settings.mentionNotifySound ?? '1'),
     mentionAliases:
       partial.mentionAliases ?? parseMentionAliases($('mentionAliases')?.value ?? '')
   });
@@ -1361,58 +1361,87 @@ function closeAutoMsgSettings() {
   $('autoMsgSettingsModal')?.classList.add('hidden');
 }
 
-let mentionAudioCtx = null;
 
-function playMentionNotifySound(soundId) {
+function getCustomNotifySounds() {
+  return Array.isArray(state.settings?.customNotifySounds) ? state.settings.customNotifySounds : [];
+}
+
+function fillMentionNotifySoundSelect() {
+  NotifySounds?.fillSoundSelect?.($('mentionNotifySound'), getCustomNotifySounds(), state.settings.mentionNotifySound);
+}
+
+async function playMentionNotifySound(soundId) {
   if (!state.settings.mentionNotifyEnabled) return;
-  const id = Math.min(5, Math.max(1, Number(soundId ?? state.settings.mentionNotifySound) || 1));
-  try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    if (!mentionAudioCtx) mentionAudioCtx = new Ctx();
-    const ctx = mentionAudioCtx;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  const id = soundId ?? state.settings.mentionNotifySound ?? '1';
+  await NotifySounds?.playNotifySound?.(id, modHub);
+}
 
-    const playTone = (freq, start, dur, type = 'sine', gain = 0.12) => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = type;
-      osc.frequency.value = freq;
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.exponentialRampToValueAtTime(gain, start + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-      osc.connect(g);
-      g.connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + dur + 0.05);
-    };
-
-    const t0 = ctx.currentTime + 0.02;
-    if (id === 1) playTone(880, t0, 0.12);
-    else if (id === 2) {
-      playTone(740, t0, 0.1);
-      playTone(740, t0 + 0.16, 0.1);
-    } else if (id === 3) playTone(440, t0, 0.22, 'triangle', 0.14);
-    else if (id === 4) {
-      playTone(523, t0, 0.1);
-      playTone(659, t0 + 0.12, 0.1);
-      playTone(784, t0 + 0.24, 0.14);
-    } else {
-      playTone(980, t0, 0.08, 'square', 0.08);
-      playTone(980, t0 + 0.12, 0.08, 'square', 0.08);
-      playTone(980, t0 + 0.24, 0.08, 'square', 0.08);
-    }
-  } catch (_) {
-    /* audio optional */
+function renderCustomNotifySoundsList() {
+  const list = $('customNotifySoundsList');
+  if (!list) return;
+  const sounds = getCustomNotifySounds();
+  if (!sounds.length) {
+    list.innerHTML = '<p class="hint">Noch keine eigenen Sounds.</p>';
+    return;
   }
+  list.innerHTML = sounds
+    .map(
+      (s) => `<div class="notify-sound-row" data-id="${esc(s.id)}">
+        <span class="notify-sound-label">${esc(s.label || s.filename || s.id)}</span>
+        <button type="button" class="sm" data-action="test">Test</button>
+        <button type="button" class="sm" data-action="delete">Löschen</button>
+      </div>`
+    )
+    .join('');
+}
+
+async function refreshNotifySoundUi() {
+  fillMentionNotifySoundSelect();
+  renderCustomNotifySoundsList();
+  AutomutePanel?.refreshSoundSelects?.();
+}
+
+async function importCustomNotifySound() {
+  const status = $('notifySoundsStatus');
+  if (!modHub.notifySoundImport) return;
+  try {
+    if (status) status.textContent = 'Datei wählen…';
+    const res = await modHub.notifySoundImport();
+    if (res?.canceled) {
+      if (status) status.textContent = '—';
+      return;
+    }
+    if (!res?.ok) {
+      if (status) status.textContent = res?.error === 'unsupported_format' ? 'Format nicht unterstützt' : 'Import fehlgeschlagen';
+      return;
+    }
+    state.settings = await modHub.getSettings();
+    NotifySounds?.invalidateCustomCache?.();
+    await refreshNotifySoundUi();
+    if (status) status.textContent = `„${res.entry?.label || 'Sound'}“ importiert`;
+  } catch (e) {
+    if (status) status.textContent = `Fehler: ${e.message || e}`;
+  }
+}
+
+async function deleteCustomNotifySound(id) {
+  if (!id || !modHub.notifySoundDelete) return;
+  const entry = getCustomNotifySounds().find((s) => s.id === id);
+  const label = entry?.label || id;
+  if (!confirm(`Sound „${label}“ wirklich löschen?`)) return;
+  const res = await modHub.notifySoundDelete(id);
+  if (!res?.ok) return;
+  state.settings.customNotifySounds = res.sounds || [];
+  NotifySounds?.invalidateCustomCache?.(id);
+  await refreshNotifySoundUi();
+  const status = $('notifySoundsStatus');
+  if (status) status.textContent = 'Sound gelöscht';
 }
 
 function loadAutoMsgUiFromSettings() {
   const s = state.settings;
   if ($('mentionNotifyEnabled')) $('mentionNotifyEnabled').checked = s.mentionNotifyEnabled !== false;
-  if ($('mentionNotifySound')) {
-    $('mentionNotifySound').value = String(Math.min(5, Math.max(1, Number(s.mentionNotifySound) || 1)));
-  }
+  fillMentionNotifySoundSelect();
   if ($('mentionAliases')) {
     $('mentionAliases').value = formatMentionAliases(s.mentionAliases);
   }
@@ -1783,6 +1812,10 @@ async function saveChatDisplaySettings(patch = {}) {
   renderChats({ forceFull: true });
 }
 
+async function refreshAutomuteStatus() {
+  window.AutomutePanel?.refreshStatus?.();
+}
+
 async function loadSettingsUi() {
   const s = await modHub.getSettings();
   state.settings = s;
@@ -1845,6 +1878,7 @@ async function loadSettingsUi() {
     await refreshMutedWarnedSets();
   }
   loadAutoMsgUiFromSettings();
+  renderCustomNotifySoundsList();
 }
 
 async function saveSettingsFromForm() {
@@ -2576,6 +2610,9 @@ function wireTabs() {
       }
       if (btn.dataset.tab === 'analyse') {
         window.AnalysePanel?.onTabShow?.();
+      }
+      if (btn.dataset.tab === 'automute') {
+        window.AutomutePanel?.onTabShow?.();
       }
     });
   });
@@ -3387,7 +3424,7 @@ function wireAutomsg() {
 
   $('mentionNotifySound')?.addEventListener('change', () => {
     persistAutoMsgSettings({
-      mentionNotifySound: Number($('mentionNotifySound')?.value) || 1
+      mentionNotifySound: $('mentionNotifySound')?.value || '1'
     });
   });
 
@@ -3396,7 +3433,25 @@ function wireAutomsg() {
   $('mentionAliases')?.addEventListener('blur', () => syncMentionAliasesFromUi({ persist: true }));
 
   $('btnTestMentionSound')?.addEventListener('click', () => {
-    playMentionNotifySound(Number($('mentionNotifySound')?.value) || 1);
+    playMentionNotifySound($('mentionNotifySound')?.value || '1');
+  });
+}
+
+function wireNotifySounds() {
+  $('btnImportNotifySound')?.addEventListener('click', () => importCustomNotifySound());
+
+  $('customNotifySoundsList')?.addEventListener('click', async (e) => {
+    const row = e.target.closest('.notify-sound-row');
+    if (!row) return;
+    const id = row.getAttribute('data-id');
+    const action = e.target.closest('button')?.dataset?.action;
+    if (action === 'test') {
+      await NotifySounds?.playNotifySound?.(`custom:${id}`, modHub);
+      return;
+    }
+    if (action === 'delete') {
+      await deleteCustomNotifySound(id);
+    }
   });
 }
 
@@ -3565,6 +3620,8 @@ async function init() {
   wireRh();
   wireBets();
   wireAutomsg();
+  wireNotifySounds();
+  AutomutePanel?.init?.({ $, esc, modHub, state, C });
   wireSettings();
   wireUpdates();
   await loadSettingsUi();
@@ -3590,6 +3647,10 @@ async function init() {
     const baseTs = Date.now();
     processLiveMessageBatch(messages, { baseTs });
     updateLiveStatusUi();
+  });
+
+  modHub.onAutomuteAction?.((entry) => {
+    AutomutePanel?.onAutomuteAction?.(entry);
   });
 
   modHub.onWsStatus((st) => {

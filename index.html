@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.51</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.52</span></p>
       </div>
     </div>
     <div class="topbar-right">
@@ -42,6 +42,7 @@
     <button class="tab" data-tab="rh">Rollhunt</button>
     <button class="tab" data-tab="wetten">Wetten</button>
     <button class="tab" data-tab="automsg">Automsg</button>
+    <button class="tab" data-tab="automute">Automute</button>
     <button class="tab" data-tab="analyse">Analyse</button>
     <button class="tab" data-tab="settings">Settings</button>
   </nav>
@@ -334,13 +335,7 @@
           <div class="row-inline automsg-notify-row">
             <label class="check"><input type="checkbox" id="mentionNotifyEnabled" checked /> Ton bei Erwähnung</label>
             <label>Sound
-              <select id="mentionNotifySound">
-                <option value="1">1 — Kurz</option>
-                <option value="2">2 — Doppelt</option>
-                <option value="3">3 — Tief</option>
-                <option value="4">4 — Melodie</option>
-                <option value="5">5 — Alarm</option>
-              </select>
+              <select id="mentionNotifySound"></select>
             </label>
             <button type="button" id="btnTestMentionSound" class="sm">Test</button>
           </div>
@@ -357,6 +352,49 @@
 
         <div id="automsgList" class="automsg-list">
           <p class="hint automsg-empty">Noch keine Automsg — blauen Button nutzen.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-automute" class="panel-view">
+      <div class="panel automute-panel">
+        <h2>Automute</h2>
+        <p class="hint">Regeln für automatisches Stummschalten bei Chat-Spam. Dry-Run loggt nur — ohne Dry-Run wird wirklich gemuted.</p>
+
+        <div class="row-inline automute-head-row">
+          <label class="check"><input type="checkbox" id="automuteTabEnabled" checked /> Automute aktiv</label>
+          <label class="check"><input type="checkbox" id="automuteTabDryRun" checked /> Dry-Run (nur loggen)</label>
+          <span id="automuteTabStatus" class="status-line">—</span>
+        </div>
+
+        <div class="automute-toolbar">
+          <button type="button" id="btnAddAutomuteRule" class="automute-btn-create">+ Neue Regel</button>
+          <button type="button" id="btnAutomuteResetDefaults" class="sm">Standard-Regeln</button>
+        </div>
+
+        <div id="automuteRuleList" class="automute-list"></div>
+
+        <div class="panel compact automute-test-panel">
+          <h3>Test</h3>
+          <label class="compact-label">Beispiel-Nachricht
+            <textarea id="automuteTestText" rows="3" placeholder="Spam-Text zum Testen…"></textarea>
+          </label>
+          <div class="row-inline">
+            <label class="compact-label">User (optional, für Strike-Vorschau)
+              <input id="automuteTestUser" type="text" placeholder="username" />
+            </label>
+            <button type="button" id="btnAutomuteTest" class="sm">Testen</button>
+          </div>
+          <p id="automuteTestResult" class="hint automute-test-result">Beispieltext eingeben und Test klicken.</p>
+        </div>
+
+        <div class="panel compact automute-log-panel">
+          <div class="row-inline">
+            <h3>Letzte Aktionen</h3>
+            <button type="button" id="btnAutomuteRefreshLog" class="sm">Aktualisieren</button>
+          </div>
+          <p class="hint">Persistiert in <code>Datengrube/Automute_Log.csv</code></p>
+          <div id="automuteLogList" class="automute-log-list"></div>
         </div>
       </div>
     </section>
@@ -493,6 +531,17 @@
           </label>
           <label>Hash-Reset (Uhrzeit) <input id="autodelTime" type="time" value="23:59" /></label>
         </div>
+        <div class="panel compact notify-sounds-panel">
+          <h3>Benachrichtigungstöne</h3>
+          <p class="hint">Eigene Sounds (MP3, WAV, OGG, M4A …) für @Mod-Erwähnungen und Automute-Regeln. Gespeichert in <code>Datengrube/NotifySounds/</code>.</p>
+          <div class="row-inline">
+            <button type="button" id="btnImportNotifySound" class="sm">Sound importieren</button>
+            <span id="notifySoundsStatus" class="status-line">—</span>
+          </div>
+          <div id="customNotifySoundsList" class="notify-sounds-list">
+            <p class="hint">Noch keine eigenen Sounds.</p>
+          </div>
+        </div>
         <div class="panel compact">
           <h3>Updates (GitHub)</h3>
           <p class="hint">Installierte App prüft beim Start und alle 4&nbsp;h automatisch auf GitHub-Releases (<code>latest.yml</code>).</p>
@@ -528,6 +577,45 @@
       <button type="button" id="btnUpdateDownload" class="primary sm hidden">Download</button>
       <button type="button" id="btnUpdateRestart" class="primary sm hidden">Neustart &amp; Installieren</button>
       <button type="button" id="btnUpdateDismiss" class="sm hidden">Schließen</button>
+    </div>
+  </div>
+
+  <div id="automuteEditModal" class="overlay-backdrop hidden">
+    <div class="overlay panel automute-modal">
+      <h3 id="automuteEditTitle">Neue Regel</h3>
+      <label class="check"><input type="checkbox" id="automuteEditEnabled" checked /> Regel aktiv</label>
+      <label class="compact-label">Name
+        <input id="automuteEditLabel" type="text" maxlength="60" placeholder="z. B. Account-Verkauf" />
+      </label>
+      <label class="compact-label">Patterns (eine Zeile = ein Suchbegriff)
+        <textarea id="automuteEditPatterns" rows="5" placeholder="buying stake&#10;amibo121&#10;discord"></textarea>
+      </label>
+      <label class="check"><input type="checkbox" id="automuteEditMatchAll" /> Alle Patterns müssen passen</label>
+      <label class="compact-label">Mindestlänge (Zeichen)
+        <input id="automuteEditMinLength" type="number" min="0" max="500" value="20" />
+      </label>
+      <label class="compact-label">Mute-Grund (API)
+        <input id="automuteEditReason" type="text" value="low quality chat / spam" />
+      </label>
+      <div class="grid-2 automute-dur-grid">
+        <label>Strike 1 (Min) <input id="automuteEditDur1" type="number" min="1" value="10" /></label>
+        <label>Strike 2 (Min) <input id="automuteEditDur2" type="number" min="1" value="60" /></label>
+        <label>Strike 3 (Min) <input id="automuteEditDur3" type="number" min="1" value="1440" /></label>
+        <label>Strike 4+ (Min) <input id="automuteEditDur4" type="number" min="1" value="10080" /></label>
+      </div>
+      <label class="compact-label">Cooldown pro User (Minuten)
+        <input id="automuteEditCooldown" type="number" min="0" value="5" />
+      </label>
+      <div class="row-inline automute-notify-row">
+        <label class="check"><input type="checkbox" id="automuteEditNotifyEnabled" checked /> Sound bei Treffer</label>
+        <label>Sound <select id="automuteEditNotifySound"></select></label>
+        <button type="button" id="btnAutomuteTestNotifySound" class="sm">Test</button>
+      </div>
+      <div class="row-inline">
+        <button type="button" id="btnAutomuteEditSave" class="automute-btn-create">Speichern</button>
+        <button type="button" id="btnAutomuteEditDelete" class="danger sm hidden">Löschen</button>
+        <button type="button" id="btnAutomuteEditCancel" class="sm">Abbrechen</button>
+      </div>
     </div>
   </div>
 
@@ -662,6 +750,9 @@
   <script src="./renderer/mod-chat.js"></script>
   <script src="./renderer/live-chat.js"></script>
   <script src="./renderer/analyse.js"></script>
+  <script src="./renderer/automute-defaults.js"></script>
+  <script src="./renderer/notify-sounds.js"></script>
+  <script src="./renderer/automute-panel.js"></script>
   <script src="./renderer/app.js"></script>
 </body>
 </html>
