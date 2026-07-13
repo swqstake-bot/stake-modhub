@@ -2289,10 +2289,13 @@ function updatePolicySuggestion() {
   const strikes = Policy.countStrikesInCategory?.(state.muteHistoryCache, categoryId) || 0;
   const mins = Policy.getSuggestedMinutes?.(categoryId, strikes);
   const label = mins != null ? Policy.minutesToLabel?.(mins) : 'manuell';
+  const catHint = Policy.getCategoryHint?.(categoryId) || '';
   const hint = $('policySuggestion');
   if (hint) {
     hint.textContent =
-      mins != null ? `Policy-Vorschlag: ${label} (Strike ${strikes + 1})` : 'Dauer manuell wählen';
+      mins != null
+        ? `Policy-Vorschlag: ${label} (Strike ${strikes + 1})${catHint ? ` — ${catHint}` : ''}`
+        : catHint || 'Dauer manuell wählen';
   }
   const dur = Policy.minutesToDurationString?.(mins);
   if (dur) {
