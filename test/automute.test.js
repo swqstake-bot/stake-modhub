@@ -104,6 +104,36 @@ describe('automute strikes', () => {
   });
 });
 
+describe('automute log merge', () => {
+  it('dedupliziert RAM- und CSV-Eintrag derselben Aktion', () => {
+    const preview = 'HEY GUYS, BUYING STAKE ACCOUNTS';
+    const at = new Date(2026, 6, 13, 15, 55, 42).getTime();
+    const mem = [
+      {
+        at,
+        username: 'Roshan0809',
+        ruleLabel: 'Account-Verkauf / Discord Spam',
+        strike: 1,
+        preview,
+        ok: true
+      }
+    ];
+    const disk = [
+      {
+        at: new Date(2026, 6, 13, 15, 55, 0).getTime(),
+        username: 'Roshan0809',
+        ruleLabel: 'Account-Verkauf / Discord Spam',
+        strike: 1,
+        preview,
+        ok: true
+      }
+    ];
+    const merged = dataFiles.mergeAutomuteLogEntries(mem, disk, 25);
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].username, 'Roshan0809');
+  });
+});
+
 describe('automute preview', () => {
   it('berechnet Strike-Vorschau (aktive Regel)', () => {
     const rules = migrateAutoMuteRules({}).map((r) => ({ ...r, enabled: true }));

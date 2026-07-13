@@ -24,6 +24,18 @@ ModHub (Standard): `wss://announcement-anaheim-filled-ripe.trycloudflare.com`
 
 `swaqline`, `droz`, `wheelyboy321`, `kartenstapel` — in `config.js`
 
+## Automute-Hierarchie (Team)
+
+In `config.js` → `AUTOMUTE_EXECUTOR_HIERARCHY` (höchste Priorität zuerst):
+
+```js
+['swaqline', 'kartenstapel', 'droz', 'wheelyboy321']
+```
+
+Wenn mehrere Mods **Live-Automute** haben: nur der **erste Online-Mod** aus dieser Liste führt Mutes aus. Strike-Zähler liegen zentral auf dem Relay (`automute-strikes-shared.json`).
+
+Nach Änderung: Relay neu starten (`node server.js`).
+
 ## Firewall (nur direktes LAN)
 
 ```powershell

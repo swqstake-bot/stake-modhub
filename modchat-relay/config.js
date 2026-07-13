@@ -8,6 +8,14 @@ const MOD_CHAT_PORT = 3847;
 
 const MOD_CHAT_HISTORY_MAX = 200;
 
+/** Automute: höchste Priorität zuerst — nur einer mutet live wenn online + Automute an. */
+const AUTOMUTE_EXECUTOR_HIERARCHY = Object.freeze([
+  'swaqline',
+  'kartenstapel',
+  'droz',
+  'wheelyboy321'
+]);
+
 function normalizeModName(name) {
   return String(name || '')
     .trim()
@@ -24,6 +32,7 @@ module.exports = {
   MOD_CHAT_DEFAULT_URL,
   MOD_CHAT_PORT,
   MOD_CHAT_HISTORY_MAX,
+  AUTOMUTE_EXECUTOR_HIERARCHY,
   normalizeModName,
   isAllowedModChatUser
 };

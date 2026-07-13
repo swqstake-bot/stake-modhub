@@ -8,16 +8,19 @@ const { WebSocketServer } = require('ws');
 const {
   MOD_CHAT_PORT,
   MOD_CHAT_HISTORY_MAX,
+  AUTOMUTE_EXECUTOR_HIERARCHY,
   normalizeModName,
   isAllowedModChatUser
 } = require('./config');
+const { computeAutomuteExecutor } = require('./automute-coord');
+const strikeStore = require('./automute-strikes-store');
 
 const PORT = Number(process.env.MODCHAT_PORT) || MOD_CHAT_PORT;
 
 /** @type {{ id: string, user: string, text: string, ts: number }[]} */
 const history = [];
 
-/** @type {Map<import('ws').WebSocket, { user: string, id: string }>} */
+/** @type {Map<import('ws').WebSocket, { user: string, id: string, automuteEnabled: boolean, automuteLive: boolean }>} */
 const clients = new Map();
 
 let msgSeq = 0;
@@ -48,10 +51,45 @@ function send(ws, obj) {
   if (ws.readyState === 1) ws.send(JSON.stringify(obj));
 }
 
+function automuteModsMap() {
+  const mods = new Map();
+  for (const meta of clients.values()) {
+    mods.set(meta.user, {
+      automuteEnabled: !!meta.automuteEnabled,
+      automuteLive: !!meta.automuteLive
+    });
+  }
+  return mods;
+}
+
+function buildAutomuteExecutorPayload() {
+  const mods = automuteModsMap();
+  const executor = computeAutomuteExecutor(AUTOMUTE_EXECUTOR_HIERARCHY, mods);
+  return {
+    type: 'automute_executor',
+    executor,
+    hierarchy: [...AUTOMUTE_EXECUTOR_HIERARCHY],
+    mods: [...mods.entries()].map(([user, st]) => ({ user, ...st })),
+    ts: Date.now()
+  };
+}
+
+function broadcastAutomuteExecutor(except) {
+  const payload = buildAutomuteExecutorPayload();
+  broadcast(payload, except);
+  return payload;
+}
+
+function isAutomuteExecutor(user) {
+  const payload = buildAutomuteExecutorPayload();
+  return payload.executor && normalizeModName(payload.executor) === normalizeModName(user);
+}
+
 const server = http.createServer((_req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
   const names = onlineUsers().join(', ') || '—';
-  res.end(`ModChat relay OK · ${clients.size} verbunden (${names}) · ${history.length} History\n`);
+  const exec = buildAutomuteExecutorPayload().executor || '—';
+  res.end(`ModChat relay OK · ${clients.size} verbunden (${names}) · Automute-Executor: ${exec}\n`);
 });
 
 const wss = new WebSocketServer({ server });
@@ -90,9 +128,17 @@ wss.on('connection', (ws) => {
       authed = true;
       clearTimeout(authTimer);
       const id = nextId();
-      clients.set(ws, { user, id });
-      send(ws, { type: 'auth_ok', user, history: [...history], online: onlineUsers() });
+      clients.set(ws, { user, id, automuteEnabled: false, automuteLive: false });
+      const automuteState = buildAutomuteExecutorPayload();
+      send(ws, {
+        type: 'auth_ok',
+        user,
+        history: [...history],
+        online: onlineUsers(),
+        automute: automuteState
+      });
       broadcast({ type: 'presence', user, online: true, onlineList: onlineUsers(), ts: Date.now() }, ws);
+      broadcastAutomuteExecutor(ws);
       console.log(`[modchat] + ${user} (${clients.size} online: ${onlineUsers().join(', ')})`);
       return;
     }
@@ -126,6 +172,45 @@ wss.on('connection', (ws) => {
       const payload = { type: 'msg', ...entry };
       send(ws, payload);
       broadcast(payload, ws);
+      return;
+    }
+
+    if (msg?.type === 'automute_presence') {
+      const meta = clients.get(ws);
+      if (!meta) return;
+      meta.automuteEnabled = !!msg.automuteEnabled;
+      meta.automuteLive = !!msg.automuteLive;
+      const state = broadcastAutomuteExecutor();
+      console.log(
+        `[automute] presence ${meta.user} enabled=${meta.automuteEnabled} live=${meta.automuteLive} → executor=${state.executor || '—'}`
+      );
+      return;
+    }
+
+    if (msg?.type === 'automute_strike_inc') {
+      const meta = clients.get(ws);
+      if (!meta) return;
+      const key = String(msg.key || '').trim();
+      const reqId = msg.reqId || null;
+      if (!key) {
+        send(ws, { type: 'automute_strike_denied', reason: 'empty_key', reqId });
+        return;
+      }
+      if (!isAutomuteExecutor(meta.user)) {
+        send(ws, { type: 'automute_strike_denied', key, reason: 'not_executor', reqId });
+        return;
+      }
+      const row = strikeStore.incrementStrike(key);
+      send(ws, { type: 'automute_strike_ok', key, ...row, reqId });
+      broadcast({ type: 'automute_strike_sync', key, ...row, by: meta.user, ts: Date.now() }, ws);
+      return;
+    }
+
+    if (msg?.type === 'automute_strike_get') {
+      const key = String(msg.key || '').trim();
+      if (!key) return;
+      const row = strikeStore.getStrike(key);
+      send(ws, { type: 'automute_strike_ok', key, ...row, readOnly: true, reqId: msg.reqId || null });
     }
   });
 
@@ -142,6 +227,7 @@ wss.on('connection', (ws) => {
         onlineList: list,
         ts: Date.now()
       });
+      broadcastAutomuteExecutor();
       console.log(`[modchat] - ${meta.user} (${clients.size} online: ${list.join(', ') || '—'})`);
     }
   });

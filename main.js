@@ -16,6 +16,7 @@ const { scoreLiveMessage } = require('./lib/analyse/live-flag');
 const { StakeChatWebSocket } = require('./lib/stake-chat-ws');
 const { AutoHashQueue } = require('./lib/auto-hash-queue');
 const { AutoMuteEngine } = require('./lib/automute-engine');
+const { AutomuteRelayClient } = require('./lib/automute-relay-client');
 const notifySoundsStore = require('./lib/notify-sounds-store');
 const { CHATROOMS, LOCKDOWN_TOKEN, DEFAULT_WS_HOST } = require('./lib/stake-constants');
 const { createBetRegistry } = require('./lib/bet-registry');
@@ -111,6 +112,11 @@ async function resolveUserIdForAutomute(name) {
   return data?.user?.id || null;
 }
 
+const automuteRelay = new AutomuteRelayClient({
+  getSettings: () => loadSettings(),
+  getModUser: () => loggedInModUser
+});
+
 const autoMuteEngine = new AutoMuteEngine({
   getSettings: () => loadSettings(),
   getDataDir: () => dataDir(),
@@ -132,6 +138,7 @@ const autoMuteEngine = new AutoMuteEngine({
     return { ok: true };
   },
   getModNames: getModNamesForAutomute,
+  getRelay: () => automuteRelay,
   onAction: (entry) => {
     if (mainWin && !mainWin.isDestroyed()) {
       mainWin.webContents.send('modhub-automute-action', entry);
@@ -140,6 +147,15 @@ const autoMuteEngine = new AutoMuteEngine({
     console.log(`[automute] ${label} @${entry.username} · ${entry.ruleLabel} · Strike ${entry.strike} · ${entry.expire || entry.skipped || entry.error || ''}`);
   }
 });
+
+function syncAutomuteRelay() {
+  if (!loggedInModUser) {
+    automuteRelay.disconnect();
+    return;
+  }
+  automuteRelay.connect();
+  automuteRelay.updatePresence();
+}
 
 function processAutomuteBatch(batch) {
   const s = loadSettings();
@@ -581,6 +597,7 @@ function registerIpc() {
     if (loggedInModUser && next.apiKey) {
       startNativeChatWs().catch(() => {});
     }
+    syncAutomuteRelay();
     return next;
   });
 
@@ -593,16 +610,8 @@ function registerIpc() {
     const cap = limit || 50;
     const mem = autoMuteEngine.getRecentLog(cap);
     const disk = dataFiles.loadAutomuteLog(dataDir(), cap * 2);
-    const seen = new Set();
-    const merged = [];
-    for (const e of [...mem, ...disk]) {
-      const k = `${e.at || 0}|${e.username}|${e.preview || ''}`;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      merged.push(e);
-    }
-    merged.sort((a, b) => (b.at || 0) - (a.at || 0));
-    return { ok: true, log: merged.slice(0, cap) };
+    const log = dataFiles.mergeAutomuteLogEntries(mem, disk, cap);
+    return { ok: true, log };
   });
 
   ipcMain.handle('modhub-automute-test', async (_e, { message, username, rules } = {}) => {
@@ -725,6 +734,7 @@ function registerIpc() {
     }
     loggedInModUser = name;
     captureOpenedForFallback = false;
+    syncAutomuteRelay();
     await startNativeChatWs();
     openStakeChatCapture(false).catch(() => {});
     startLiveHealthMonitor();
