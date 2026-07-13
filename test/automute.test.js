@@ -5,7 +5,8 @@ const path = require('path');
 const os = require('os');
 const { normalizeForAutomute } = require('../lib/automute-normalize');
 const { migrateAutoMuteRules } = require('../lib/automute-defaults');
-const { ruleMatches, minutesToExpireString } = require('../lib/automute-engine');
+const { pickMutePeriod, formatChatNotifyText } = require('../lib/automute-periods');
+const { ruleMatches, previewAutomute } = require('../lib/automute-engine');
 const dataFiles = require('../lib/data-files');
 
 describe('automute normalize', () => {
@@ -25,6 +26,7 @@ describe('automute rules', () => {
     assert.equal(rule.id, 'account-spam-default');
     assert.ok(rule.patterns.includes('amibo121'));
     assert.equal(rule.enabled, false);
+    assert.deepEqual(rule.mutePeriods, ['10 minutes', '1 hour', '1 day', '1 week']);
     assert.equal(rule.notifyEnabled, true);
     assert.equal(rule.notifySound, '5');
   });
@@ -47,11 +49,20 @@ describe('automute rules', () => {
   });
 });
 
-describe('automute duration', () => {
-  it('formatiert Minuten für Mute-API', () => {
-    assert.equal(minutesToExpireString(10), '10 minutes');
-    assert.equal(minutesToExpireString(60), '1 hour');
-    assert.equal(minutesToExpireString(1440), '1 day');
+describe('automute periods', () => {
+  const rule = migrateAutoMuteRules({})[0];
+
+  it('nutzt Stake-Mute-Zeiten pro Strike', () => {
+    assert.equal(pickMutePeriod(rule, 1), '10 minutes');
+    assert.equal(pickMutePeriod(rule, 2), '1 hour');
+    assert.equal(pickMutePeriod(rule, 4), '1 week');
+  });
+
+  it('ersetzt @user im Chat-Text', () => {
+    assert.equal(
+      formatChatNotifyText('@user Muted - Spam', 'spammer123'),
+      '@spammer123 Muted - Spam'
+    );
   });
 });
 
@@ -70,10 +81,9 @@ describe('automute preview', () => {
     const rules = migrateAutoMuteRules({}).map((r) => ({ ...r, enabled: true }));
     const msg =
       '𝗕𝗨𝗬𝗜𝗡𝗚 𝗦𝗧𝗔𝗞𝗘 𝗔𝗖𝗖𝗢𝗨𝗡𝗧𝗦 add on discord amibo121 extra text here';
-    const { previewAutomute } = require('../lib/automute-engine');
     const r = previewAutomute(msg, rules, { username: 'spammer', strikes: {} });
     assert.equal(r.match, true);
     assert.equal(r.strike, 1);
-    assert.equal(r.durationMinutes, 10);
+    assert.equal(r.expire, '10 minutes');
   });
 });

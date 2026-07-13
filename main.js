@@ -122,6 +122,15 @@ const autoMuteEngine = new AutoMuteEngine({
     }
     return data;
   },
+  sendChatAnnounce: async (text) => {
+    const s = loadSettings();
+    const room = s.prefChatroom || 'German';
+    const chatId = CHATROOMS[room] || CHATROOMS.German;
+    const msg = String(text || '').trim();
+    if (!msg) return { ok: false, error: 'empty' };
+    await gql.sendMessage(chatId, msg);
+    return { ok: true };
+  },
   getModNames: getModNamesForAutomute,
   onAction: (entry) => {
     if (mainWin && !mainWin.isDestroyed()) {

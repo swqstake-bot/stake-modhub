@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.52</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.53</span></p>
       </div>
     </div>
     <div class="topbar-right">
@@ -597,14 +597,16 @@
       <label class="compact-label">Mute-Grund (API)
         <input id="automuteEditReason" type="text" value="low quality chat / spam" />
       </label>
+      <p class="hint">Mute-Dauer pro Strike — Stake-Standardzeiten:</p>
       <div class="grid-2 automute-dur-grid">
-        <label>Strike 1 (Min) <input id="automuteEditDur1" type="number" min="1" value="10" /></label>
-        <label>Strike 2 (Min) <input id="automuteEditDur2" type="number" min="1" value="60" /></label>
-        <label>Strike 3 (Min) <input id="automuteEditDur3" type="number" min="1" value="1440" /></label>
-        <label>Strike 4+ (Min) <input id="automuteEditDur4" type="number" min="1" value="10080" /></label>
+        <label>Strike 1 <select id="automuteEditDur1"></select></label>
+        <label>Strike 2 <select id="automuteEditDur2"></select></label>
+        <label>Strike 3 <select id="automuteEditDur3"></select></label>
+        <label>Strike 4+ <select id="automuteEditDur4"></select></label>
       </div>
-      <label class="compact-label">Cooldown pro User (Minuten)
-        <input id="automuteEditCooldown" type="number" min="0" value="5" />
+      <label class="check"><input type="checkbox" id="automuteEditChatNotifyEnabled" /> Chat-Nachricht nach Mute</label>
+      <label class="compact-label">Chat-Text (<code>@user</code> = gemuteter User)
+        <input id="automuteEditChatNotifyText" type="text" placeholder="@user Muted - Account Trading - Deutsche Chatregeln" />
       </label>
       <div class="row-inline automute-notify-row">
         <label class="check"><input type="checkbox" id="automuteEditNotifyEnabled" checked /> Sound bei Treffer</label>

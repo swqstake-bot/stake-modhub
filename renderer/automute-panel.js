@@ -28,18 +28,34 @@
     return ctx.state.settings.autoMuteRules;
   }
 
-  function durationLabel(mins) {
-    const m = Number(mins) || 0;
-    if (m < 60) return `${m} Min`;
-    if (m < 1440) return `${Math.round(m / 60)} Std`;
-    return `${Math.round(m / 1440)} Tag(e)`;
+  function mutePeriodOptions() {
+    return ctx?.C?.MUTE_PERIODS || [];
+  }
+
+  function defaultStrikePeriods() {
+    return global.AutomuteDefaults?.DEFAULT_STRIKE_PERIODS || ['10 minutes', '1 hour', '1 day', '1 week'];
+  }
+
+  function ruleMutePeriods(rule) {
+    if (Array.isArray(rule?.mutePeriods) && rule.mutePeriods.length) return rule.mutePeriods;
+    return defaultStrikePeriods();
+  }
+
+  function fillPeriodSelect(id, value) {
+    const el = $(id);
+    if (!el) return;
+    const periods = mutePeriodOptions();
+    el.innerHTML = periods.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+    const v = String(value || periods[0] || '10 minutes');
+    el.value = periods.includes(v) ? v : periods[0] || '10 minutes';
   }
 
   function ruleMeta(rule) {
-    const d = (rule.durationsMinutes || []).map(durationLabel).join(' → ');
+    const d = ruleMutePeriods(rule).join(' → ');
     const pCount = (rule.patterns || []).length;
     const snd = rule.notifyEnabled === false ? ' · kein Sound' : ' · Sound';
-    return `${pCount} Pattern · ${d || '—'} · Cooldown ${rule.cooldownMinutes || 0} Min${snd}`;
+    const chat = rule.chatNotifyEnabled ? ' · Chat' : '';
+    return `${pCount} Pattern · ${d || '—'}${snd}${chat}`;
   }
 
   function fillNotifySoundSelect(el, selected) {
@@ -140,7 +156,7 @@
         .split(/\r?\n/)
         .map((l) => l.trim())
         .filter(Boolean);
-    const d = (id) => Math.max(1, Number($(id)?.value) || 10);
+    const periods = defaultStrikePeriods();
     return {
       label: ($('automuteEditLabel')?.value || '').trim() || 'Regel',
       enabled: $('automuteEditEnabled')?.checked !== false,
@@ -148,13 +164,14 @@
       patterns: parseLines($('automuteEditPatterns')),
       minLength: Math.max(0, Number($('automuteEditMinLength')?.value) || 0),
       muteReason: ($('automuteEditReason')?.value || '').trim() || 'low quality chat / spam',
-      durationsMinutes: [
-        d('automuteEditDur1'),
-        d('automuteEditDur2'),
-        d('automuteEditDur3'),
-        d('automuteEditDur4')
+      mutePeriods: [
+        $('automuteEditDur1')?.value || periods[0],
+        $('automuteEditDur2')?.value || periods[1],
+        $('automuteEditDur3')?.value || periods[2],
+        $('automuteEditDur4')?.value || periods[3]
       ],
-      cooldownMinutes: Math.max(0, Number($('automuteEditCooldown')?.value) || 0),
+      chatNotifyEnabled: !!$('automuteEditChatNotifyEnabled')?.checked,
+      chatNotifyText: ($('automuteEditChatNotifyText')?.value || '').trim(),
       notifyEnabled: $('automuteEditNotifyEnabled')?.checked !== false,
       notifySound: $('automuteEditNotifySound')?.value || '5'
     };
@@ -167,12 +184,18 @@
     $('automuteEditPatterns').value = (rule?.patterns || []).join('\n');
     $('automuteEditMinLength').value = String(rule?.minLength ?? 0);
     $('automuteEditReason').value = rule?.muteReason || 'low quality chat / spam';
-    const d = rule?.durationsMinutes || [10, 60, 1440, 10080];
-    $('automuteEditDur1').value = String(d[0] ?? 10);
-    $('automuteEditDur2').value = String(d[1] ?? 60);
-    $('automuteEditDur3').value = String(d[2] ?? 1440);
-    $('automuteEditDur4').value = String(d[3] ?? 10080);
-    $('automuteEditCooldown').value = String(rule?.cooldownMinutes ?? 5);
+    const d = ruleMutePeriods(rule);
+    fillPeriodSelect('automuteEditDur1', d[0]);
+    fillPeriodSelect('automuteEditDur2', d[1]);
+    fillPeriodSelect('automuteEditDur3', d[2]);
+    fillPeriodSelect('automuteEditDur4', d[3]);
+    if ($('automuteEditChatNotifyEnabled')) {
+      $('automuteEditChatNotifyEnabled').checked = !!rule?.chatNotifyEnabled;
+    }
+    if ($('automuteEditChatNotifyText')) {
+      $('automuteEditChatNotifyText').value =
+        rule?.chatNotifyText || '@user Muted - Account Trading - Deutsche Chatregeln';
+    }
     if ($('automuteEditNotifyEnabled')) {
       $('automuteEditNotifyEnabled').checked = rule?.notifyEnabled !== false;
     }
@@ -204,7 +227,7 @@
         out.textContent = 'Kein Treffer.';
         return;
       }
-      out.textContent = `Treffer: „${r.ruleLabel}“ · Strike ${r.strike} → ${r.expire} (${r.muteReason})`;
+      out.textContent = `Treffer: „${r.ruleLabel}“ · Strike ${r.strike} → ${r.expire} (${r.muteReason})${r.chatNotifyText ? ` · Chat: ${r.chatNotifyText}` : ''}`;
     } catch (e) {
       out.textContent = `Fehler: ${e.message || e}`;
     }
@@ -223,8 +246,9 @@
         patterns: [],
         minLength: 20,
         muteReason: 'low quality chat / spam',
-        durationsMinutes: [10, 60, 1440, 10080],
-        cooldownMinutes: 5,
+        mutePeriods: defaultStrikePeriods(),
+        chatNotifyEnabled: false,
+        chatNotifyText: '@user Muted - Account Trading - Deutsche Chatregeln',
         notifyEnabled: true,
         notifySound: '5'
       }
