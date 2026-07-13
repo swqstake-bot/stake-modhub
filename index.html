@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.55</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.56</span></p>
       </div>
     </div>
     <div class="topbar-right">
@@ -367,12 +367,26 @@
           <span id="automuteTabStatus" class="status-line">—</span>
         </div>
 
-        <div class="automute-toolbar">
-          <button type="button" id="btnAddAutomuteRule" class="automute-btn-create">+ Neue Regel</button>
-          <button type="button" id="btnAutomuteResetDefaults" class="sm">Standard-Regeln</button>
-        </div>
+        <div class="automute-main-grid">
+          <div class="automute-rules-col">
+            <div class="automute-toolbar">
+              <button type="button" id="btnAddAutomuteRule" class="automute-btn-create">+ Neue Regel</button>
+              <button type="button" id="btnAutomuteResetDefaults" class="sm">Standard-Regeln</button>
+            </div>
+            <div id="automuteRuleList" class="automute-list"></div>
+          </div>
 
-        <div id="automuteRuleList" class="automute-list"></div>
+          <aside class="panel compact automute-recent-box">
+            <div class="row-inline automute-recent-head">
+              <h3>Letzte Automutes</h3>
+              <button type="button" id="btnAutomuteRefreshRecent" class="sm" title="Aktualisieren">↻</button>
+            </div>
+            <p class="hint automute-recent-hint">Nachricht + Mute-Dauer · auch in <code>Automute_Log.csv</code></p>
+            <div id="automuteRecentList" class="automute-recent-list">
+              <p class="hint">Noch keine Einträge.</p>
+            </div>
+          </aside>
+        </div>
 
         <div class="panel compact automute-test-panel">
           <h3>Test</h3>
@@ -386,15 +400,6 @@
             <button type="button" id="btnAutomuteTest" class="sm">Testen</button>
           </div>
           <p id="automuteTestResult" class="hint automute-test-result">Beispieltext eingeben und Test klicken.</p>
-        </div>
-
-        <div class="panel compact automute-log-panel">
-          <div class="row-inline">
-            <h3>Letzte Aktionen</h3>
-            <button type="button" id="btnAutomuteRefreshLog" class="sm">Aktualisieren</button>
-          </div>
-          <p class="hint">Persistiert in <code>Datengrube/Automute_Log.csv</code></p>
-          <div id="automuteLogList" class="automute-log-list"></div>
         </div>
       </div>
     </section>
@@ -591,6 +596,7 @@
         <textarea id="automuteEditPatterns" rows="5" placeholder="buying stake&#10;amibo121&#10;discord"></textarea>
       </label>
       <label class="check"><input type="checkbox" id="automuteEditMatchAll" /> Alle Patterns müssen passen</label>
+      <p class="hint automute-matchall-hint">Jedes Pattern muss irgendwo in der Nachricht vorkommen — Reihenfolge egal, Text davor/danach (z.&nbsp;B. Discord-Name) ist ok.</p>
       <label class="compact-label">Mindestlänge (Zeichen)
         <input id="automuteEditMinLength" type="number" min="0" max="500" value="20" />
       </label>

@@ -122,32 +122,50 @@
       .join('');
   }
 
-  async function refreshLog() {
-    const el = $('automuteLogList');
+  async function refreshRecentMutes() {
+    const el = $('automuteRecentList');
     if (!el || !ctx?.modHub?.automuteLog) return;
     try {
-      const res = await ctx.modHub.automuteLog(40);
-      const log = res?.log || [];
+      const res = await ctx.modHub.automuteLog(25);
+      const log = (res?.log || []).filter((e) => (e.ok || e.dryRun) && (e.preview || e.username));
       if (!log.length) {
-        el.innerHTML = '<p class="hint">Noch keine Automute-Einträge.</p>';
+        el.innerHTML = '<p class="hint">Noch keine Automutes.</p>';
         return;
       }
       el.innerHTML = log
         .map((e) => {
-          const ts = new Date(e.at || Date.now()).toLocaleString('de-DE');
-          const mode = e.dryRun ? 'dry' : e.ok ? 'ok' : 'fail';
-          const detail = e.expire || e.skipped || e.error || '';
-          return `<div class="automute-log-row automute-log-row--${mode}">
-            <span class="automute-log-time">${esc(ts)}</span>
-            <span class="automute-log-user">@${esc(e.username)}</span>
-            <span class="automute-log-rule">${esc(e.ruleLabel || e.ruleId)}</span>
-            <span class="automute-log-detail">S${e.strike ?? '—'} · ${esc(detail)}</span>
+          const ts = new Date(e.at || Date.now()).toLocaleString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          const mode = e.dryRun ? 'dry' : 'live';
+          const modeLabel = e.dryRun ? 'Dry-Run' : 'Gemuted';
+          const duration = e.expire || '—';
+          const strike = e.strike != null ? `Strike ${e.strike}` : '';
+          const msg = e.preview || '—';
+          return `<div class="automute-recent-item automute-recent-item--${mode}">
+            <div class="automute-recent-top">
+              <span class="automute-recent-user">@${esc(e.username)}</span>
+              <span class="automute-recent-badge">${esc(modeLabel)}</span>
+            </div>
+            <div class="automute-recent-meta">${esc(strike)}${strike && duration ? ' · ' : ''}${esc(duration)}</div>
+            <div class="automute-recent-msg">${esc(msg)}</div>
+            <div class="automute-recent-foot">
+              <span class="automute-recent-rule">${esc(e.ruleLabel || e.ruleId)}</span>
+              <span class="automute-recent-time">${esc(ts)}</span>
+            </div>
           </div>`;
         })
         .join('');
     } catch (_) {
-      el.innerHTML = '<p class="hint">Log nicht ladbar.</p>';
+      el.innerHTML = '<p class="hint">Feed nicht ladbar.</p>';
     }
+  }
+
+  async function refreshLog() {
+    await refreshRecentMutes();
   }
 
   function readEditorRule() {
@@ -273,7 +291,8 @@
 
   function wire() {
     $('btnAddAutomuteRule')?.addEventListener('click', () => openEditor(null));
-    $('btnAutomuteRefreshLog')?.addEventListener('click', () => refreshLog());
+    $('btnAutomuteRefreshRecent')?.addEventListener('click', () => refreshRecentMutes());
+    $('btnAutomuteRefreshLog')?.addEventListener('click', () => refreshRecentMutes());
     $('btnAutomuteTest')?.addEventListener('click', () => updateTestPreview());
     $('automuteTestText')?.addEventListener('input', () => {
       if (($('automuteTestText')?.value || '').length > 20) updateTestPreview();

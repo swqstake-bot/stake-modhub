@@ -7,15 +7,8 @@
       label: 'Account-Verkauf / Discord Spam',
       enabled: false,
       matchMode: 'contains',
-      matchAll: false,
-      patterns: [
-        'buying stake',
-        'buying stake accounts',
-        'sell stake account',
-        'amibo121',
-        'add on discord',
-        'discord'
-      ],
+      matchAll: true,
+      patterns: ['buying stake', 'discord'],
       minLength: 20,
       muteReason: 'low quality chat / spam',
       mutePeriods: [...DEFAULT_STRIKE_PERIODS],

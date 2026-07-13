@@ -841,7 +841,132 @@ body {
 }
 
 .automute-panel {
-  max-width: 920px;
+  max-width: 1180px;
+}
+
+.automute-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.automute-rules-col {
+  min-width: 0;
+}
+
+.automute-recent-box {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 520px;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+.automute-recent-head {
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.automute-recent-head h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.automute-recent-hint {
+  margin: 0 0 8px;
+  font-size: 10px;
+}
+
+.automute-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.automute-recent-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.automute-recent-item--dry {
+  border-color: rgba(255, 193, 7, 0.25);
+}
+
+.automute-recent-item--live {
+  border-color: rgba(76, 175, 80, 0.25);
+}
+
+.automute-recent-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.automute-recent-user {
+  font-weight: 600;
+  color: var(--stake-text, #fff);
+}
+
+.automute-recent-badge {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+.automute-recent-meta {
+  color: var(--stake-accent, #7cdb7c);
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+.automute-recent-msg {
+  color: var(--stake-text-muted);
+  word-break: break-word;
+  margin-bottom: 6px;
+  max-height: 4.2em;
+  overflow: hidden;
+}
+
+.automute-recent-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9px;
+  color: var(--stake-text-muted);
+  opacity: 0.85;
+}
+
+.automute-recent-rule {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automute-recent-time {
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .automute-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .automute-recent-box {
+    max-height: 320px;
+  }
 }
 
 .automute-head-row {

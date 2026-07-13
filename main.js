@@ -589,10 +589,21 @@ function registerIpc() {
     ...autoMuteEngine.getStatus()
   }));
 
-  ipcMain.handle('modhub-automute-log', async (_e, { limit } = {}) => ({
-    ok: true,
-    log: autoMuteEngine.getRecentLog(limit || 50)
-  }));
+  ipcMain.handle('modhub-automute-log', async (_e, { limit } = {}) => {
+    const cap = limit || 50;
+    const mem = autoMuteEngine.getRecentLog(cap);
+    const disk = dataFiles.loadAutomuteLog(dataDir(), cap * 2);
+    const seen = new Set();
+    const merged = [];
+    for (const e of [...mem, ...disk]) {
+      const k = `${e.at || 0}|${e.username}|${e.preview || ''}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      merged.push(e);
+    }
+    merged.sort((a, b) => (b.at || 0) - (a.at || 0));
+    return { ok: true, log: merged.slice(0, cap) };
+  });
 
   ipcMain.handle('modhub-automute-test', async (_e, { message, username, rules } = {}) => {
     const { migrateAutoMuteRules } = require('./lib/automute-defaults');

@@ -24,8 +24,8 @@ describe('automute rules', () => {
 
   it('liefert Default-Regel für Account-Spam', () => {
     assert.equal(rule.id, 'account-spam-default');
-    assert.ok(rule.patterns.includes('amibo121'));
-    assert.equal(rule.enabled, false);
+    assert.equal(rule.matchAll, true);
+    assert.deepEqual(rule.patterns, ['buying stake', 'discord']);
     assert.deepEqual(rule.mutePeriods, ['10 minutes', '1 hour', '1 day', '1 week']);
     assert.equal(rule.notifyEnabled, true);
     assert.equal(rule.notifySound, '5');
@@ -36,6 +36,28 @@ describe('automute rules', () => {
     const msg =
       '𝗛𝗘𝗬 𝗚𝗨𝗬𝗦, 𝗕𝗨𝗬𝗜𝗡𝗚 𝗦𝗧𝗔𝗞𝗘 𝗔𝗖𝗖𝗢𝗨𝗡𝗧𝗦 𝗪𝗧𝗛 𝗚𝗢𝗢𝗗 𝗪𝗔𝗚𝗘𝗥 𝗔𝗡𝗗 𝗖𝗟𝗢𝗦𝗘 𝗧𝗢 𝗡𝗘𝗫𝗧 𝗩𝗜𝗣, 𝗔𝗗𝗗 𝗢𝗡 𝗗𝗜𝗦𝗖𝗢𝗥𝗗 amibo121';
     assert.equal(ruleMatches(active, msg), true);
+  });
+
+  it('matchAll: discord-Name nach discord ist erlaubt', () => {
+    const active = {
+      enabled: true,
+      matchAll: true,
+      patterns: ['buying stake', 'discord'],
+      minLength: 20
+    };
+    const msg =
+      '𝗕𝗨𝗬𝗜𝗡𝗚 𝗦𝗧𝗔𝗞𝗘 𝗔𝗖𝗖𝗢𝗨𝗡𝗧𝗦 add on discord scammername123';
+    assert.equal(ruleMatches(active, msg), true);
+  });
+
+  it('matchAll: nur discord ohne buying stake matcht nicht', () => {
+    const active = {
+      enabled: true,
+      matchAll: true,
+      patterns: ['buying stake', 'discord'],
+      minLength: 20
+    };
+    assert.equal(ruleMatches(active, 'hey guys join my discord server please'), false);
   });
 
   it('matcht nicht wenn Regel deaktiviert', () => {
