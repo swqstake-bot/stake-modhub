@@ -1922,6 +1922,31 @@ body {
   white-space: nowrap;
 }
 
+.hub-chat-filter {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  min-width: 0;
+}
+
+.hub-chat-filter input {
+  width: 132px;
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.hub-chat-filter-status {
+  font-size: 10px;
+  color: var(--stake-accent, #00d4ff);
+  white-space: nowrap;
+}
+
+.chat-filter-empty {
+  margin: 12px 8px;
+  text-align: center;
+}
+
 .panel-head-actions {
   display: flex;
   flex-wrap: wrap;

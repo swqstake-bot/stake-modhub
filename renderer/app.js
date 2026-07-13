@@ -41,6 +41,7 @@ const state = {
   warnedLocalSet: new Set(),
   allmsgUser: '',
   modMarkUser: '',
+  chatFilterKeyword: '',
   browserVisible: false,
   rhStatusTimer: null,
   policyPending: null,
@@ -2723,6 +2724,26 @@ function wireHub() {
 
   $('btnLiveChatFontDown')?.addEventListener('click', () => stepLiveChatFontSize(-1));
   $('btnLiveChatFontUp')?.addEventListener('click', () => stepLiveChatFontSize(1));
+
+  let liveChatFilterTimer = null;
+  function applyLiveChatFilter() {
+    state.chatFilterKeyword = $('liveChatFilter')?.value?.trim() || '';
+    LiveChat.invalidateChatDom();
+    renderChats({ forceFull: true });
+  }
+  $('liveChatFilter')?.addEventListener('input', () => {
+    clearTimeout(liveChatFilterTimer);
+    liveChatFilterTimer = setTimeout(applyLiveChatFilter, 120);
+  });
+  $('liveChatFilter')?.addEventListener('search', applyLiveChatFilter);
+  $('liveChatFilter')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const input = $('liveChatFilter');
+      if (!input?.value) return;
+      input.value = '';
+      applyLiveChatFilter();
+    }
+  });
 
   $('liveChat')?.addEventListener('contextmenu', (e) => {
     const row = e.target.closest('.chat-line');

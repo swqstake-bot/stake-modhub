@@ -31,6 +31,52 @@
     return lines.length > 300 ? lines.slice(-300) : lines;
   }
 
+  function getChatFilterKeyword() {
+    return String(getCtx().state.chatFilterKeyword || '').trim();
+  }
+
+  function matchesChatFilter(line, keyword) {
+    if (!keyword) return true;
+    const { stripAt } = getCtx();
+    const lower = keyword.toLowerCase();
+    const user = stripAt(line.username || '').toLowerCase();
+    const msg = String(line.message || '').toLowerCase();
+    return user.includes(lower) || msg.includes(lower);
+  }
+
+  function getDisplayChatLines(lines) {
+    const slice = getChatLinesForDisplay(lines);
+    const keyword = getChatFilterKeyword();
+    if (!keyword) {
+      return { lines: slice, keyword: '', matchCount: slice.length, totalCount: slice.length };
+    }
+    const filtered = slice.filter((line) => matchesChatFilter(line, keyword));
+    return {
+      lines: filtered,
+      keyword,
+      matchCount: filtered.length,
+      totalCount: slice.length
+    };
+  }
+
+  function formatChatFilterEmptyHtml(keyword) {
+    const { esc } = getCtx();
+    return `<p class="hint chat-filter-empty">Keine Treffer für „${esc(keyword)}“ in den angezeigten Zeilen.</p>`;
+  }
+
+  function updateChatFilterStatus(meta) {
+    const { $ } = getCtx();
+    const el = $('liveChatFilterStatus');
+    if (!el) return;
+    if (!meta.keyword) {
+      el.textContent = '';
+      el.classList.add('hidden');
+      return;
+    }
+    el.textContent = `${meta.matchCount} / ${meta.totalCount}`;
+    el.classList.remove('hidden');
+  }
+
   function ensureLineUid(line) {
     const { state } = getCtx();
     if (line.uid == null) {
@@ -136,9 +182,14 @@
         }
       }
     }
-    const slice = getChatLinesForDisplay(lines);
+    const meta = getDisplayChatLines(lines);
+    const slice = meta.lines;
     slice.forEach(ensureLineUid);
-    el.innerHTML = slice.map((m) => formatChatLineHtml(m)).join('');
+    if (!slice.length && meta.keyword) {
+      el.innerHTML = formatChatFilterEmptyHtml(meta.keyword);
+    } else {
+      el.innerHTML = slice.map((m) => formatChatLineHtml(m)).join('');
+    }
     state.chatDomHeadUid = slice[0]?.uid ?? null;
     state.chatDomCount = slice.length;
     if (autoscroll) {
@@ -180,25 +231,26 @@
 
   function renderChats(opts = {}) {
     const { $, state } = getCtx();
-    const lines = state.chatLines;
-    const displayLines = getChatLinesForDisplay(lines);
+    const meta = getDisplayChatLines(state.chatLines);
+    const displayLines = meta.lines;
     displayLines.forEach(ensureLineUid);
+    updateChatFilterStatus(meta);
 
     const live = $('liveChat');
     const rh = $('rhLiveChat');
-    const forceFull = !!opts.forceFull;
+    const forceFull = !!opts.forceFull || !!meta.keyword;
 
     if (forceFull || needsFullChatRender(displayLines)) {
-      renderChatBox(live, lines);
-      renderChatBox(rh, lines);
+      renderChatBox(live, state.chatLines);
+      renderChatBox(rh, state.chatLines);
       return;
     }
 
     const prevCount = state.chatDomCount || 0;
     const newLines = displayLines.slice(prevCount);
     if (!newLines.length) {
-      renderChatBox(live, lines);
-      renderChatBox(rh, lines);
+      renderChatBox(live, state.chatLines);
+      renderChatBox(rh, state.chatLines);
       return;
     }
 
@@ -217,6 +269,7 @@
     pushChatLine,
     renderChats,
     invalidateChatDom,
-    getChatLinesForDisplay
+    getChatLinesForDisplay,
+    getDisplayChatLines
   };
 })(window);
