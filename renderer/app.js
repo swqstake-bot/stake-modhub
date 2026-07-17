@@ -491,16 +491,21 @@ function formatRhLeaderLine(leader) {
   return `@${leader.username} mit ${(leader.multiplier || 0).toFixed(2)}x`;
 }
 
-function formatRhCasinoTag(bet) {
-  if (bet?.casinoId) return bet.casinoId;
-  const raw = String(bet?.betId || '')
+function normalizeRhCasinoTag(raw) {
+  const id = String(raw || '')
     .replace(/^casino:/i, '')
     .replace(/^house:/i, '')
+    .replace(/\./g, '')
     .trim();
-  if (/^[a-f0-9-]{36}$/i.test(raw)) return `casino:${raw}`;
-  const digits = raw.replace(/\D/g, '');
+  if (/^[a-f0-9-]{36}$/i.test(id)) return `casino:${id}`;
+  const digits = id.replace(/\D/g, '');
   if (!digits) return 'casino:—';
   return `casino:${digits}`;
+}
+
+function formatRhCasinoTag(bet) {
+  if (bet?.casinoId) return normalizeRhCasinoTag(bet.casinoId);
+  return normalizeRhCasinoTag(bet?.betId);
 }
 
 function buildRhPlaceMessage(bet, session, place) {
@@ -2504,7 +2509,7 @@ async function processBetForRh(line) {
 
   if (!game) return;
 
-  const casinoId = /^[a-f0-9-]{36}$/i.test(line.betId) ? `casino:${line.betId}` : `casino:${line.betId.replace(/\./g, '')}`;
+  const casinoId = normalizeRhCasinoTag(line.betId);
   let anyHit = false;
 
   for (const session of activeSessions) {
