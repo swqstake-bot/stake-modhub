@@ -2,6 +2,14 @@
 
 const C = window.MODHUB_CONST || {};
 const Policy = window.StakeModPolicy || {};
+const fmtMulti = (n) =>
+  window.StakeMultiplier?.formatStakeMultiplier
+    ? window.StakeMultiplier.formatStakeMultiplier(n)
+    : (Number(n) || 0).toFixed(2);
+const normMulti = (n) =>
+  window.StakeMultiplier?.normalizeStakeMultiplier
+    ? window.StakeMultiplier.normalizeStakeMultiplier(n)
+    : Number(n) || 0;
 
 const state = {
   settings: {},
@@ -177,7 +185,7 @@ function parseChatLine(username, message, kind, ts) {
     kind: kind || 'text',
     ts: ts || Date.now(),
     betId: parseBetFromText(message),
-    multiplier: multiMatch ? Number(multiMatch[1].replace(',', '.')) : 0,
+    multiplier: multiMatch ? normMulti(multiMatch[1].replace(',', '.')) : 0,
     rhHit: false,
     modMention: false,
     idx: 0
@@ -488,7 +496,7 @@ function syncRhStatusTimer() {
 
 function formatRhLeaderLine(leader) {
   if (!leader) return 'noch kein Treffer';
-  return `@${leader.username} mit ${(leader.multiplier || 0).toFixed(2)}x`;
+  return `@${leader.username} mit ${fmtMulti(leader.multiplier)}x`;
 }
 
 function normalizeRhCasinoTag(raw) {
@@ -510,7 +518,7 @@ function formatRhCasinoTag(bet) {
 
 function buildRhPlaceMessage(bet, session, place) {
   const user = stripAt(bet.username);
-  const multi = (bet.multiplier || 0).toFixed(2);
+  const multi = fmtMulti(bet.multiplier);
   const game = String(bet.game || session?.game || '').trim();
   const casino = formatRhCasinoTag(bet);
   const gameShort = game.length > 12 ? game.slice(0, 12) : game;
@@ -920,7 +928,7 @@ function renderRhBets() {
   box.innerHTML =
     rows
       .map((b) => {
-        const multi = b.multiplier > 0 ? `${b.multiplier.toFixed(2)}x` : '?x';
+        const multi = b.multiplier > 0 ? `${fmtMulti(b.multiplier)}x` : '?x';
         const isLeader = leader && leader.betId === b.betId && leader.username === b.username;
         const leaderCls = isLeader ? ' bet-leader' : '';
         const hiddenCls = b.hidden ? ' bet-hidden' : '';
@@ -2116,7 +2124,7 @@ function renderBetsTable() {
         : `<span class="bet-fail" title="${esc(b.lookupError || '')}">Fehler</span>`;
       const amt = fmtMoney(b.amount, b.currency);
       const pay = fmtMoney(b.payout, b.currency);
-      const multi = b.multiplier > 0 ? `${b.multiplier.toFixed(2)}x` : '—';
+      const multi = b.multiplier > 0 ? `${fmtMulti(b.multiplier)}x` : '—';
       const userCell = formatBetPosterCell(b);
       const seen = b.seenCount > 1 ? ` <span class="bet-seen">×${b.seenCount}</span>` : '';
       return `<tr class="bets-row${sel}" data-key="${esc(b.key)}" title="${esc(b.message || '')}">
@@ -2230,7 +2238,7 @@ function showBetPanel(bet, betId) {
     <dl>
       <dt>User</dt><dd>${esc(bet.user || '—')}</dd>
       <dt>Zeit</dt><dd>${esc(time)}</dd>
-      <dt>Multiplikator</dt><dd>${bet.multiplier ? bet.multiplier.toFixed(4) + 'x' : '—'}</dd>
+      <dt>Multiplikator</dt><dd>${bet.multiplier ? fmtMulti(bet.multiplier) + 'x' : '—'}</dd>
       <dt>Einsatz</dt><dd>${fmtCrypto(bet.amount, bet.currency)} ${usdAmt != null ? `(${fmtUsd(usdAmt)})` : ''}</dd>
       <dt>Auszahlung</dt><dd>${fmtCrypto(bet.payout, bet.currency)} ${usdPay != null ? `(${fmtUsd(usdPay)})` : ''}</dd>
       <dt>Spiel</dt><dd>${esc(bet.game || '—')}</dd>
@@ -2493,14 +2501,14 @@ async function processBetForRh(line) {
   const cached = state.betCache[cacheKey];
   if (cached) {
     game = cached.game;
-    multiplier = cached.multiplier;
+    multiplier = normMulti(cached.multiplier);
     amount = cached.amount;
     betHidden = !!cached.hidden;
   } else {
     const res = await modHub.betLookup(line.betId);
     if (res.ok && res.data) {
       game = res.data.game || '';
-      multiplier = Number(res.data.multiplier) || multiplier;
+      multiplier = normMulti(Number(res.data.multiplier) || multiplier);
       amount = res.data.amount != null ? Number(res.data.amount) : null;
       betHidden = !!res.data.hidden;
       state.betCache[cacheKey] = { game, multiplier, amount, hidden: betHidden };
@@ -2526,7 +2534,7 @@ async function processBetForRh(line) {
     session.bets.push(bet);
     anyHit = true;
 
-    const logLine = `${new Date().toLocaleString()} | ${session.game} RH | ${hidden ? '[versteckt] ' : ''}${multiplier.toFixed(2)}x | ${game} | ${casinoId} | @${line.username}`;
+    const logLine = `${new Date().toLocaleString()} | ${session.game} RH | ${hidden ? '[versteckt] ' : ''}${fmtMulti(multiplier)}x | ${game} | ${casinoId} | @${line.username}`;
     await modHub.appendLog(logLine);
 
     if (session.id === state.rhActiveId) renderRhBets();
