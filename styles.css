@@ -1732,6 +1732,12 @@ body {
   margin-top: 2px;
 }
 
+.rh-autopost-stop-check {
+  margin: 0;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
 .rh-autopost-hint {
   flex: 1 1 180px;
   margin: 0;

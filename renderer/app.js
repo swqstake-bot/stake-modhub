@@ -40,6 +40,7 @@ const state = {
   rhAutopostTimer: null,
   rhAutopostLastSent: 0,
   rhAutopostInflight: false,
+  rhAutopostPausedOnHit: false,
   autoMsgEditId: null,
   autoMsgSettingsId: null,
   veri2: new Set(),
@@ -406,6 +407,7 @@ async function enterRhOvertime(sessionId) {
   session.overtime = true;
   session.overtimeSince = Date.now();
   await modHub.appendLog(`--- RH ${session.game} | Timer abgelaufen → Verlängerung bis Stop ---`);
+  stopRhAutopostOnHit(`${session.game} RH — Timer abgelaufen`);
   renderRhSessionsList();
   if (sessionId === state.rhActiveId) refreshRhStatusLine();
 }
@@ -792,11 +794,19 @@ function getRhAutopostIntervalMinutes() {
   return Math.max(0, Math.min(1440, Number(raw) || 0));
 }
 
+function isRhAutopostStopOnHit() {
+  if ($('rhAutopostStopOnHit')) return !!$('rhAutopostStopOnHit').checked;
+  return state.settings.rhAutopostStopOnHit !== false;
+}
+
 function loadRhAutopostUiFromSettings() {
   const s = state.settings || {};
   if ($('rhAutopostEnabled')) $('rhAutopostEnabled').checked = !!s.rhAutopostEnabled;
   if ($('rhAutopostInterval')) {
     $('rhAutopostInterval').value = String(s.rhAutopostIntervalMinutes ?? 15);
+  }
+  if ($('rhAutopostStopOnHit')) {
+    $('rhAutopostStopOnHit').checked = s.rhAutopostStopOnHit !== false;
   }
   updateRhAutopostStatus();
 }
@@ -804,10 +814,26 @@ function loadRhAutopostUiFromSettings() {
 async function persistRhAutopostSettings() {
   state.settings = await modHub.saveSettings({
     rhAutopostEnabled: !!$('rhAutopostEnabled')?.checked,
-    rhAutopostIntervalMinutes: getRhAutopostIntervalMinutes()
+    rhAutopostIntervalMinutes: getRhAutopostIntervalMinutes(),
+    rhAutopostStopOnHit: isRhAutopostStopOnHit()
   });
+  if (!isRhAutopostStopOnHit()) state.rhAutopostPausedOnHit = false;
   syncRhAutopostTimer();
   updateRhAutopostStatus();
+}
+
+function resetRhAutopostHitPause() {
+  state.rhAutopostPausedOnHit = false;
+}
+
+function stopRhAutopostOnHit(statusNote = '') {
+  if (!isRhAutopostStopOnHit()) return;
+  state.rhAutopostPausedOnHit = true;
+  clearRhAutopostTimer();
+  updateRhAutopostStatus();
+  if (statusNote && $('rhRecordStatus')) {
+    $('rhRecordStatus').textContent = `${statusNote} · Autopost gestoppt (Treffer)`;
+  }
 }
 
 function updateRhAutopostStatus() {
@@ -818,6 +844,13 @@ function updateRhAutopostStatus() {
   el.classList.remove('is-active');
   if (!enabled || min < 1) {
     el.textContent = 'Autopost aus';
+    return;
+  }
+  if (state.rhAutopostPausedOnHit) {
+    el.textContent = isRhAutopostStopOnHit()
+      ? 'Autopost pausiert — Treffer (neue RH starten zum Fortsetzen)'
+      : 'Autopost pausiert';
+    el.classList.add('is-active');
     return;
   }
   if (!state.loggedIn) {
@@ -850,7 +883,7 @@ function clearRhAutopostTimer() {
 
 function scheduleRhAutopost() {
   clearRhAutopostTimer();
-  if (!state.loggedIn || !isRhAutopostEnabled()) return;
+  if (!state.loggedIn || !isRhAutopostEnabled() || state.rhAutopostPausedOnHit) return;
   const min = getRhAutopostIntervalMinutes();
   if (min < 1) return;
   if (getActiveRhSessions().length === 0) return;
@@ -882,7 +915,7 @@ function scheduleRhAutopost() {
 
 function syncRhAutopostTimer() {
   clearRhAutopostTimer();
-  if (!state.loggedIn || !isRhAutopostEnabled()) {
+  if (!state.loggedIn || !isRhAutopostEnabled() || state.rhAutopostPausedOnHit) {
     updateRhAutopostStatus();
     return;
   }
@@ -2680,6 +2713,7 @@ async function processBetForRh(line) {
 
   const casinoId = normalizeRhCasinoTag(line.betId);
   let anyHit = false;
+  let minMultiHit = false;
 
   for (const session of activeSessions) {
     if (!gameMatches(game, session.game)) continue;
@@ -2694,6 +2728,7 @@ async function processBetForRh(line) {
 
     session.bets.push(bet);
     anyHit = true;
+    if (!highestMode) minMultiHit = true;
 
     const logLine = `${new Date().toLocaleString()} | ${session.game} RH | ${hidden ? '[versteckt] ' : ''}${fmtMulti(multiplier)}x | ${game} | ${casinoId} | @${line.username}`;
     await modHub.appendLog(logLine);
@@ -2704,6 +2739,9 @@ async function processBetForRh(line) {
   if (anyHit) {
     line.rhHit = true;
     state.hitKeys.add(`${line.username}|${line.ts}`);
+    if (minMultiHit) {
+      stopRhAutopostOnHit(`${game} RH — Treffer @${line.username}`);
+    }
     renderRhSessionsList();
     if (getSelectedRhSession()) refreshRhStatusLine();
     LiveChat.invalidateChatDom();
@@ -3232,6 +3270,7 @@ function wireHub() {
 
   $('rhAutopostEnabled')?.addEventListener('change', () => persistRhAutopostSettings());
   $('rhAutopostInterval')?.addEventListener('change', () => persistRhAutopostSettings());
+  $('rhAutopostStopOnHit')?.addEventListener('change', () => persistRhAutopostSettings());
 }
 
 async function stopRhWithAnnounce(reason = 'manuell', sessionId = state.rhActiveId) {
@@ -3350,6 +3389,7 @@ function wireRh() {
     syncRhStatusTimer();
     refreshRhStatusLine();
     setRhStopButtonsEnabled(true);
+    resetRhAutopostHitPause();
     syncRhAutopostTimer();
   });
 
