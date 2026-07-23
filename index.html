@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.61</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.62</span></p>
       </div>
     </div>
     <div class="topbar-right">
@@ -254,6 +254,14 @@
               <button type="button" id="btnRhSendChat" class="primary sm" disabled>RH | Message</button>
               <button type="button" id="btnRhStopAnnounce" class="stake-stop sm" disabled>🛑 STOP Chat</button>
             </div>
+            <div class="rh-autopost-row">
+              <label class="check rh-autopost-check"><input type="checkbox" id="rhAutopostEnabled" /> RH-Autopost</label>
+              <label class="compact-label rh-autopost-interval">Intervall (Min.)
+                <input id="rhAutopostInterval" type="number" min="0" max="1440" step="5" value="15" />
+              </label>
+              <span class="hint rh-autopost-hint">0 = aus · postet die RH-Ankündigung solange eine RH aktiv ist</span>
+            </div>
+            <p id="rhAutopostStatus" class="hint rh-autopost-status">Autopost aus</p>
           </div>
         </div>
         <div class="rh-trivia panel">

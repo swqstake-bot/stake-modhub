@@ -1708,6 +1708,46 @@ body {
   word-break: break-word;
 }
 
+.rh-autopost-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.rh-autopost-check {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.rh-autopost-interval {
+  margin: 0;
+  min-width: 88px;
+}
+
+.rh-autopost-interval input {
+  display: block;
+  width: 72px;
+  margin-top: 2px;
+}
+
+.rh-autopost-hint {
+  flex: 1 1 180px;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.rh-autopost-status {
+  margin: 4px 0 0;
+  font-size: 10px;
+}
+
+.rh-autopost-status.is-active {
+  color: var(--stake-success);
+}
+
 .bet-log .bet-id-label {
   color: var(--stake-accent);
   text-decoration: underline;
