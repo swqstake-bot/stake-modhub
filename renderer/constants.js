@@ -61,6 +61,7 @@ window.MODHUB_CONST = {
   HIGHEST_MULTI_RH_GAMES: ['Crash', 'Slide'],
   /** Scarab / Tome: optional Top-Multi per Checkbox */
   HIGHEST_MULTI_RH_OPTIONAL_GAMES: ['Scarab Spin', 'Tome of Life', 'Blue Samurai'],
+  DEFAULT_RH_GAME: 'Limbo',
 
   /** Stake Originals grid order (2025 UI) — used by Rollhunt scanner dropdown */
   STAKE_ORIGINALS: [

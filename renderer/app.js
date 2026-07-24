@@ -432,6 +432,19 @@ async function enterRhOvertime(sessionId) {
   if (sessionId === state.rhActiveId) refreshRhStatusLine();
 }
 
+function applyRhDefaultGameSelection(preferred) {
+  const sel = $('rhGame');
+  if (!sel) return;
+  const games = C.STAKE_ORIGINALS || [];
+  const pick =
+    preferred ||
+    state.settings?.rhDefaultGame ||
+    C.DEFAULT_RH_GAME ||
+    'Limbo';
+  if (games.includes(pick)) sel.value = pick;
+  else if (games.length) sel.value = games[0];
+}
+
 function updateRhGameSelectOptions() {
   const sel = $('rhGame');
   if (!sel) return;
@@ -2167,6 +2180,7 @@ async function loadSettingsUi() {
   $('dataPathLabel').textContent = s.dataPath || 'Datengrube/';
   $('mutePeriod').innerHTML = (C.MUTE_PERIODS || []).map((p) => `<option value="${p}">${p}</option>`).join('');
   $('rhGame').innerHTML = (C.STAKE_ORIGINALS || []).map((g) => `<option value="${g}">${g}</option>`).join('');
+  applyRhDefaultGameSelection(s.rhDefaultGame);
   if ($('rhTimerMinutes')) {
     $('rhTimerMinutes').value = String(s.rhCrashTimerMinutes ?? 60);
   }
@@ -2217,7 +2231,8 @@ async function saveSettingsFromForm() {
     autodelHour: Number.isFinite(autodelHour) ? autodelHour : 23,
     autodelMinute: Number.isFinite(autodelMinute) ? autodelMinute : 59,
     rhCrashTimerMinutes: Math.max(0, Number($('rhTimerMinutes')?.value) || 0),
-    rhCrashTimerSeconds: Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0))
+    rhCrashTimerSeconds: Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0)),
+    rhDefaultGame: ($('rhGame')?.value || C.DEFAULT_RH_GAME || 'Limbo').trim()
   });
   $('dataPathLabel').textContent = state.settings.dataPath || 'Datengrube/';
   syncAutoMsgTimers();
@@ -3440,6 +3455,9 @@ function wireRh() {
       $('rhHighestMultiMode').checked = !!state.rhHighestMultiPref[game];
     }
     updateRhGameModeUi();
+    modHub.saveSettings({ rhDefaultGame: game || C.DEFAULT_RH_GAME || 'Limbo' }).then((s) => {
+      state.settings = s;
+    });
   });
 
   $('rhHighestMultiMode')?.addEventListener('change', () => {
