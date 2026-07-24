@@ -607,7 +607,6 @@ async function postRhPlaceAnnounce(bet, session, place) {
     $('rhModeHint').textContent = `Zu lang (${msg.length}/${RH_CHAT_MAX_LEN} Zeichen).`;
     return { ok: false, error: 'Nachricht zu lang' };
   }
-  $('rhChatMessage').value = msg;
   const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
   const label = session.game ? `${session.game} RH — ` : '';
   $('rhModeHint').textContent = res.ok
