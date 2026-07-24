@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.63</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.64</span></p>
       </div>
     </div>
     <div class="topbar-right">
@@ -244,10 +244,17 @@
           </div>
           <p id="rhRecordStatus" class="status-line">Session inaktiv</p>
           <div class="rh-bp-block">
-            <h4>RH Chat</h4>
-            <label class="compact-label">RH-BP <select id="cbRhBlueprints"><option value="">—</option></select></label>
-            <label class="compact-label rh-msg-label">Nachricht
-              <textarea id="rhChatMessage" rows="5" placeholder="Rollhunt-Ankündigung…"></textarea>
+            <h4>RH Chat <span id="rhChatSessionLabel" class="hint rh-chat-session-label"></span></h4>
+            <label class="compact-label rh-bp-template-label">Vorlage (optional)
+              <select id="cbRhBlueprints"><option value="">— Blueprint laden —</option></select>
+            </label>
+            <p class="hint rh-bp-template-hint">Blueprint nur zum Einfügen & Bearbeiten — der Text unten zählt für Posts.</p>
+            <label class="compact-label rh-msg-label">
+              <span class="rh-msg-head">
+                <span>Nachricht</span>
+                <button type="button" id="btnRhSaveSession" class="sm rh-save-btn" disabled title="Text &amp; Einstellungen für diese RH speichern">💾</button>
+              </span>
+              <textarea id="rhChatMessage" rows="5" placeholder="Rollhunt-Ankündigung für diese RH…"></textarea>
             </label>
             <div class="row-inline rh-chat-actions">
               <button type="button" id="btnAddRhBp" class="sm">+ RH BP</button>
@@ -341,7 +348,7 @@
     <section id="panel-automsg" class="panel-view">
       <div class="panel automsg-panel">
         <h2>Automsg / Regelpost</h2>
-        <p class="hint">Eigene Chat-Texte anlegen, manuell senden (rot) oder Autopost einstellen (grün).</p>
+        <p class="hint">Eigene Chat-Texte anlegen, manuell senden (▶), Autopost (⚙) oder Text bearbeiten (✎).</p>
 
         <div class="panel compact automsg-notify-panel">
           <h3>Markierung im Chat (@Mod)</h3>

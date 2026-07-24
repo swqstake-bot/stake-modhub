@@ -384,20 +384,21 @@ function getRhLeader(session) {
 
 function formatRhSessionMeta(session) {
   if (!session) return '';
+  const savedMark = session.chatMessage ? ' · 💾' : '';
   if (session.mode === 'highestMulti') {
     const leader = getRhLeader(session);
     const lead = leader ? formatRhLeaderLine(leader) : 'noch kein Treffer';
-    if (!session.active) return `beendet · ${lead} · ${session.bets.length} Wetten`;
+    if (!session.active) return `beendet · ${lead} · ${session.bets.length} Wetten${savedMark}`;
     if (session.overtime) {
       const extra = formatRhCountdown(Math.max(0, Date.now() - (session.overtimeSince || Date.now())));
-      return `Verlängerung +${extra} · ${lead} · ${session.bets.length} Wetten`;
+      return `Verlängerung +${extra} · ${lead} · ${session.bets.length} Wetten${savedMark}`;
     }
     const left = session.deadlineTs ? Math.max(0, session.deadlineTs - Date.now()) : 0;
-    return `${formatRhCountdown(left)} · ${lead} · ${session.bets.length} Wetten`;
+    return `${formatRhCountdown(left)} · ${lead} · ${session.bets.length} Wetten${savedMark}`;
   }
   const leader = getRhLeader(session);
   const lead = leader ? formatRhLeaderLine(leader) : 'noch kein Treffer';
-  return `ab ${session.minMulti}x · ${lead} · ${session.bets.length} Wetten`;
+  return `ab ${session.minMulti}x · ${lead} · ${session.bets.length} Wetten${savedMark}`;
 }
 
 async function enterRhOvertime(sessionId) {
@@ -429,11 +430,16 @@ function updateRhGameSelectOptions() {
 
 function selectRhSession(id) {
   state.rhActiveId = id;
+  const session = getRhSession(id);
+  if (session && $('rhGame')) {
+    $('rhGame').value = session.game;
+    updateRhGameModeUi();
+  }
   renderRhSessionsList();
   renderRhBets();
   refreshRhStatusLine();
-  syncRhBlueprintUi(getRhSession(id));
-  setRhStopButtonsEnabled(!!getRhSession(id)?.active);
+  loadRhSessionSettingsUi(session);
+  setRhStopButtonsEnabled(!!session?.active);
 }
 
 function removeRhSession(id) {
@@ -450,7 +456,7 @@ function removeRhSession(id) {
   renderRhSessionsList();
   renderRhBets();
   refreshRhStatusLine();
-  syncRhBlueprintUi(getSelectedRhSession());
+  loadRhSessionSettingsUi(getSelectedRhSession());
   setRhStopButtonsEnabled(!!getSelectedRhSession()?.active);
 }
 
@@ -752,37 +758,65 @@ function findRhBlueprintForGame(game) {
   return rhAnnounce[0] || candidates[0] || null;
 }
 
-function applyRhBlueprintToUi(line) {
-  const sel = $('cbRhBlueprints');
+function loadRhSessionSettingsUi(session) {
+  const label = $('rhChatSessionLabel');
+  const saveBtn = $('btnRhSaveSession');
   const ta = $('rhChatMessage');
-  if (!line) {
-    if (sel) sel.value = '';
-    if (ta) ta.value = '';
-    return;
-  }
-  if (sel) {
-    const opt = [...sel.options].find((o) => o.value === line);
-    sel.value = opt ? line : '';
-  }
-  if (ta) ta.value = line;
-}
+  const bpSel = $('cbRhBlueprints');
 
-function syncRhBlueprintUi(session) {
   if (!session) {
-    applyRhBlueprintToUi('');
+    if (label) label.textContent = '';
+    if (ta) ta.value = '';
+    if (bpSel) bpSel.value = '';
+    if (saveBtn) saveBtn.disabled = true;
     return;
   }
-  let line = session.bpLine;
-  if (!line) {
-    line = findRhBlueprintForGame(session.game);
-    if (line) session.bpLine = line;
+
+  if (label) {
+    label.textContent = session.active ? `— ${session.game}` : `— ${session.game} (beendet)`;
   }
-  applyRhBlueprintToUi(line);
+  if (ta) ta.value = session.chatMessage || '';
+  if (bpSel) bpSel.value = '';
+  if (saveBtn) saveBtn.disabled = !session.active;
+
+  if (session.mode === 'highestMulti') {
+    if ($('rhTimerMinutes')) {
+      $('rhTimerMinutes').value = String(
+        session.timerMinutes ?? state.settings.rhCrashTimerMinutes ?? 60
+      );
+    }
+    if ($('rhTimerSeconds')) {
+      $('rhTimerSeconds').value = String(session.timerSeconds ?? state.settings.rhCrashTimerSeconds ?? 0);
+    }
+  } else if ($('rhMinMulti')) {
+    $('rhMinMulti').value = String(session.minMulti ?? 0);
+  }
 }
 
-function saveRhBlueprintToSession(line) {
+function saveRhSessionSettings() {
   const session = getSelectedRhSession();
-  if (session && line) session.bpLine = line;
+  if (!session?.active) {
+    $('rhRecordStatus').textContent = 'Keine aktive RH ausgewählt.';
+    return;
+  }
+
+  session.chatMessage = ($('rhChatMessage')?.value || '').trim();
+  if (session.mode === 'highestMulti') {
+    session.timerMinutes = Math.max(0, Number($('rhTimerMinutes')?.value) || 0);
+    session.timerSeconds = Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0));
+  } else {
+    session.minMulti = Number($('rhMinMulti')?.value) || session.minMulti || 0;
+  }
+  session.settingsSaved = true;
+
+  renderRhSessionsList();
+  const btn = $('btnRhSaveSession');
+  if (btn) {
+    btn.classList.add('saved-flash');
+    setTimeout(() => btn.classList.remove('saved-flash'), 1200);
+  }
+  const extra = session.mode === 'highestMulti' ? ' & Timer' : '';
+  $('rhRecordStatus').textContent = `${session.game} RH — Text${extra} gespeichert.`;
 }
 
 function isRhAutopostEnabled() {
@@ -931,25 +965,61 @@ function syncRhAutopostTimer() {
   scheduleRhAutopost();
 }
 
-async function postRhAnnouncement({ auto = false } = {}) {
-  const msg = $('rhChatMessage')?.value.trim();
+async function postRhSessionMessage(session, message, { auto = false } = {}) {
+  const msg = String(message || '').trim();
+  const gameLabel = session?.game ? `${session.game} RH — ` : '';
   if (!msg) {
-    if (!auto) $('rhRecordStatus').textContent = 'RH-Nachricht fehlt.';
-    updateRhAutopostStatus();
+    if (!auto) $('rhRecordStatus').textContent = `${gameLabel}RH-Nachricht fehlt.`;
     return { ok: false, error: 'empty_message' };
   }
   if (!state.loggedIn) {
     if (!auto) $('rhRecordStatus').textContent = 'Zuerst einloggen (API-Key).';
     return { ok: false, error: 'not_logged_in' };
   }
+  const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+  if (res.ok) {
+    $('rhRecordStatus').textContent = auto
+      ? `${gameLabel}Auto: RH-Ankündigung gesendet.`
+      : `${gameLabel}RH-Nachricht gesendet.`;
+  } else if (!auto) {
+    $('rhRecordStatus').textContent = `${gameLabel}Fehler: ${res.error}`;
+  }
+  return res;
+}
+
+async function postRhAnnouncement({ auto = false } = {}) {
   if (auto && getActiveRhSessions().length === 0) {
     updateRhAutopostStatus();
     return { ok: false, error: 'no_active_rh' };
   }
-  saveRhBlueprintToSession($('cbRhBlueprints')?.value || msg);
+
+  if (auto) {
+    const sessions = getActiveRhSessions().filter((s) => (s.chatMessage || '').trim());
+    if (sessions.length) {
+      let lastRes = { ok: true };
+      for (let i = 0; i < sessions.length; i++) {
+        lastRes = await postRhSessionMessage(sessions[i], sessions[i].chatMessage, { auto: true });
+        if (!lastRes.ok) break;
+        if (i < sessions.length - 1) await new Promise((r) => setTimeout(r, 500));
+      }
+      if (lastRes.ok) {
+        state.rhAutopostLastSent = Date.now();
+        if (isRhAutopostEnabled() && getRhAutopostIntervalMinutes() > 0) {
+          scheduleRhAutopost();
+        }
+      } else if (isRhAutopostEnabled()) {
+        state.rhAutopostTimer = setTimeout(() => scheduleRhAutopost(), 60000);
+        const gameLabel = sessions[0]?.game ? `${sessions[0].game} RH — ` : '';
+        $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${lastRes.error} — Retry in 1 min`;
+      }
+      updateRhAutopostStatus();
+      return lastRes;
+    }
+  }
+
   const session = getSelectedRhSession();
-  const gameLabel = session?.game ? `${session.game} RH — ` : '';
-  const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+  const msg = $('rhChatMessage')?.value.trim();
+  const res = await postRhSessionMessage(session, msg, { auto });
   if (res.ok) {
     state.rhAutopostLastSent = Date.now();
     if (
@@ -959,14 +1029,10 @@ async function postRhAnnouncement({ auto = false } = {}) {
     ) {
       scheduleRhAutopost();
     }
-    $('rhRecordStatus').textContent = auto
-      ? `${gameLabel}Auto: RH-Ankündigung gesendet.`
-      : `${gameLabel}RH-Nachricht gesendet.`;
   } else if (auto && isRhAutopostEnabled()) {
     state.rhAutopostTimer = setTimeout(() => scheduleRhAutopost(), 60000);
+    const gameLabel = session?.game ? `${session.game} RH — ` : '';
     $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${res.error} — Retry in 1 min`;
-  } else {
-    $('rhRecordStatus').textContent = `${gameLabel}Fehler: ${res.error}`;
   }
   updateRhAutopostStatus();
   return res;
@@ -1410,6 +1476,7 @@ function renderAutoMsgList() {
     .map((m) => {
       const activeCls = m.autoEnabled && (Number(m.autoIntervalMinutes) || 0) > 0 ? ' is-active' : '';
       return `<div class="automsg-row" data-id="${esc(m.id)}">
+        <button type="button" class="automsg-btn-edit sm" data-action="edit" title="Text &amp; Titel bearbeiten">✎</button>
         <div class="automsg-row-body">
           <span class="automsg-row-title">${esc(m.label || 'Automsg')}${m.appendRulesLink ? ' <span class="hint">(Regeln)</span>' : ''}</span>
           <span class="automsg-row-preview">${esc(autoMsgPreview(m))}</span>
@@ -2979,9 +3046,7 @@ function wireHub() {
   wireBlueprintSelect('cbChatBlueprints', 'chatMessage');
   wireBlueprintSelect('cbMuteBlueprints', 'muteMessage');
   wireBlueprintSelect('cbWarnBlueprints', 'warnMessage');
-  wireBlueprintSelect('cbRhBlueprints', 'rhChatMessage', () =>
-    saveRhBlueprintToSession($('cbRhBlueprints')?.value)
-  );
+  wireBlueprintSelect('cbRhBlueprints', 'rhChatMessage');
 
   $('btnAddChatBp')?.addEventListener('click', async () => {
     const line = $('chatMessage').value.trim();
@@ -3267,6 +3332,7 @@ function wireHub() {
   });
 
   $('btnRhSendChat')?.addEventListener('click', () => postRhAnnouncement());
+  $('btnRhSaveSession')?.addEventListener('click', () => saveRhSessionSettings());
 
   $('rhAutopostEnabled')?.addEventListener('change', () => persistRhAutopostSettings());
   $('rhAutopostInterval')?.addEventListener('change', () => persistRhAutopostSettings());
@@ -3323,6 +3389,7 @@ async function finishRhSession(sessionId, reason, opts = {}) {
     $('rhRecordStatus').textContent = summary;
     setRhStopButtonsEnabled(false);
     renderRhBets();
+    loadRhSessionSettingsUi(session);
   }
   syncRhAutopostTimer();
 }
@@ -3359,10 +3426,13 @@ function wireRh() {
       mode: highestMode ? 'highestMulti' : 'minMulti',
       minMulti: highestMode ? 0 : Number($('rhMinMulti').value) || 0,
       bets: [],
-      startedAt: Date.now()
+      startedAt: Date.now(),
+      chatMessage: ($('rhChatMessage')?.value || '').trim()
     };
 
     if (highestMode) {
+      session.timerMinutes = Math.max(0, Number($('rhTimerMinutes')?.value) || 0);
+      session.timerSeconds = Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0));
       const durationMs = readRhTimerDurationMs();
       if (!durationMs) {
         $('rhRecordStatus').textContent = 'Timer: mindestens 1 Sekunde (Min/Sek) einstellen.';
@@ -3574,6 +3644,7 @@ function wireAutomsg() {
     const btn = e.target.closest('button[data-action]');
     if (!btn || !id) return;
     if (btn.dataset.action === 'send') postAutoMessage(id, { auto: false });
+    else if (btn.dataset.action === 'edit') openAutoMsgEditor(id);
     else if (btn.dataset.action === 'settings') openAutoMsgSettings(id);
   });
 
