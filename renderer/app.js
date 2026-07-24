@@ -19,6 +19,7 @@ const state = {
   validatedUserId: '',
   validatedUserHashedIp: '',
   chatLines: [],
+  rhSessions: [],
   rhHighestMultiPref: {},
   rhActiveId: null,
   rhNextId: 1,
