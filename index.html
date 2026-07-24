@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.64</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.65</span></p>
       </div>
     </div>
     <div class="topbar-right">
@@ -206,6 +206,9 @@
             <label id="rhMinMultiWrap">Ab Multi (x)
               <input id="rhMinMulti" type="number" step="0.01" min="0" value="1000" />
             </label>
+            <label id="rhHighestMultiModeWrap" class="check rh-highest-multi-opt hidden span-all">
+              <input type="checkbox" id="rhHighestMultiMode" /> Höchster Multi (Timer, wie Crash)
+            </label>
             <div id="rhPayoutWrap" class="rh-payout-wrap hidden span-all">
               <label class="rh-payout-variant-label">Setting
                 <select id="rhPayoutVariant"></select>
@@ -214,7 +217,7 @@
                 <select id="rhPayoutMulti"></select>
               </label>
             </div>
-            <label id="rhCrashDeadlineWrap" class="hidden rh-timer-wrap">Countdown (Crash/Slide)
+            <label id="rhCrashDeadlineWrap" class="hidden rh-timer-wrap">Countdown (Top-Multi)
               <div class="rh-timer-fields">
                 <input id="rhTimerMinutes" type="number" min="0" max="600" step="1" value="60" />
                 <span class="timer-unit">min</span>

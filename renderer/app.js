@@ -19,7 +19,7 @@ const state = {
   validatedUserId: '',
   validatedUserHashedIp: '',
   chatLines: [],
-  rhSessions: [],
+  rhHighestMultiPref: {},
   rhActiveId: null,
   rhNextId: 1,
   chatLineUid: 0,
@@ -291,8 +291,27 @@ function normalizeGameName(name) {
     .trim();
 }
 
-function isHighestMultiRhGame(game) {
+function isForcedHighestMultiRhGame(game) {
   return (C.HIGHEST_MULTI_RH_GAMES || []).includes(game);
+}
+
+function canOptionalHighestMultiRhGame(game) {
+  return (C.HIGHEST_MULTI_RH_OPTIONAL_GAMES || []).includes(game);
+}
+
+function isHighestMultiRhGame(game) {
+  return isForcedHighestMultiRhGame(game);
+}
+
+function readRhHighestMultiEnabled(game) {
+  const g = game || $('rhGame')?.value || '';
+  if (isForcedHighestMultiRhGame(g)) return true;
+  if (canOptionalHighestMultiRhGame(g)) return !!$('rhHighestMultiMode')?.checked;
+  return false;
+}
+
+function sessionUsesHighestMulti(session) {
+  return session?.mode === 'highestMulti';
 }
 
 function formatRhCountdown(ms) {
@@ -535,7 +554,7 @@ function buildRhPlaceMessage(bet, session, place) {
   const gameShort = game.length > 12 ? game.slice(0, 12) : game;
   const gameLabel = game.toLowerCase();
 
-  if (isHighestMultiRhGame(session?.game || game) && place === 1) {
+  if (sessionUsesHighestMulti(session) && place === 1) {
     const variants = [
       `@${user} ist auf Platz 1 und hält den 🥇🥇höchsten Multi🥇🥇 mit ${multi}x — ${gameLabel} — ${casino}`,
       `@${user} ist auf Platz 1 und hält den 🥇🥇höchsten Multi🥇🥇 mit ${multi}x — ${gameShort.toLowerCase()} — ${casino}`,
@@ -659,20 +678,29 @@ async function sendRhStopBlueprintToChat() {
 
 function updateRhGameModeUi() {
   const game = $('rhGame')?.value || '';
-  const crashMode = isHighestMultiRhGame(game);
-  $('rhMinMultiWrap')?.classList.toggle('hidden', crashMode);
-  $('rhCrashDeadlineWrap')?.classList.toggle('hidden', !crashMode);
-  if (crashMode) {
+  const optional = canOptionalHighestMultiRhGame(game);
+  const highestMode = readRhHighestMultiEnabled(game);
+  $('rhHighestMultiModeWrap')?.classList.toggle('hidden', !optional);
+  $('rhMinMultiWrap')?.classList.toggle('hidden', highestMode);
+  $('rhCrashDeadlineWrap')?.classList.toggle('hidden', !highestMode);
+  if (highestMode) {
     $('rhPayoutWrap')?.classList.add('hidden');
   } else {
     RhPayoutTables?.refresh?.(game, rhPayoutElements());
   }
   const hint = $('rhModeHint');
   if (hint) {
-    const payoutHint = !crashMode && RhPayoutTables?.hasGame?.(game) ? ' Payout-Tabelle unten.' : '';
-    hint.textContent = crashMode
-      ? 'Crash/Slide: Timer → Verlängerung bis Stop. Platz 1–3 posten (max. 160 Zeichen). ● = hidden.'
-      : `Klassisch: Wetten ab Min-Multi. Platz 1–3 posten (max. 160 Zeichen). Max. 1 RH/Spiel. ● = hidden.${payoutHint}`;
+    const payoutHint = !highestMode && RhPayoutTables?.hasGame?.(game) ? ' Payout-Tabelle unten.' : '';
+    if (isForcedHighestMultiRhGame(game)) {
+      hint.textContent =
+        'Crash/Slide: Timer → Verlängerung bis Stop. Platz 1–3 posten (max. 160 Zeichen). ● = hidden.';
+    } else if (optional && highestMode) {
+      hint.textContent = `${game}: Top-Multi mit Timer (wie Crash). Platz 1–3 posten (max. 160 Zeichen). ● = hidden.`;
+    } else if (optional) {
+      hint.textContent = `${game}: klassisch ab Min-Multi — oder „Höchster Multi“ für Timer-Modus.${payoutHint} ● = hidden.`;
+    } else {
+      hint.textContent = `Klassisch: Wetten ab Min-Multi. Platz 1–3 posten (max. 160 Zeichen). Max. 1 RH/Spiel. ● = hidden.${payoutHint}`;
+    }
   }
   updateRhLeaderPostUi();
 }
@@ -788,9 +816,19 @@ function loadRhSessionSettingsUi(session) {
     if ($('rhTimerSeconds')) {
       $('rhTimerSeconds').value = String(session.timerSeconds ?? state.settings.rhCrashTimerSeconds ?? 0);
     }
+    if ($('rhHighestMultiMode') && canOptionalHighestMultiRhGame(session.game)) {
+      $('rhHighestMultiMode').checked = true;
+      state.rhHighestMultiPref = state.rhHighestMultiPref || {};
+      state.rhHighestMultiPref[session.game] = true;
+    }
+  } else if ($('rhHighestMultiMode') && canOptionalHighestMultiRhGame(session.game)) {
+    $('rhHighestMultiMode').checked = false;
+    state.rhHighestMultiPref = state.rhHighestMultiPref || {};
+    state.rhHighestMultiPref[session.game] = false;
   } else if ($('rhMinMulti')) {
     $('rhMinMulti').value = String(session.minMulti ?? 0);
   }
+  updateRhGameModeUi();
 }
 
 function saveRhSessionSettings() {
@@ -3395,7 +3433,23 @@ async function finishRhSession(sessionId, reason, opts = {}) {
 }
 
 function wireRh() {
-  $('rhGame')?.addEventListener('change', updateRhGameModeUi);
+  $('rhGame')?.addEventListener('change', () => {
+    const game = $('rhGame')?.value || '';
+    if (canOptionalHighestMultiRhGame(game) && $('rhHighestMultiMode')) {
+      state.rhHighestMultiPref = state.rhHighestMultiPref || {};
+      $('rhHighestMultiMode').checked = !!state.rhHighestMultiPref[game];
+    }
+    updateRhGameModeUi();
+  });
+
+  $('rhHighestMultiMode')?.addEventListener('change', () => {
+    const game = $('rhGame')?.value || '';
+    if (canOptionalHighestMultiRhGame(game)) {
+      state.rhHighestMultiPref = state.rhHighestMultiPref || {};
+      state.rhHighestMultiPref[game] = !!$('rhHighestMultiMode')?.checked;
+    }
+    updateRhGameModeUi();
+  });
 
   $('rhSessionsList')?.addEventListener('click', (e) => {
     const dismiss = e.target.closest('[data-rh-dismiss]');
@@ -3418,7 +3472,7 @@ function wireRh() {
       return;
     }
 
-    const highestMode = isHighestMultiRhGame(game);
+    const highestMode = readRhHighestMultiEnabled(game);
     const session = {
       id: nextRhId(),
       active: true,

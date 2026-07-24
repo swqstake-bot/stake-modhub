@@ -57,8 +57,10 @@ window.MODHUB_CONST = {
     '1 year',
     'indefinite'
   ],
-  /** Crash / Slide RH: höchster Multi bis Deadline, kein Min-Multi */
+  /** Crash / Slide: immer höchster Multi + Timer */
   HIGHEST_MULTI_RH_GAMES: ['Crash', 'Slide'],
+  /** Scarab / Tome: optional Top-Multi per Checkbox */
+  HIGHEST_MULTI_RH_OPTIONAL_GAMES: ['Scarab Spin', 'Tome of Life', 'Blue Samurai'],
 
   /** Stake Originals grid order (2025 UI) — used by Rollhunt scanner dropdown */
   STAKE_ORIGINALS: [

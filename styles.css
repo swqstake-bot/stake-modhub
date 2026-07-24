@@ -1391,6 +1391,11 @@ body {
   padding: 0 6px;
 }
 
+.rh-highest-multi-opt {
+  margin: 0;
+  font-size: 11px;
+}
+
 .rh-bp-block {
   margin-top: 10px;
   padding-top: 10px;
