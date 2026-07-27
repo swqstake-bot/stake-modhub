@@ -670,6 +670,42 @@ body {
   display: inline-block;
 }
 
+.mention-autocomplete {
+  position: absolute;
+  left: 0;
+  right: 44px;
+  bottom: calc(100% + 4px);
+  z-index: 41;
+  max-height: 200px;
+  overflow: auto;
+  padding: 4px;
+  background: var(--panel-bg, #1a2c38);
+  border: 1px solid var(--border, #2f4553);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.mention-autocomplete-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text, #e8eef2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mention-autocomplete-item:hover,
+.mention-autocomplete-item.active,
+.mention-autocomplete-item:focus-visible {
+  background: rgba(0, 231, 1, 0.1);
+  color: var(--accent, #00e701);
+}
+
 .chat-line .chat-emote {
   margin: 0 1px;
 }

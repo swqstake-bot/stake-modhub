@@ -3370,6 +3370,7 @@ function wireHub() {
   );
 
   $('chatMessage')?.addEventListener('keydown', (e) => {
+    if (MentionAutocomplete?.isOpen?.()) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!$('btnSendChat')?.disabled) $('btnSendChat').click();
@@ -3988,6 +3989,13 @@ async function init() {
     RankBadges?.load(),
     RhPayoutTables?.init(rhPayoutElements())
   ]);
+  MentionAutocomplete?.init?.({
+    state,
+    textarea: $('chatMessage'),
+    panel: $('mentionAutocomplete'),
+    esc,
+    stripAt
+  });
   startHubClock();
   initPolicyModal();
   wireTabs();

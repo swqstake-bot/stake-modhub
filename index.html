@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.68</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.69</span></p>
       </div>
     </div>
     <div class="topbar-right">
@@ -153,6 +153,7 @@
                   </div>
                 </div>
                 <div id="emotePicker" class="emote-picker hidden" role="listbox" aria-label="Emotes"></div>
+                <div id="mentionAutocomplete" class="mention-autocomplete hidden" role="listbox" aria-label="User erwähnen"></div>
               </label>
               <div class="span-all row-inline hub-bp-row">
                 <button type="button" id="btnAddMuteBp" class="sm">+ Mute BP</button>
@@ -782,6 +783,7 @@
   <script src="./renderer/mod-policy.js"></script>
   <script src="./renderer/history-format.js"></script>
   <script src="./renderer/emotes.js"></script>
+  <script src="./renderer/mention-autocomplete.js"></script>
   <script src="./renderer/rh-payout-tables.js"></script>
   <script src="./renderer/chat-colors.js"></script>
   <script src="./renderer/rank-badges.js"></script>
