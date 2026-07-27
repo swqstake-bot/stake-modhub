@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Extrahiert Stake-Chat-Emotes aus emotes.har → assets/emotes/
+ * Extrahiert Stake-Chat-Emotes aus HAR → assets/emotes/ (merged, überschreibt index nicht komplett)
  * Usage: node scripts/extract-emotes-from-har.js [path/to/emotes.har]
  */
 const fs = require('fs');
@@ -8,6 +8,7 @@ const path = require('path');
 
 const harPath = path.resolve(process.argv[2] || path.join(__dirname, '..', 'emotes.har'));
 const outDir = path.join(__dirname, '..', 'assets', 'emotes');
+const indexPath = path.join(outDir, 'index.json');
 
 if (!fs.existsSync(harPath)) {
   console.error('HAR nicht gefunden:', harPath);
@@ -37,17 +38,24 @@ for (const entry of har.log.entries || []) {
   }
 }
 
+const existing = fs.existsSync(indexPath) ? JSON.parse(fs.readFileSync(indexPath, 'utf8')) : [];
+const indexByName = new Map(existing.map((e) => [String(e.name).toLowerCase(), e]));
+let added = 0;
+let updated = 0;
+
 fs.mkdirSync(outDir, { recursive: true });
 
-const index = [];
 for (const [name, item] of [...byName.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-  const ext =
-    item.mime.includes('gif') ? 'gif' : item.mime.includes('png') ? 'png' : 'webp';
+  const ext = item.mime.includes('gif') ? 'gif' : item.mime.includes('png') ? 'png' : 'webp';
   const file = `${name}.${ext}`;
   const buf = Buffer.from(item.text, item.encoding === 'base64' ? 'base64' : 'utf8');
   fs.writeFileSync(path.join(outDir, file), buf);
-  index.push({ name, file, token: `:${name}:` });
+  const had = indexByName.has(name);
+  indexByName.set(name, { name, file, token: `:${name}:` });
+  if (had) updated += 1;
+  else added += 1;
 }
 
-fs.writeFileSync(path.join(outDir, 'index.json'), JSON.stringify(index, null, 2));
-console.log(`Extracted ${index.length} emotes → ${outDir}`);
+const merged = [...indexByName.values()].sort((a, b) => a.name.localeCompare(b.name));
+fs.writeFileSync(indexPath, JSON.stringify(merged, null, 2));
+console.log(`Extracted ${byName.size} from HAR → +${added} new, ${updated} updated, total ${merged.length}`);

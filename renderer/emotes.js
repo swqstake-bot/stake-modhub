@@ -18,6 +18,18 @@
       .replace(/>/g, '&gt;');
   }
 
+  const MAX_EMOTE_SUGGESTIONS = 10;
+  /** @type {HTMLTextAreaElement | null} */
+  let autocompleteTextarea = null;
+  /** @type {HTMLElement | null} */
+  let autocompletePanel = null;
+  let autocompleteEsc = defaultEsc;
+  let autocompleteActiveIdx = 0;
+  /** @type {Array<{ name: string, file: string, token: string }>} */
+  let autocompleteSuggestions = [];
+  let emoteCtx = null;
+  let autocompleteDocListener = null;
+
   async function load() {
     if (loadPromise) return loadPromise;
     loadPromise = fetch('./assets/emotes/index.json')
@@ -75,6 +87,178 @@
     textarea.selectionStart = textarea.selectionEnd = pos;
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     textarea.focus();
+  }
+
+  function filterCatalog(query) {
+    const q = String(query || '').toLowerCase();
+    if (!q) return catalog.slice(0, MAX_EMOTE_SUGGESTIONS);
+    const starts = [];
+    const contains = [];
+    for (const em of catalog) {
+      const n = String(em.name).toLowerCase();
+      if (n.startsWith(q)) starts.push(em);
+      else if (n.includes(q)) contains.push(em);
+    }
+    return [...starts, ...contains].slice(0, MAX_EMOTE_SUGGESTIONS);
+  }
+
+  function getEmoteContext(ta) {
+    if (!ta) return null;
+    const value = ta.value;
+    const cursor = ta.selectionStart ?? value.length;
+    const before = value.slice(0, cursor);
+    const match = before.match(/:([a-z0-9_-]*)$/i);
+    if (!match) return null;
+    return {
+      query: match[1],
+      atIndex: cursor - match[0].length
+    };
+  }
+
+  function isAutocompleteOpen() {
+    return (
+      !!autocompletePanel &&
+      !autocompletePanel.classList.contains('hidden') &&
+      autocompleteSuggestions.length > 0
+    );
+  }
+
+  function closeAutocomplete() {
+    if (!autocompletePanel) return;
+    autocompletePanel.classList.add('hidden');
+    autocompletePanel.innerHTML = '';
+    autocompleteSuggestions = [];
+    emoteCtx = null;
+    autocompleteActiveIdx = 0;
+    if (autocompleteDocListener) {
+      document.removeEventListener('mousedown', autocompleteDocListener, true);
+      autocompleteDocListener = null;
+    }
+  }
+
+  function renderAutocomplete() {
+    if (!autocompletePanel || !emoteCtx) return;
+    if (!autocompleteSuggestions.length) {
+      closeAutocomplete();
+      return;
+    }
+    if (autocompleteActiveIdx >= autocompleteSuggestions.length) {
+      autocompleteActiveIdx = autocompleteSuggestions.length - 1;
+    }
+    if (autocompleteActiveIdx < 0) autocompleteActiveIdx = 0;
+
+    const esc = autocompleteEsc;
+    autocompletePanel.innerHTML = autocompleteSuggestions
+      .map((em, i) => {
+        const cls =
+          i === autocompleteActiveIdx ? 'emote-autocomplete-item active' : 'emote-autocomplete-item';
+        return `<button type="button" class="${cls}" data-token="${esc(em.token)}" role="option" aria-selected="${i === autocompleteActiveIdx}">
+          <img src="./assets/emotes/${esc(em.file)}" alt="${esc(em.name)}" loading="lazy" decoding="async">
+          <span>${esc(em.token)}</span>
+        </button>`;
+      })
+      .join('');
+    autocompletePanel.classList.remove('hidden');
+    autocompletePanel.querySelector('.emote-autocomplete-item.active')?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function refreshAutocomplete() {
+    if (!autocompleteTextarea) return;
+    emoteCtx = getEmoteContext(autocompleteTextarea);
+    if (!emoteCtx) {
+      closeAutocomplete();
+      return;
+    }
+    autocompleteSuggestions = filterCatalog(emoteCtx.query);
+    autocompleteActiveIdx = 0;
+    renderAutocomplete();
+
+    if (autocompleteSuggestions.length && !autocompleteDocListener) {
+      autocompleteDocListener = (e) => {
+        if (autocompletePanel?.contains(e.target) || autocompleteTextarea?.contains(e.target)) return;
+        closeAutocomplete();
+      };
+      document.addEventListener('mousedown', autocompleteDocListener, true);
+    }
+  }
+
+  function applyEmoteToken(token) {
+    if (!autocompleteTextarea || !emoteCtx || !token) return;
+    const value = autocompleteTextarea.value;
+    const cursor = autocompleteTextarea.selectionStart ?? value.length;
+    const before = value.slice(0, emoteCtx.atIndex);
+    const after = value.slice(cursor);
+    const insert = String(token);
+    const max = autocompleteTextarea.maxLength > 0 ? autocompleteTextarea.maxLength : Infinity;
+    const room = max - before.length - after.length;
+    if (room <= 0) {
+      closeAutocomplete();
+      return;
+    }
+    const emoteToken = insert.length > room ? insert.slice(0, room) : insert;
+    autocompleteTextarea.value = before + emoteToken + after;
+    const pos = before.length + emoteToken.length;
+    autocompleteTextarea.selectionStart = autocompleteTextarea.selectionEnd = pos;
+    autocompleteTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+    closeAutocomplete();
+    autocompleteTextarea.focus();
+  }
+
+  function selectActiveEmote() {
+    const em = autocompleteSuggestions[autocompleteActiveIdx];
+    if (em?.token) applyEmoteToken(em.token);
+  }
+
+  function wireAutocomplete(textarea, panel, escFn) {
+    if (!textarea || !panel) return;
+    autocompleteTextarea = textarea;
+    autocompletePanel = panel;
+    if (typeof escFn === 'function') autocompleteEsc = escFn;
+
+    textarea.addEventListener('input', () => refreshAutocomplete());
+    textarea.addEventListener('keydown', (e) => {
+      if (!isAutocompleteOpen()) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        e.stopPropagation();
+        autocompleteActiveIdx = (autocompleteActiveIdx + 1) % autocompleteSuggestions.length;
+        renderAutocomplete();
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopPropagation();
+        autocompleteActiveIdx =
+          (autocompleteActiveIdx - 1 + autocompleteSuggestions.length) % autocompleteSuggestions.length;
+        renderAutocomplete();
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        e.stopPropagation();
+        selectActiveEmote();
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeAutocomplete();
+      }
+    }, true);
+    textarea.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (!autocompletePanel?.matches(':hover') && !autocompletePanel?.contains(document.activeElement)) {
+          closeAutocomplete();
+        }
+      }, 120);
+    });
+    panel.addEventListener('mousedown', (e) => e.preventDefault());
+    panel.addEventListener('click', (e) => {
+      const item = e.target.closest('.emote-autocomplete-item');
+      if (!item) return;
+      e.preventDefault();
+      applyEmoteToken(item.getAttribute('data-token') || '');
+    });
   }
 
   function closePicker(panel) {
@@ -136,6 +320,9 @@
     if (opts.button && opts.panel && opts.textarea) {
       wirePicker(opts.button, opts.panel, opts.textarea);
     }
+    if (opts.autocompletePanel && opts.textarea) {
+      wireAutocomplete(opts.textarea, opts.autocompletePanel, opts.esc);
+    }
     return catalog;
   }
 
@@ -143,6 +330,8 @@
     load,
     init,
     formatMessageHtml,
-    getCatalog: () => catalog
+    getCatalog: () => catalog,
+    isAutocompleteOpen,
+    closeAutocomplete
   };
 })(window);

@@ -20,6 +20,11 @@
     "token": ":biden:"
   },
   {
+    "name": "blob",
+    "file": "blob.gif",
+    "token": ":blob:"
+  },
+  {
     "name": "catbread",
     "file": "catbread.webp",
     "token": ":catbread:"
@@ -115,6 +120,11 @@
     "token": ":jordan:"
   },
   {
+    "name": "kanye",
+    "file": "kanye.webp",
+    "token": ":kanye:"
+  },
+  {
     "name": "lambo",
     "file": "lambo.webp",
     "token": ":lambo:"
@@ -143,6 +153,11 @@
     "name": "messi",
     "file": "messi.webp",
     "token": ":messi:"
+  },
+  {
+    "name": "monkas",
+    "file": "monkas.webp",
+    "token": ":monkas:"
   },
   {
     "name": "nadal",

@@ -3370,7 +3370,7 @@ function wireHub() {
   );
 
   $('chatMessage')?.addEventListener('keydown', (e) => {
-    if (MentionAutocomplete?.isOpen?.()) return;
+    if (MentionAutocomplete?.isOpen?.() || Emotes?.isAutocompleteOpen?.()) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!$('btnSendChat')?.disabled) $('btnSendChat').click();
@@ -3984,7 +3984,9 @@ async function init() {
     Emotes?.init({
       button: $('btnEmotePicker'),
       panel: $('emotePicker'),
-      textarea: $('chatMessage')
+      textarea: $('chatMessage'),
+      autocompletePanel: $('emoteAutocomplete'),
+      esc
     }),
     RankBadges?.load(),
     RhPayoutTables?.init(rhPayoutElements())
