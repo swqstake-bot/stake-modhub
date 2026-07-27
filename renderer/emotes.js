@@ -61,7 +61,7 @@
       const em = byName.get(match[1].toLowerCase());
       if (em) {
         parts.push(
-          `<img class="chat-emote" src="./assets/emotes/${esc(em.file)}" alt="${esc(match[0])}" title="${esc(match[0])}" loading="lazy" decoding="async">`
+          `<img class="chat-emote" src="./assets/emotes/${esc(em.file)}" alt="${esc(match[0])}" title="${esc(match[0])}" loading="eager" decoding="sync">`
         );
       } else {
         parts.push(esc(match[0]));
@@ -127,6 +127,7 @@
     if (!autocompletePanel) return;
     autocompletePanel.classList.add('hidden');
     autocompletePanel.innerHTML = '';
+    delete autocompletePanel.dataset.listKey;
     autocompleteSuggestions = [];
     emoteCtx = null;
     autocompleteActiveIdx = 0;
@@ -148,6 +149,17 @@
     if (autocompleteActiveIdx < 0) autocompleteActiveIdx = 0;
 
     const esc = autocompleteEsc;
+    const listKey = autocompleteSuggestions.map((em) => em.name).join('\n');
+    if (autocompletePanel.dataset.listKey === listKey) {
+      autocompletePanel.querySelectorAll('.emote-autocomplete-item').forEach((el, i) => {
+        el.classList.toggle('active', i === autocompleteActiveIdx);
+        el.setAttribute('aria-selected', i === autocompleteActiveIdx ? 'true' : 'false');
+      });
+      autocompletePanel.querySelector('.emote-autocomplete-item.active')?.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    autocompletePanel.dataset.listKey = listKey;
+
     autocompletePanel.innerHTML = autocompleteSuggestions
       .map((em, i) => {
         const cls =

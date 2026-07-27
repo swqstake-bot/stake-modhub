@@ -249,8 +249,6 @@
     const prevCount = state.chatDomCount || 0;
     const newLines = displayLines.slice(prevCount);
     if (!newLines.length) {
-      renderChatBox(live, state.chatLines);
-      renderChatBox(rh, state.chatLines);
       return;
     }
 
