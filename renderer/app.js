@@ -55,6 +55,8 @@ const state = {
   allmsgUser: '',
   modMarkUser: '',
   chatFilterKeyword: '',
+  /** 'com' | 'eu' — which site tab is active in the Hub */
+  activeSite: 'com',
   browserVisible: false,
   rhStatusTimer: null,
   policyPending: null,
@@ -76,13 +78,77 @@ const state = {
   },
   liveStats: {
     wsCount: 0,
+    wsEuCount: 0,
     browserCount: 0,
     lastWsAt: 0,
+    lastWsEuAt: 0,
     lastBrowserAt: 0,
     wsSubscribed: false,
-    wsHost: 'stake.bet'
+    wsEuSubscribed: false,
+    wsHost: 'stake.bet',
+    wsEuHost: 'stake.eu'
   }
 };
+
+function getActiveSite() {
+  return state.activeSite === 'eu' ? 'eu' : 'com';
+}
+
+function isEuSiteEnabled() {
+  return state.settings?.wsEuEnabled === true && String(state.settings?.apiKeyEu || '').trim() !== '';
+}
+
+function syncSiteTabsUi() {
+  const euOn = state.settings?.wsEuEnabled === true;
+  const euTab = $('siteTabEu');
+  const comTab = $('siteTabCom');
+  if (euTab) {
+    euTab.disabled = !euOn;
+    euTab.title = euOn
+      ? 'stake.eu Live-Chat'
+      : 'In Settings: „stake.eu Chat parallel“ aktivieren + EU API-Key';
+  }
+  if (!euOn && state.activeSite === 'eu') {
+    state.activeSite = 'com';
+  }
+  const site = getActiveSite();
+  document.body.classList.toggle('site-eu', site === 'eu');
+  comTab?.classList.toggle('active', site === 'com');
+  euTab?.classList.toggle('active', site === 'eu');
+  const liveTitle = document.querySelector('#panel-hub .panel-head-left h2');
+  if (liveTitle) {
+    liveTitle.textContent = site === 'eu' ? 'Live Chat · stake.eu' : 'Live Chat';
+  }
+}
+
+async function setActiveSite(site) {
+  const next = site === 'eu' ? 'eu' : 'com';
+  if (next === 'eu' && !state.settings?.wsEuEnabled) return;
+  if (state.activeSite === next) return;
+  state.activeSite = next;
+  try {
+    state.settings = await modHub.saveSettings({ activeSite: next });
+  } catch (_) {
+    /* ignore */
+  }
+  syncSiteTabsUi();
+  LiveChat.invalidateChatDom();
+  renderChats({ forceFull: true });
+  renderHubIndexes();
+}
+
+function wireSiteTabs() {
+  $('siteTabCom')?.addEventListener('click', () => setActiveSite('com'));
+  $('siteTabEu')?.addEventListener('click', () => {
+    if ($('siteTabEu')?.disabled) return;
+    setActiveSite('eu');
+  });
+  $('wsEuEnabled')?.addEventListener('change', () => {
+    syncSiteTabsUi();
+    const fields = $('euSettingsFields');
+    if (fields) fields.style.opacity = $('wsEuEnabled')?.checked ? '1' : '0.55';
+  });
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -96,7 +162,12 @@ function setHistoryOut(html, title = 'Historie') {
 }
 
 function chatId() {
+  const site = getActiveSite();
   const room = state.settings.prefChatroom || 'German';
+  if (site === 'eu') {
+    const eu = C.CHATROOMS_EU || {};
+    return eu[room] || eu.de || eu.German || C.DEFAULT_EU_CHAT_ID || '';
+  }
   return (C.CHATROOMS && C.CHATROOMS[room]) || C.CHATROOMS?.German || '';
 }
 
@@ -205,7 +276,8 @@ function buildTaggedIndexEntry(line) {
     text: line.message,
     preview: line.message.slice(0, 120),
     idx: line.idx,
-    uid: line.uid
+    uid: line.uid,
+    chatSource: line.chatSource || ''
   };
 }
 
@@ -219,7 +291,8 @@ function buildFlaggedIndexEntry(line, flag) {
     idx: line.idx,
     flagLabel: flag.label,
     flagPrimary: flag.primary,
-    tags: flag.tags
+    tags: flag.tags,
+    chatSource: line.chatSource || ''
   };
 }
 
@@ -1404,7 +1477,8 @@ function buildRainIndexEntry(m, line) {
     preview: recipientText,
     totalLabel,
     shares,
-    idx: line.idx
+    idx: line.idx,
+    chatSource: line.chatSource || ''
   };
 }
 
@@ -1841,10 +1915,18 @@ function renderIndexList(el, items, onDbl) {
   });
 }
 
+function indexMatchesActiveSite(it) {
+  const euEnabled = state.settings?.wsEuEnabled === true;
+  if (!euEnabled) return true;
+  const site = getActiveSite();
+  const isEu = it?.chatSource === 'eu';
+  return site === 'eu' ? isEu : !isEu;
+}
+
 function renderHubIndexes() {
-  renderIndexList($('tagIndex'), state.tagged, (it) => openTaggedItem(it));
-  renderIndexList($('rainIndex'), state.rains, (it) => scrollToLine(it.idx));
-  renderIndexList($('flaggedIndex'), state.flagged, (it) => openFlaggedChatHistory(it));
+  renderIndexList($('tagIndex'), state.tagged.filter(indexMatchesActiveSite), (it) => openTaggedItem(it));
+  renderIndexList($('rainIndex'), state.rains.filter(indexMatchesActiveSite), (it) => scrollToLine(it.idx));
+  renderIndexList($('flaggedIndex'), state.flagged.filter(indexMatchesActiveSite), (it) => openFlaggedChatHistory(it));
 }
 
 function scrollToLiveChatUid(uid) {
@@ -1948,26 +2030,32 @@ function updateLiveStatusUi() {
 
   const now = Date.now();
   const wsRecent = st.wsCount > 0 && now - st.lastWsAt < 120000;
+  const wsEuRecent = st.wsEuCount > 0 && now - st.lastWsEuAt < 120000;
+  const anyWsRecent = wsRecent || wsEuRecent;
   const browserRecent = st.browserCount > 0 && now - st.lastBrowserAt < 120000;
+  const euEnabled = state.settings?.wsEuEnabled === true;
+  const wsLabelParts = [st.wsHost || 'stake.bet'];
+  if (euEnabled) wsLabelParts.push(st.wsEuHost || 'stake.eu');
+  const wsLabel = wsLabelParts.join(' + ');
 
   badge.classList.remove('warn', 'ok');
   live.classList.remove('warn');
   badge.style.display = '';
 
-  if (wsRecent) {
+  if (anyWsRecent) {
     badge.textContent = 'WS';
     badge.classList.add('ok');
     live.textContent = 'Live';
-    debug.textContent = `Native WS · ${st.wsHost}`;
+    debug.textContent = `Native WS · ${wsLabel}`;
   } else if (browserRecent) {
     badge.style.display = 'none';
     live.textContent = 'Live';
     debug.textContent = 'Chat-Capture im Hintergrund';
-  } else if (st.wsSubscribed) {
+  } else if (st.wsSubscribed || (euEnabled && st.wsEuSubscribed)) {
     badge.textContent = 'WS';
     badge.classList.add('warn');
     live.textContent = 'Live';
-    debug.textContent = `Native WS · ${st.wsHost} · warte auf Chat…`;
+    debug.textContent = `Native WS · ${wsLabel} · warte auf Chat…`;
   } else {
     badge.textContent = 'WS';
     live.textContent = state.loggedIn ? 'Live' : 'Live: aus';
@@ -2153,6 +2241,14 @@ async function loadSettingsUi() {
   $('stakeDomain').innerHTML = (C.STAKE_MIRRORS || []).map((d) => `<option value="${d}">${d}</option>`).join('');
   $('stakeDomain').value = s.stakeDomain || 'stake.bet';
   if ($('wsHost')) $('wsHost').value = s.wsHost || 'stake.bet';
+  if ($('wsEuEnabled')) $('wsEuEnabled').checked = s.wsEuEnabled === true;
+  if ($('apiKeyEu')) $('apiKeyEu').value = s.apiKeyEu || '';
+  if ($('clearanceEu')) $('clearanceEu').value = s.clearanceEu || '';
+  if ($('euSettingsFields')) {
+    $('euSettingsFields').style.opacity = s.wsEuEnabled === true ? '1' : '0.55';
+  }
+  state.activeSite = s.activeSite === 'eu' && s.wsEuEnabled ? 'eu' : 'com';
+  syncSiteTabsUi();
   $('prefChatroom').innerHTML = Object.keys(C.CHATROOMS || {}).map((k) => `<option value="${k}">${k}</option>`).join('');
   $('prefChatroom').value = s.prefChatroom || 'German';
   $('apiKey').value = s.apiKey || '';
@@ -2216,12 +2312,17 @@ async function saveSettingsFromForm() {
     stakeDomain: $('stakeDomain').value,
     prefChatroom: $('prefChatroom').value,
     apiKey: $('apiKey').value.trim(),
+    apiKeyEu: ($('apiKeyEu')?.value || '').trim(),
     cookieMethod: $('cookieMethod').value,
     clearance: $('clearance').value.trim(),
+    clearanceEu: ($('clearanceEu')?.value || '').trim(),
     logChat: $('logChat').checked,
     logHash: $('logHash').checked,
     useNativeWs: $('useNativeWs').checked,
     wsHost: ($('wsHost')?.value || 'stake.bet').trim() || 'stake.bet',
+    wsEuEnabled: $('wsEuEnabled')?.checked === true,
+    wsEuHost: 'stake.eu',
+    activeSite: getActiveSite(),
     maxChatRows: parseInt($('maxChatRows')?.value, 10) || 1000,
     liveChatFontSize: applyLiveChatFontSize($('liveChatFontSize')?.value ?? 13),
     colorChatEnabled: $('colorChatSettings')?.checked ?? $('colorChat')?.checked ?? true,
@@ -2260,6 +2361,15 @@ async function doLogin() {
   retagModMentions();
   await refreshMutedWarnedSets();
   status.textContent = `Eingeloggt als ${state.modUser}. Live-Chat gestartet.`;
+  if (state.settings?.wsEuEnabled) {
+    const euKey = String(state.settings.apiKeyEu || $('apiKeyEu')?.value || '').trim();
+    const euStatus = $('euLoginStatus');
+    if (euStatus) {
+      euStatus.textContent = euKey
+        ? 'stake.eu parallel aktiv (eigener API-Key).'
+        : 'stake.eu aktiviert, aber EU API-Key fehlt.';
+    }
+  }
   ModChat?.onLogin?.(state.modUser);
   updateLoginUi();
   renderChats();
@@ -2667,7 +2777,10 @@ async function loadPolicyChatTab(loadMore = false) {
   if (meta) meta.textContent = 'Lade…';
   if (moreBtn) moreBtn.disabled = true;
 
-  const res = await modHub.chatHistory(state.validatedUser, { maxItems: state.chatHistoryLimit });
+  const res = await modHub.chatHistory(state.validatedUser, {
+    maxItems: state.chatHistoryLimit,
+    site: getActiveSite()
+  });
   if (!res.ok) {
     el.innerHTML = `<p class="hist-empty">Fehler: ${esc(res.error)}</p>`;
     if (meta) meta.textContent = 'Fehler';
@@ -2700,7 +2813,7 @@ async function loadPolicyTipsTab() {
   const el = $('policyTipHistory');
   if (!el || !state.validatedUser) return;
   el.innerHTML = '<p class="hist-empty">Lade Spenden-Historie…</p>';
-  const res = await modHub.tipHistory(state.validatedUser);
+  const res = await modHub.tipHistory(state.validatedUser, { site: getActiveSite() });
   if (!res.ok) {
     el.innerHTML = `<p class="hist-empty">Fehler: ${esc(res.error)}</p>`;
     return;
@@ -2715,7 +2828,7 @@ async function openModAction(initialTab = 'mute') {
   $('policyUserName').textContent = `${state.validatedUser}${v2}`;
   $('policyReason').value = '';
   $('policyMuteMsg').value = '';
-  const hist = await modHub.muteHistory(state.validatedUser);
+  const hist = await modHub.muteHistory(state.validatedUser, { site: getActiveSite() });
   const user = hist.ok ? hist.data?.user : null;
   const hash = user?.hashedIp || state.validatedUserHashedIp || '';
   $('policyUserHash').textContent = hash ? `Hashed IP: ${hash}` : 'Hashed IP: —';
@@ -2738,7 +2851,7 @@ async function validateAndOpenModAction(username, initialTab = 'mute') {
   setValidateButtonState(false);
   $('validateStatus').textContent = 'Prüfe über Stake-API…';
   $('validateStatus').style.color = '';
-  const res = await modHub.validateUser(name);
+  const res = await modHub.validateUser(name, { site: getActiveSite() });
   const u = res.data?.user;
   if (res.ok && u?.id) {
     const canonical = stripAt(u.name) || name;
@@ -2791,7 +2904,8 @@ async function applyPolicyMute() {
   const res = await modHub.muteUser({
     userId: state.policyPending.userId,
     expire,
-    message
+    message,
+    site: getActiveSite()
   });
   if (btn) btn.disabled = false;
   $('validateStatus').textContent = res.ok ? `Gemutet: ${state.policyPending.username}` : `Fehler: ${res.error}`;
@@ -2891,9 +3005,10 @@ async function drainRhBetQueue() {
   }
 }
 
-function ingestLiveMessageSync(m, { receivedAt } = {}) {
+function ingestLiveMessageSync(m, { receivedAt, chatSource } = {}) {
   const line = parseChatLine(m.username, m.message, m.kind, m.timestamp);
   line.receivedAt = receivedAt ?? Date.now();
+  if (chatSource) line.chatSource = chatSource;
   if (m.rain && typeof m.rain === 'object') line.rain = m.rain;
   if (Array.isArray(m.flags) && m.flags.length) line.flags = m.flags;
   if (Array.isArray(m.roles) && m.roles.length) line.roles = m.roles;
@@ -2924,10 +3039,11 @@ function ingestLiveMessageSync(m, { receivedAt } = {}) {
   return line;
 }
 
-function processLiveMessageBatch(messages, { baseTs } = {}) {
+function processLiveMessageBatch(messages, { baseTs, source } = {}) {
   const ts0 = baseTs ?? Date.now();
+  const chatSource = source === 'ws-eu' ? 'eu' : '';
   for (let i = 0; i < messages.length; i++) {
-    const line = ingestLiveMessageSync(messages[i], { receivedAt: ts0 + i });
+    const line = ingestLiveMessageSync(messages[i], { receivedAt: ts0 + i, chatSource });
     if (line.betId) enqueueRhBet(line);
   }
   renderChats();
@@ -3132,7 +3248,7 @@ function wireHub() {
     setValidateButtonState(false);
     $('validateStatus').textContent = 'Prüfe über Stake-API…';
     $('validateStatus').style.color = '';
-    const res = await modHub.validateUser(name);
+    const res = await modHub.validateUser(name, { site: getActiveSite() });
     const u = res.data?.user;
     if (res.ok && u?.id) {
       const canonical = stripAt(u.name) || name;
@@ -3141,7 +3257,8 @@ function wireHub() {
       state.validatedUserHashedIp = u.hashedIp || '';
       $('validateUsername').value = canonical;
       const v2 = isVeri2(canonical) ? ' ★ Veri2' : '';
-      $('validateStatus').textContent = `OK: ${canonical}${v2}`;
+      const siteLabel = getActiveSite() === 'eu' ? ' · EU' : '';
+      $('validateStatus').textContent = `OK: ${canonical}${v2}${siteLabel}`;
       $('validateStatus').style.color = '#00e701';
       setValidateButtonState(true);
       setUserActionsEnabled(true);
@@ -3152,7 +3269,7 @@ function wireHub() {
       state.validatedUserHashedIp = '';
       $('validateStatus').textContent =
         res.error === 'user_not_found'
-          ? `User „${name}“ nicht gefunden (API)`
+          ? `User „${name}“ nicht gefunden (API${getActiveSite() === 'eu' ? ' EU' : ''})`
           : `Fehler: ${res.error || 'Validate fehlgeschlagen'}`;
       $('validateStatus').style.color = '';
       setValidateButtonState(false);
@@ -3197,12 +3314,12 @@ function wireHub() {
   $('btnPolicyApply')?.addEventListener('click', () => applyPolicyMute());
   $('btnPolicyUnmute')?.addEventListener('click', async () => {
     if (!state.validatedUserId) return;
-    const res = await modHub.unmuteUser({ userId: state.validatedUserId });
+    const res = await modHub.unmuteUser({ userId: state.validatedUserId, site: getActiveSite() });
     $('validateStatus').textContent = res.ok
       ? `Unmute: ${state.validatedUser}`
       : `Fehler: ${res.error}`;
     if (res.ok) {
-      const hist = await modHub.muteHistory(state.validatedUser);
+      const hist = await modHub.muteHistory(state.validatedUser, { site: getActiveSite() });
       const user = hist.ok ? hist.data?.user : null;
       state.muteHistoryCache = user?.community?.muteList || [];
       renderPolicyMuteHistory(state.muteHistoryCache);
@@ -3245,7 +3362,11 @@ function wireHub() {
       return;
     }
     const msg = prependUserMentionForChat(rawMsg, state.validatedUser);
-    const res = await modHub.warnUser({ username: state.validatedUser, message: msg });
+    const res = await modHub.warnUser({
+      username: state.validatedUser,
+      message: msg,
+      site: getActiveSite()
+    });
     $('validateStatus').textContent = res.ok
       ? `Warnung an @${state.validatedUser} gesendet`
       : `Fehler: ${res.error}`;
@@ -3255,7 +3376,7 @@ function wireHub() {
   $('btnUserHash')?.addEventListener('click', async () => {
     const name = state.validatedUser || $('validateUsername').value.trim();
     if (!name) return;
-    const res = await modHub.userHash(name);
+    const res = await modHub.userHash(name, { site: getActiveSite() });
     if (res.ok && res.data?.user) {
       setHistoryOut(HistoryFormat.formatUserDetails(res.data), 'User-Details');
       $('validateStatus').textContent = `Hash: ${res.data.user.hashedIp || '—'}`;
@@ -3351,7 +3472,12 @@ function wireHub() {
     }
     const msg =
       mentionUser && state.validatedUser ? prependUserMentionForChat(raw, state.validatedUser) : raw;
-    const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+    const res = await modHub.sendChat({
+      message: msg,
+      useGraphql: true,
+      chatId: chatId(),
+      site: getActiveSite()
+    });
     if (res.ok) {
       const el = $(inputId);
       if (el) el.value = '';
@@ -3839,6 +3965,7 @@ function wireSettings() {
 
   $('btnSaveSettings')?.addEventListener('click', async () => {
     await saveSettingsFromForm();
+    syncSiteTabsUi();
     $('loginStatus').textContent = 'Einstellungen gespeichert.';
     if (state.loggedIn && ModChat?.isAllowedMod?.(state.modUser)) {
       ModChat.reconnect?.();
@@ -3864,6 +3991,26 @@ function wireSettings() {
         : 'Browser geschlossen. Kein CF-Cookie gefunden — API-Key reicht oft trotzdem.';
     } else {
       $('loginStatus').textContent = `Cookie-Update: ${res.error}`;
+    }
+  });
+
+  $('btnStakeLoginEu')?.addEventListener('click', async () => {
+    const status = $('euLoginStatus');
+    if (status) status.textContent = 'Browser stake.eu öffnen…';
+    await saveSettingsFromForm();
+    const res = await modHub.stakeLogin({ stakeDomain: 'stake.eu', site: 'eu' });
+    if (res.ok) {
+      const s = await modHub.getSettings();
+      state.settings = s;
+      if ($('clearanceEu')) $('clearanceEu').value = s.clearanceEu || res.clearance || '';
+      if (status) {
+        status.textContent = s.clearanceEu || res.clearance
+          ? 'EU-Cookies aktualisiert.'
+          : 'Browser geschlossen. Kein CF-Cookie — EU API-Key reicht oft trotzdem.';
+      }
+      syncSiteTabsUi();
+    } else if (status) {
+      status.textContent = `EU Cookie-Update: ${res.error}`;
     }
   });
 
@@ -4001,6 +4148,7 @@ async function init() {
   startHubClock();
   initPolicyModal();
   wireTabs();
+  wireSiteTabs();
   wireHub();
   wireRh();
   wireBets();
@@ -4016,6 +4164,8 @@ async function init() {
   modHub.onSessionUpdated((s) => {
     state.settings = { ...state.settings, ...s };
     if (s.clearance) $('clearance').value = s.clearance;
+    if (s.clearanceEu && $('clearanceEu')) $('clearanceEu').value = s.clearanceEu;
+    syncSiteTabsUi();
   });
 
   modHub.onLiveMessages((payload) => {
@@ -4025,12 +4175,15 @@ async function init() {
     if (src === 'ws') {
       state.liveStats.wsCount += messages.length;
       state.liveStats.lastWsAt = Date.now();
+    } else if (src === 'ws-eu') {
+      state.liveStats.wsEuCount += messages.length;
+      state.liveStats.lastWsEuAt = Date.now();
     } else if (src === 'browser' || src === 'inject') {
       state.liveStats.browserCount += messages.length;
       state.liveStats.lastBrowserAt = Date.now();
     }
     const baseTs = Date.now();
-    processLiveMessageBatch(messages, { baseTs });
+    processLiveMessageBatch(messages, { baseTs, source: src });
     updateLiveStatusUi();
   });
 
@@ -4040,13 +4193,28 @@ async function init() {
 
   modHub.onWsStatus((st) => {
     const phase = st?.phase || '';
-    if (st.wsHost) state.liveStats.wsHost = st.wsHost;
-    if (st.subscribed) state.liveStats.wsSubscribed = true;
-    if (phase === 'stopped') state.liveStats.wsSubscribed = false;
+    const isEu = st.stream === 'eu';
+    if (st.wsHost) {
+      if (isEu) state.liveStats.wsEuHost = st.wsHost;
+      else state.liveStats.wsHost = st.wsHost;
+    }
+    if (st.subscribed) {
+      if (isEu) state.liveStats.wsEuSubscribed = true;
+      else state.liveStats.wsSubscribed = true;
+    }
+    if (phase === 'stopped') {
+      if (isEu) state.liveStats.wsEuSubscribed = false;
+      else state.liveStats.wsSubscribed = false;
+    }
 
     if (phase === 'message') {
-      state.liveStats.wsCount = st.msgCount || state.liveStats.wsCount;
-      state.liveStats.lastWsAt = Date.now();
+      if (isEu) {
+        state.liveStats.wsEuCount = st.msgCount || state.liveStats.wsEuCount;
+        state.liveStats.lastWsEuAt = Date.now();
+      } else {
+        state.liveStats.wsCount = st.msgCount || state.liveStats.wsCount;
+        state.liveStats.lastWsAt = Date.now();
+      }
       updateLiveStatusUi();
       return;
     }
@@ -4056,6 +4224,10 @@ async function init() {
     }
 
     if (phase === 'reconnecting' || phase === 'error' || phase === 'closed') {
+      if (isEu) {
+        updateLiveStatusUi();
+        return;
+      }
       if (state.liveStats.browserCount > 0 && Date.now() - state.liveStats.lastBrowserAt < 120000) {
         updateLiveStatusUi();
         return;
@@ -4077,12 +4249,14 @@ async function init() {
     }
 
     if (phase === 'subscribed') {
-      state.liveStats.wsSubscribed = true;
+      if (isEu) state.liveStats.wsEuSubscribed = true;
+      else state.liveStats.wsSubscribed = true;
       updateLiveStatusUi();
       return;
     }
 
     if (phase === 'connecting' || phase === 'open') {
+      if (isEu) return;
       if (!state.liveStats.wsCount && !state.liveStats.injectCount) {
         $('wsModeBadge').textContent = phase === 'connecting' ? 'WS: verbinde…' : 'WS: handshake';
         $('wsDebug').textContent =

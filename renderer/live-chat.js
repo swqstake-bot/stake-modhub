@@ -44,8 +44,16 @@
     return user.includes(lower) || msg.includes(lower);
   }
 
+  function matchesActiveSite(line) {
+    const site = getCtx().state.activeSite === 'eu' ? 'eu' : 'com';
+    const euEnabled = getCtx().state.settings?.wsEuEnabled === true;
+    if (!euEnabled) return true;
+    if (site === 'eu') return line.chatSource === 'eu';
+    return line.chatSource !== 'eu';
+  }
+
   function getDisplayChatLines(lines) {
-    const slice = getChatLinesForDisplay(lines);
+    const slice = getChatLinesForDisplay(lines).filter(matchesActiveSite);
     const keyword = getChatFilterKeyword();
     if (!keyword) {
       return { lines: slice, keyword: '', matchCount: slice.length, totalCount: slice.length };
@@ -116,6 +124,7 @@
     if (state.allmsgUser && m.username.toLowerCase() === state.allmsgUser.toLowerCase()) parts.push('mark-yellow');
     if (state.modMarkUser && m.username.toLowerCase() === state.modMarkUser.toLowerCase()) parts.push('mark-mod');
     if (typeof isOwnModChatUser === 'function' && isOwnModChatUser(m.username)) parts.push('is-self');
+    if (m.chatSource === 'eu') parts.push('chat-source-eu');
     return parts.join(' ');
   }
 
@@ -148,7 +157,10 @@
       ? window.ChatColors.formatUserHtml(userName, { isSelf, esc, colorEnabled })
       : `<span class="user" data-username="${esc(userName)}">${esc(userName)}</span>`;
 
-    return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}><span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span>${badgeHtml}<span class="chat-user-wrap">${userHtml}</span>: ${msgHtml}</div>`;
+    const euMark =
+      m.chatSource === 'eu' ? `<span class="chat-source-eu" title="stake.eu">EU</span>` : '';
+
+    return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}>${euMark}<span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span>${badgeHtml}<span class="chat-user-wrap">${userHtml}</span>: ${msgHtml}</div>`;
   }
 
   function needsFullChatRender(displayLines) {

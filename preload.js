@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-let version = '0.4.71';
+let version = '0.4.73';
 try {
   version = ipcRenderer.sendSync('modhub-get-version') || version;
 } catch (_) {}
@@ -22,14 +22,14 @@ contextBridge.exposeInMainWorld('modHub', {
   trackBet: (payload) => ipcRenderer.invoke('modhub-track-bet', payload || {}),
   refreshBet: (betId) => ipcRenderer.invoke('modhub-refresh-bet', { betId }),
   clearBets: () => ipcRenderer.invoke('modhub-clear-bets'),
-  validateUser: (name) => ipcRenderer.invoke('modhub-user-validate', { name }),
+  validateUser: (name, opts) => ipcRenderer.invoke('modhub-user-validate', { name, ...(opts || {}) }),
   muteUser: (payload) => ipcRenderer.invoke('modhub-mute', payload || {}),
   unmuteUser: (payload) => ipcRenderer.invoke('modhub-unmute', payload || {}),
   warnUser: (payload) => ipcRenderer.invoke('modhub-warn-user', payload || {}),
-  userHash: (name) => ipcRenderer.invoke('modhub-user-hash', { name }),
-  tipHistory: (name) => ipcRenderer.invoke('modhub-tip-history', { name }),
+  userHash: (name, opts) => ipcRenderer.invoke('modhub-user-hash', { name, ...(opts || {}) }),
+  tipHistory: (name, opts) => ipcRenderer.invoke('modhub-tip-history', { name, ...(opts || {}) }),
   chatHistory: (name, opts) => ipcRenderer.invoke('modhub-chat-history', { name, ...(opts || {}) }),
-  muteHistory: (name) => ipcRenderer.invoke('modhub-mute-history', { name }),
+  muteHistory: (name, opts) => ipcRenderer.invoke('modhub-mute-history', { name, ...(opts || {}) }),
   appendLog: (line) => ipcRenderer.invoke('modhub-append-log', { line }),
   loadBlueprints: () => ipcRenderer.invoke('modhub-load-blueprints'),
   seedBlueprints: (opts) => ipcRenderer.invoke('modhub-seed-blueprints', opts || {}),

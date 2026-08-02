@@ -12,7 +12,8 @@ window.MODHUB_CONST = {
     'stake.bz',
     'stake.jp',
     'stake.ac',
-    'stake.icu'
+    'stake.icu',
+    'stake.eu'
   ],
   CHATROOMS: {
     English: 'f0326994-ee9e-411c-8439-b4997c187b95',
@@ -38,6 +39,13 @@ window.MODHUB_CONST = {
     Vietnam: '8c9994c8-192b-44aa-ac26-f083baf29896',
     Chinese: '96Deb88b-ced9-4b78-b4da-8a65324c2aff'
   },
+  /** stake.eu PublicChats — eigene IDs (nicht .com) */
+  CHATROOMS_EU: {
+    de: '644dcbcc-5b3f-487b-a3ad-d50445963f09',
+    German: '644dcbcc-5b3f-487b-a3ad-d50445963f09',
+    Deutsch: '644dcbcc-5b3f-487b-a3ad-d50445963f09'
+  },
+  DEFAULT_EU_CHAT_ID: '644dcbcc-5b3f-487b-a3ad-d50445963f09',
   MUTE_PERIODS: [
     '10 minutes',
     '30 minutes',

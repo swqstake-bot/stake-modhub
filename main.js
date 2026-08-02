@@ -18,7 +18,7 @@ const { AutoHashQueue } = require('./lib/auto-hash-queue');
 const { AutoMuteEngine } = require('./lib/automute-engine');
 const { AutomuteRelayClient } = require('./lib/automute-relay-client');
 const notifySoundsStore = require('./lib/notify-sounds-store');
-const { CHATROOMS, LOCKDOWN_TOKEN, DEFAULT_WS_HOST } = require('./lib/stake-constants');
+const { CHATROOMS, LOCKDOWN_TOKEN, DEFAULT_WS_HOST, DEFAULT_WS_EU_HOST, resolveChatId, CHAT_SUBSCRIPTION_KEY, CHAT_SUBSCRIPTION_KEY_EU, DEFAULT_EU_CHAT_ID } = require('./lib/stake-constants');
 const { createBetRegistry } = require('./lib/bet-registry');
 const { extractBetIds } = require('./lib/bet-id-parse');
 const {
@@ -78,8 +78,33 @@ async function syncSessionFromElectron() {
   saveSettings(patch);
 }
 
+/** Settings overlay for stake.eu GraphQL / WS (own api key + host). */
+function settingsForSite(site) {
+  const s = loadSettings();
+  if (site === 'eu') {
+    const euHost = normalizeHostname(s.wsEuHost || DEFAULT_WS_EU_HOST);
+    return {
+      ...s,
+      stakeDomain: euHost,
+      apiKey: String(s.apiKeyEu || '').trim(),
+      clearance: String(s.clearanceEu || s.clearance || '').trim()
+    };
+  }
+  return s;
+}
+
+function gqlClientForSite(site) {
+  return site === 'eu' ? gqlEu : gql;
+}
+
 const gql = new StakeGraphQL(
   () => loadSettings(),
+  () => cachedCookieHeader,
+  () => syncSessionFromElectron()
+);
+
+const gqlEu = new StakeGraphQL(
+  () => settingsForSite('eu'),
   () => cachedCookieHeader,
   () => syncSessionFromElectron()
 );
@@ -100,13 +125,14 @@ function getModNamesForAutomute() {
   return names;
 }
 
-async function resolveUserIdForAutomute(name) {
+async function resolveUserIdForAutomute(name, site = 'com') {
   const { normalizeUsername } = require('./lib/username');
   const queryName = normalizeUsername(name);
   if (!queryName) return null;
-  let data = await gql.getUserDetails(queryName);
+  const client = gqlClientForSite(site);
+  let data = await client.getUserDetails(queryName);
   if (!data?.user?.id) {
-    const fallback = await gql.getUserHash(queryName);
+    const fallback = await client.getUserHash(queryName);
     if (fallback?.user?.id) data = fallback;
   }
   return data?.user?.id || null;
@@ -120,21 +146,24 @@ const automuteRelay = new AutomuteRelayClient({
 const autoMuteEngine = new AutoMuteEngine({
   getSettings: () => loadSettings(),
   getDataDir: () => dataDir(),
-  resolveUserId: resolveUserIdForAutomute,
-  muteUser: async ({ userId, expire, message }) => {
-    const data = await gql.muteUser(userId, expire, message);
+  resolveUserId: (name, ctx) => resolveUserIdForAutomute(name, ctx?.site || 'com'),
+  muteUser: async ({ userId, expire, message, site }) => {
+    const client = gqlClientForSite(site || 'com');
+    const data = await client.muteUser(userId, expire, message);
     if (data?.muteUser?.name) {
       fileLogs.appendMuted(dataDir(), data.muteUser.name, message || '', expire || '');
     }
     return data;
   },
-  sendChatAnnounce: async (text) => {
-    const s = loadSettings();
+  sendChatAnnounce: async (text, ctx) => {
+    const site = ctx?.site || 'com';
+    const client = gqlClientForSite(site);
+    const s = site === 'eu' ? settingsForSite('eu') : loadSettings();
     const room = s.prefChatroom || 'German';
-    const chatId = CHATROOMS[room] || CHATROOMS.German;
+    const chatId = resolveChatId(room, site);
     const msg = String(text || '').trim();
     if (!msg) return { ok: false, error: 'empty' };
-    await gql.sendMessage(chatId, msg);
+    await client.sendMessage(chatId, msg);
     return { ok: true };
   },
   getModNames: getModNamesForAutomute,
@@ -157,11 +186,13 @@ function syncAutomuteRelay() {
   automuteRelay.updatePresence();
 }
 
-function processAutomuteBatch(batch) {
+function processAutomuteBatch(batch, site = 'com') {
   const s = loadSettings();
   if (!s.automuteEnabled) return;
   for (const m of batch) {
-    if (m.kind === 'text' && m.username) autoMuteEngine.processMessage(m);
+    if (m.kind === 'text' && m.username) {
+      autoMuteEngine.processMessage({ ...m, site });
+    }
   }
 }
 
@@ -218,12 +249,30 @@ const chatWs = new StakeChatWebSocket({
         if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username);
       }
     }
-    processAutomuteBatch(batch);
+    processAutomuteBatch(batch, 'com');
     broadcastLiveBatch(batch, 'ws');
   },
   onStatus(status) {
     if (mainWin && !mainWin.isDestroyed()) {
       mainWin.webContents.send('modhub-ws-status', status);
+    }
+  }
+});
+
+const chatWsEu = new StakeChatWebSocket({
+  onMessages(batch) {
+    const s = loadSettings();
+    if (s.logHash) {
+      for (const m of batch) {
+        if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username);
+      }
+    }
+    processAutomuteBatch(batch, 'eu');
+    broadcastLiveBatch(batch, 'ws-eu');
+  },
+  onStatus(status) {
+    if (mainWin && !mainWin.isDestroyed()) {
+      mainWin.webContents.send('modhub-ws-status', { ...status, stream: 'eu' });
     }
   }
 });
@@ -262,15 +311,19 @@ async function prepareWsConnection() {
   const s = loadSettings();
   const wsHost = normalizeHostname(s.wsHost || DEFAULT_WS_HOST);
   const mirror = normalizeHostname(s.stakeDomain);
-  const hosts = [...new Set([wsHost, mirror].filter(Boolean))];
+  const euHost = s.wsEuEnabled ? normalizeHostname(s.wsEuHost || DEFAULT_WS_EU_HOST) : '';
+  const hosts = [...new Set([wsHost, mirror, euHost].filter(Boolean))];
+  const patch = {};
   for (const h of hosts) {
     const c = await extractCfForHost(h);
-    if (c) {
-      saveSettings({ clearance: c });
-      return c;
-    }
+    if (!c) continue;
+    const isEu = euHost && h === euHost;
+    if (isEu) patch.clearanceEu = c;
+    else if (!patch.clearance) patch.clearance = c;
   }
-  return s.clearance || '';
+  if (Object.keys(patch).length) saveSettings(patch);
+  const next = loadSettings();
+  return next.clearance || '';
 }
 
 function injectStakeChatObserver(win) {
@@ -413,7 +466,7 @@ function createMainWindow() {
   mainWin.loadFile(path.join(__dirname, 'index.html'));
 }
 
-function openStakeLogin(stakeDomain) {
+function openStakeLogin(stakeDomain, { site } = {}) {
   return new Promise((resolve) => {
     const host = normalizeHostname(stakeDomain);
     if (stakeLoginWin && !stakeLoginWin.isDestroyed()) {
@@ -432,31 +485,48 @@ function openStakeLogin(stakeDomain) {
     stakeLoginWin.on('closed', async () => {
       stakeLoginWin = null;
       await syncSessionFromElectron();
-      const clearance = loadSettings().clearance || (await extractCfToSettings());
+      const cf = await extractCfForHost(host);
+      const patch = {};
+      if (site === 'eu') {
+        if (cf) patch.clearanceEu = cf;
+      } else if (cf) {
+        patch.clearance = cf;
+      }
+      if (Object.keys(patch).length) saveSettings(patch);
       const settings = loadSettings();
+      const clearance = site === 'eu' ? settings.clearanceEu : settings.clearance;
       if (mainWin && !mainWin.isDestroyed()) {
-        mainWin.webContents.send('modhub-session-updated', { ...settings, clearanceUpdated: !!clearance });
+        mainWin.webContents.send('modhub-session-updated', {
+          ...settings,
+          clearanceUpdated: !!clearance,
+          site: site || 'com'
+        });
       }
       resolve({ ok: true, clearance });
     });
   });
 }
 
-function buildWsConfig() {
-  const s = loadSettings();
+function buildWsConfig(wsHostOverride, { site } = {}) {
+  const isEu = site === 'eu';
+  const s = isEu ? settingsForSite('eu') : loadSettings();
   const host = normalizeHostname(s.stakeDomain);
   const room = s.prefChatroom || 'German';
+  const wsHost = normalizeHostname(
+    wsHostOverride || (isEu ? s.wsEuHost || DEFAULT_WS_EU_HOST : s.wsHost || DEFAULT_WS_HOST)
+  );
   return {
     host,
-    wsHost: s.wsHost || DEFAULT_WS_HOST,
+    wsHost,
     apiKey: s.apiKey,
-    chatId: CHATROOMS[room] || CHATROOMS.German,
+    chatId: resolveChatId(room, isEu ? 'eu' : 'com'),
     clearance: s.clearance,
     cookieMethod: s.cookieMethod,
     cookieHeader: cachedCookieHeader,
     userAgent: s.userAgent,
-    language: 'en',
-    lockdownToken: LOCKDOWN_TOKEN
+    language: isEu ? 'de' : 'en',
+    lockdownToken: LOCKDOWN_TOKEN,
+    subscriptionKey: isEu ? CHAT_SUBSCRIPTION_KEY_EU : CHAT_SUBSCRIPTION_KEY
   };
 }
 
@@ -468,7 +538,9 @@ function dedupLiveBatch(batch, source) {
     const key = `${m.kind}|${m.username}|${m.message}|${m.timestamp || 0}`;
     const prev = liveDedup.get(key);
     if (prev && now - prev.at < LIVE_DEDUP_MS) {
-      if (source === 'ws' && prev.source !== 'ws') prev.source = 'ws';
+      if ((source === 'ws' || source === 'ws-eu') && prev.source !== 'ws' && prev.source !== 'ws-eu') {
+        prev.source = source;
+      }
       continue;
     }
     liveDedup.set(key, { at: now, source: source || 'unknown' });
@@ -485,7 +557,9 @@ function dedupLiveBatch(batch, source) {
 function shouldUseInjectFallback() {
   const s = loadSettings();
   if (s.useNativeWs === false) return true;
-  return !chatWs.isHealthy();
+  if (chatWs.isHealthy()) return false;
+  if (s.wsEuEnabled && chatWsEu.isHealthy()) return false;
+  return true;
 }
 
 async function ensureCaptureFallback() {
@@ -519,11 +593,38 @@ async function startNativeChatWs() {
       if (!s.useNativeWs || !s.apiKey) return;
       await prepareWsConnection();
       chatWs.setConvRates(convRates);
+      chatWsEu.setConvRates(convRates);
       autoHashQueue.reloadCheckedToday();
       try {
         chatWs.start(buildWsConfig());
       } catch (e) {
         console.error('[modhub] chatWs.start failed:', e?.message || e);
+      }
+      const euKey = String(s.apiKeyEu || '').trim();
+      if (s.wsEuEnabled && euKey) {
+        try {
+          let euCfg = buildWsConfig(s.wsEuHost || DEFAULT_WS_EU_HOST, { site: 'eu' });
+          try {
+            const pubs = await gqlEu.getPublicChats();
+            const list = pubs?.publicChats || [];
+            const prefer =
+              list.find((c) => /^de$/i.test(c?.name)) ||
+              list.find((c) => /german|deutsch/i.test(c?.name || '')) ||
+              list[0];
+            if (prefer?.id) {
+              euCfg = { ...euCfg, chatId: prefer.id };
+              console.log('[modhub] EU chatId from PublicChats:', prefer.name, prefer.id);
+            }
+          } catch (e) {
+            console.warn('[modhub] PublicChats EU failed, using default:', e?.message || e);
+            if (!euCfg.chatId) euCfg.chatId = DEFAULT_EU_CHAT_ID;
+          }
+          chatWsEu.start(euCfg);
+        } catch (e) {
+          console.error('[modhub] chatWsEu.start failed:', e?.message || e);
+        }
+      } else {
+        chatWsEu.stop();
       }
     });
   return wsStartChain;
@@ -531,6 +632,7 @@ async function startNativeChatWs() {
 
 function stopNativeChatWs() {
   chatWs.stop();
+  chatWsEu.stop();
 }
 
 function broadcastLiveBatch(batch, source) {
@@ -688,15 +790,25 @@ function registerIpc() {
   });
 
   /** Optional: open Stake in browser to refresh Cloudflare cookies only */
-  ipcMain.handle('modhub-stake-login', async (_e, { stakeDomain } = {}) => {
+  ipcMain.handle('modhub-stake-login', async (_e, { stakeDomain, site } = {}) => {
     try {
-      if (stakeDomain) saveSettings({ stakeDomain });
-      const r = await openStakeLogin(stakeDomain || loadSettings().stakeDomain);
+      const s = loadSettings();
+      const isEu = site === 'eu';
+      const host = normalizeHostname(
+        stakeDomain || (isEu ? s.wsEuHost || DEFAULT_WS_EU_HOST : s.stakeDomain)
+      );
+      if (!isEu && stakeDomain) saveSettings({ stakeDomain: host });
+      const r = await openStakeLogin(host, { site: isEu ? 'eu' : 'com' });
       if (loggedInModUser && loadSettings().apiKey) {
         await startNativeChatWs();
         await ensureCaptureFallback();
       }
-      return { ok: true, clearance: r.clearance || loadSettings().clearance || '' };
+      const next = loadSettings();
+      return {
+        ok: true,
+        clearance: r.clearance || (isEu ? next.clearanceEu : next.clearance) || '',
+        site: isEu ? 'eu' : 'com'
+      };
     } catch (e) {
       return { ok: false, error: e.message };
     }
@@ -772,12 +884,13 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('modhub-send-chat', async (_e, { message, useGraphql, chatId } = {}) => {
+  ipcMain.handle('modhub-send-chat', async (_e, { message, useGraphql, chatId, site } = {}) => {
     try {
       const text = String(message || '').trim();
       if (!text) throw new Error('empty');
       if (useGraphql && chatId) {
-        await gql.sendMessage(chatId, text);
+        const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+        await client.sendMessage(chatId, text);
         return { ok: true, via: 'graphql' };
       }
       await sendChatMessageDom(text);
@@ -828,29 +941,30 @@ function registerIpc() {
     return { ok: true };
   });
 
-  ipcMain.handle('modhub-user-validate', async (_e, { name } = {}) => {
+  ipcMain.handle('modhub-user-validate', async (_e, { name, site } = {}) => {
     try {
       const { normalizeUsername } = require('./lib/username');
       const queryName = normalizeUsername(name);
       if (!queryName) return { ok: false, error: 'username_required' };
-      let data = await gql.getUserDetails(queryName);
+      const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+      let data = await client.getUserDetails(queryName);
       if (!data?.user?.id) {
-        const fallback = await gql.getUserHash(queryName);
+        const fallback = await client.getUserHash(queryName);
         if (fallback?.user?.id) data = fallback;
       }
       if (!data?.user?.id) {
         return { ok: false, error: 'user_not_found', data: data || null };
       }
-      return { ok: true, data };
+      return { ok: true, data, site: site === 'eu' ? 'eu' : 'com' };
     } catch (e) {
       return { ok: false, error: e.message };
     }
   });
 
-  ipcMain.handle('modhub-mute', async (_e, { userId, expire, message } = {}) => {
+  ipcMain.handle('modhub-mute', async (_e, { userId, expire, message, site } = {}) => {
     try {
-      const data = await gql.muteUser(userId, expire, message);
-      const s = loadSettings();
+      const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+      const data = await client.muteUser(userId, expire, message);
       if (data?.muteUser?.name) {
         fileLogs.appendMuted(dataDir(), data.muteUser.name, message || '', expire || '');
       }
@@ -860,19 +974,20 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('modhub-unmute', async (_e, { userId } = {}) => {
+  ipcMain.handle('modhub-unmute', async (_e, { userId, site } = {}) => {
     try {
-      const data = await gql.unmuteUser(userId);
+      const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+      const data = await client.unmuteUser(userId);
       return { ok: true, data };
     } catch (e) {
       return { ok: false, error: e.message };
     }
   });
 
-  ipcMain.handle('modhub-user-hash', async (_e, { name } = {}) => {
+  ipcMain.handle('modhub-user-hash', async (_e, { name, site } = {}) => {
     try {
-      const data = await gql.getUserHash(name);
-      const s = loadSettings();
+      const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+      const data = await client.getUserHash(name);
       const u = data?.user;
       if (u?.name && u?.hashedIp) {
         const dir = dataDir();
@@ -886,26 +1001,29 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('modhub-tip-history', async (_e, { name } = {}) => {
+  ipcMain.handle('modhub-tip-history', async (_e, { name, site } = {}) => {
     try {
-      return { ok: true, data: await gql.getUserTipHistory(name) };
+      const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+      return { ok: true, data: await client.getUserTipHistory(name) };
     } catch (e) {
       return { ok: false, error: e.message };
     }
   });
 
-  ipcMain.handle('modhub-chat-history', async (_e, { name, maxItems } = {}) => {
+  ipcMain.handle('modhub-chat-history', async (_e, { name, maxItems, site } = {}) => {
     try {
-      const data = await gql.getUserChatHistoryAll(name, { maxItems: maxItems || 200 });
+      const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+      const data = await client.getUserChatHistoryAll(name, { maxItems: maxItems || 200 });
       return { ok: true, data };
     } catch (e) {
       return { ok: false, error: e.message };
     }
   });
 
-  ipcMain.handle('modhub-mute-history', async (_e, { name } = {}) => {
+  ipcMain.handle('modhub-mute-history', async (_e, { name, site } = {}) => {
     try {
-      return { ok: true, data: await gql.getCommunityUser(name) };
+      const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+      return { ok: true, data: await client.getCommunityUser(name) };
     } catch (e) {
       return { ok: false, error: e.message };
     }
@@ -1006,19 +1124,20 @@ function registerIpc() {
     analyseEngine
   });
 
-  ipcMain.handle('modhub-warn-user', async (_e, { username, message } = {}) => {
+  ipcMain.handle('modhub-warn-user', async (_e, { username, message, site } = {}) => {
     try {
-      const { CHATROOMS } = require('./lib/stake-constants'); // eslint-disable-line global-require
-      const s = loadSettings();
+      const isEu = site === 'eu';
+      const s = isEu ? settingsForSite('eu') : loadSettings();
+      const client = gqlClientForSite(isEu ? 'eu' : 'com');
       const { prependUserMention, normalizeUsername } = require('./lib/username');
       const user = normalizeUsername(username);
       const msg = String(message || '').trim();
       if (!user) return { ok: false, error: 'username_required' };
       if (!msg) return { ok: false, error: 'message_required' };
       const room = s.prefChatroom || 'German';
-      const chatId = CHATROOMS[room] || CHATROOMS.German;
+      const chatId = resolveChatId(room, isEu ? 'eu' : 'com');
       const text = prependUserMention(msg, user);
-      await gql.sendMessage(chatId, text);
+      await client.sendMessage(chatId, text);
       fileLogs.appendWarned(dataDir(), user, text);
       fileLogs.flushAll();
       return { ok: true };
@@ -1035,7 +1154,7 @@ function registerIpc() {
         if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username);
       }
     }
-    processAutomuteBatch(batch);
+    processAutomuteBatch(batch, 'com');
     broadcastLiveBatch(batch, 'browser');
   });
 

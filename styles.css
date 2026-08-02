@@ -71,6 +71,59 @@ body {
   -webkit-app-region: drag;
 }
 
+.site-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin: 0 8px;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--stake-border);
+  -webkit-app-region: no-drag;
+}
+
+.site-tab {
+  background: transparent;
+  border: none;
+  color: var(--stake-text-dim);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.site-tab:hover:not(:disabled) {
+  color: var(--stake-text);
+  background: var(--stake-accent-soft);
+}
+
+.site-tab.active {
+  color: var(--stake-text);
+  background: var(--stake-bg-panel);
+  box-shadow: inset 0 0 0 1px var(--stake-primary);
+}
+
+.site-tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.eu-settings-panel {
+  margin: 12px 0;
+}
+
+.eu-settings-panel .grid-2 {
+  margin-top: 8px;
+}
+
+body.site-eu .site-tab[data-site="eu"].active {
+  box-shadow: inset 0 0 0 1px #3d9b7a;
+}
+
 .topbar-logo {
   flex-shrink: 0;
   border-radius: 6px;
@@ -2025,6 +2078,21 @@ body {
   font-variant-numeric: tabular-nums;
   margin-right: 2px;
   opacity: 0.9;
+}
+
+.chat-line .chat-source-eu {
+  display: inline-block;
+  color: #9fd4ff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-right: 3px;
+  opacity: 0.85;
+  vertical-align: baseline;
+}
+
+.chat-line.chat-source-eu .chat-source-eu {
+  color: #b8e4ff;
 }
 
 .chat-line .user {

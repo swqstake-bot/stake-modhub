@@ -15,9 +15,13 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.71</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.73</span></p>
       </div>
     </div>
+    <nav class="site-tabs" id="siteTabs" aria-label="Stake Site">
+      <button type="button" class="site-tab active" data-site="com" id="siteTabCom" title="stake.com / Mirror Live-Chat">stake.com</button>
+      <button type="button" class="site-tab" data-site="eu" id="siteTabEu" disabled title="In Settings optional aktivieren">stake.eu</button>
+    </nav>
     <div class="topbar-right">
       <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
       <span class="badge" id="modUserBadge">Nicht eingeloggt</span>
@@ -528,7 +532,7 @@
           <label>Stake Mirror (GraphQL) <select id="stakeDomain"></select></label>
           <label>WS Host (Live-Chat) <input id="wsHost" type="text" value="stake.bet" placeholder="stake.bet" /></label>
           <label>Chatroom <select id="prefChatroom"></select></label>
-          <label>API Key <input id="apiKey" type="password" autocomplete="off" /></label>
+          <label>API Key (stake.com) <input id="apiKey" type="password" autocomplete="off" /></label>
           <label>Cookie-Methode
             <select id="cookieMethod">
               <option value="Non Permanent">Non Permanent (__cf_bm)</option>
@@ -536,6 +540,19 @@
             </select>
           </label>
           <label>CF Wert <input id="clearance" type="text" /></label>
+        </div>
+        <div class="panel compact eu-settings-panel">
+          <h3>stake.eu (optional)</h3>
+          <p class="hint">Separater Live-Chat + eigener API-Key. Oben per Tab zwischen stake.com und stake.eu wechseln — beide Streams laufen parallel, wenn aktiv.</p>
+          <label class="check"><input type="checkbox" id="wsEuEnabled" /> stake.eu Chat parallel aktivieren</label>
+          <div class="grid-2" id="euSettingsFields">
+            <label>API Key (stake.eu) <input id="apiKeyEu" type="password" autocomplete="off" placeholder="EU access token" /></label>
+            <label>CF Wert (EU) <input id="clearanceEu" type="text" placeholder="optional" /></label>
+          </div>
+          <div class="row-inline">
+            <button type="button" id="btnStakeLoginEu" class="sm">Cookies stake.eu aktualisieren</button>
+            <span id="euLoginStatus" class="status-line">—</span>
+          </div>
         </div>
         <div class="row-inline">
           <button type="button" id="btnPickPath">Datengrube öffnen</button>
