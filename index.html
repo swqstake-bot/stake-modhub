@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.73</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.74</span></p>
       </div>
     </div>
     <nav class="site-tabs" id="siteTabs" aria-label="Stake Site">
@@ -198,6 +198,7 @@
       <div class="rh-layout">
         <div class="rh-config panel">
           <h2>Rollhunt Scanner</h2>
+          <p id="hubSiteHint" class="hint">Einstellungen RH / Automsg / Automute gelten nur für die aktive Site (oben stake.com / stake.eu).</p>
           <div class="rh-sessions-block">
             <div class="rh-sessions-head">
               <h4>Aktive Rollhunts</h4>
@@ -357,6 +358,7 @@
     <section id="panel-automsg" class="panel-view">
       <div class="panel automsg-panel">
         <h2>Automsg / Regelpost</h2>
+        <p class="hint">Automsg ist pro Site getrennt — aktiv oben <strong>stake.com</strong> oder <strong>stake.eu</strong> wählen.</p>
         <p class="hint">Eigene Chat-Texte anlegen, manuell senden (▶), Autopost (⚙) oder Text bearbeiten (✎).</p>
 
         <div class="panel compact automsg-notify-panel">
@@ -396,7 +398,7 @@
               <span id="automuteTabStatus" class="status-line">—</span>
             </div>
           </div>
-          <p class="hint automute-header-hint">Regeln für automatisches Stummschalten bei Chat-Spam. Dry-Run loggt nur — ohne Dry-Run wird wirklich gemuted.</p>
+          <p class="hint automute-header-hint">Regeln gelten nur für die aktive Site (oben stake.com / stake.eu). Dry-Run loggt nur — ohne Dry-Run wird wirklich gemuted.</p>
         </header>
 
         <div class="automute-body">

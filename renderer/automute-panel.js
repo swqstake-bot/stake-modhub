@@ -12,20 +12,32 @@
     return ctx?.esc ? ctx.esc(s) : String(s ?? '');
   }
 
+  function activeHub() {
+    const site = ctx?.state?.activeSite === 'eu' ? 'eu' : 'com';
+    const hub = ctx?.state?.settings?.hubBySite?.[site];
+    return hub && typeof hub === 'object' ? hub : ctx?.state?.settings || {};
+  }
+
   function getRules() {
-    const raw = ctx?.state?.settings?.autoMuteRules;
+    const raw = activeHub().autoMuteRules;
     if (Array.isArray(raw) && raw.length) return raw;
     return null;
   }
 
   function ensureRulesLoaded() {
-    if (!Array.isArray(ctx.state.settings.autoMuteRules) || !ctx.state.settings.autoMuteRules.length) {
-      ctx.state.settings.autoMuteRules = global.AutomuteDefaults?.DEFAULT_AUTOMUTE_RULES?.map((r) => ({
+    const s = ctx.state.settings;
+    const site = s?.activeSite === 'eu' ? 'eu' : 'com';
+    if (!s.hubBySite) s.hubBySite = { com: {}, eu: {} };
+    if (!s.hubBySite[site]) s.hubBySite[site] = {};
+    const hub = s.hubBySite[site];
+    if (!Array.isArray(hub.autoMuteRules) || !hub.autoMuteRules.length) {
+      hub.autoMuteRules = global.AutomuteDefaults?.DEFAULT_AUTOMUTE_RULES?.map((r) => ({
         ...r,
         patterns: [...r.patterns]
       })) || [];
     }
-    return ctx.state.settings.autoMuteRules;
+    s.autoMuteRules = hub.autoMuteRules;
+    return hub.autoMuteRules;
   }
 
   function mutePeriodOptions() {
@@ -280,7 +292,7 @@
   }
 
   function loadFromSettings() {
-    const s = ctx.state.settings || {};
+    const s = activeHub();
     if ($('automuteTabEnabled')) $('automuteTabEnabled').checked = s.automuteEnabled !== false;
     if ($('automuteTabDryRun')) $('automuteTabDryRun').checked = s.automuteDryRun !== false;
     ensureRulesLoaded();
@@ -394,5 +406,12 @@
     loadFromSettings();
   }
 
-  global.AutomutePanel = { init, onTabShow, onAutomuteAction, refreshStatus, refreshSoundSelects };
+  global.AutomutePanel = {
+    init,
+    onTabShow,
+    onAutomuteAction,
+    refreshStatus,
+    refreshSoundSelects,
+    loadFromSettings
+  };
 })(typeof window !== 'undefined' ? window : global);

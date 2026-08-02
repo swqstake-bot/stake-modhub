@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, session, dialog, shell, Tray, Menu, nativeI
 const path = require('path');
 const fs = require('fs');
 const { StakeGraphQL } = require('./lib/stake-graphql');
-const { loadSettings, saveSettings, normalizeHostname } = require('./lib/stake-session');
+const { loadSettings, saveSettings, normalizeHostname, getHubSettings } = require('./lib/stake-session');
 const fileLogs = require('./lib/file-logs');
 const {
   seedBlueprintDefaults,
@@ -78,19 +78,21 @@ async function syncSessionFromElectron() {
   saveSettings(patch);
 }
 
-/** Settings overlay for stake.eu GraphQL / WS (own api key + host). */
+/** Settings overlay for a site: hub slice (RH/automsg/automute/chatroom) + EU credentials. */
 function settingsForSite(site) {
   const s = loadSettings();
+  const hub = getHubSettings(s, site);
+  const merged = { ...s, ...hub };
   if (site === 'eu') {
     const euHost = normalizeHostname(s.wsEuHost || DEFAULT_WS_EU_HOST);
     return {
-      ...s,
+      ...merged,
       stakeDomain: euHost,
       apiKey: String(s.apiKeyEu || '').trim(),
       clearance: String(s.clearanceEu || s.clearance || '').trim()
     };
   }
-  return s;
+  return merged;
 }
 
 function gqlClientForSite(site) {
@@ -98,7 +100,7 @@ function gqlClientForSite(site) {
 }
 
 const gql = new StakeGraphQL(
-  () => loadSettings(),
+  () => settingsForSite('com'),
   () => cachedCookieHeader,
   () => syncSessionFromElectron()
 );
@@ -145,6 +147,7 @@ const automuteRelay = new AutomuteRelayClient({
 
 const autoMuteEngine = new AutoMuteEngine({
   getSettings: () => loadSettings(),
+  getSettingsForSite: (site) => settingsForSite(site),
   getDataDir: () => dataDir(),
   resolveUserId: (name, ctx) => resolveUserIdForAutomute(name, ctx?.site || 'com'),
   muteUser: async ({ userId, expire, message, site }) => {
@@ -158,7 +161,7 @@ const autoMuteEngine = new AutoMuteEngine({
   sendChatAnnounce: async (text, ctx) => {
     const site = ctx?.site || 'com';
     const client = gqlClientForSite(site);
-    const s = site === 'eu' ? settingsForSite('eu') : loadSettings();
+    const s = settingsForSite(site);
     const room = s.prefChatroom || 'German';
     const chatId = resolveChatId(room, site);
     const msg = String(text || '').trim();
@@ -187,7 +190,7 @@ function syncAutomuteRelay() {
 }
 
 function processAutomuteBatch(batch, site = 'com') {
-  const s = loadSettings();
+  const s = settingsForSite(site);
   if (!s.automuteEnabled) return;
   for (const m of batch) {
     if (m.kind === 'text' && m.username) {
@@ -509,11 +512,14 @@ function openStakeLogin(stakeDomain, { site } = {}) {
 
 function buildWsConfig(wsHostOverride, { site } = {}) {
   const isEu = site === 'eu';
-  const s = isEu ? settingsForSite('eu') : loadSettings();
-  const host = normalizeHostname(s.stakeDomain);
+  const siteKey = isEu ? 'eu' : 'com';
+  const s = settingsForSite(siteKey);
+  const raw = loadSettings();
+  const host = normalizeHostname(isEu ? s.stakeDomain : raw.stakeDomain);
   const room = s.prefChatroom || 'German';
   const wsHost = normalizeHostname(
-    wsHostOverride || (isEu ? s.wsEuHost || DEFAULT_WS_EU_HOST : s.wsHost || DEFAULT_WS_HOST)
+    wsHostOverride ||
+      (isEu ? raw.wsEuHost || DEFAULT_WS_EU_HOST : raw.wsHost || DEFAULT_WS_HOST)
   );
   return {
     host,
@@ -1126,16 +1132,16 @@ function registerIpc() {
 
   ipcMain.handle('modhub-warn-user', async (_e, { username, message, site } = {}) => {
     try {
-      const isEu = site === 'eu';
-      const s = isEu ? settingsForSite('eu') : loadSettings();
-      const client = gqlClientForSite(isEu ? 'eu' : 'com');
+      const siteKey = site === 'eu' ? 'eu' : 'com';
+      const s = settingsForSite(siteKey);
+      const client = gqlClientForSite(siteKey);
       const { prependUserMention, normalizeUsername } = require('./lib/username');
       const user = normalizeUsername(username);
       const msg = String(message || '').trim();
       if (!user) return { ok: false, error: 'username_required' };
       if (!msg) return { ok: false, error: 'message_required' };
       const room = s.prefChatroom || 'German';
-      const chatId = resolveChatId(room, isEu ? 'eu' : 'com');
+      const chatId = resolveChatId(room, siteKey);
       const text = prependUserMention(msg, user);
       await client.sendMessage(chatId, text);
       fileLogs.appendWarned(dataDir(), user, text);

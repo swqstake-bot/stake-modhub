@@ -94,6 +94,14 @@ function getActiveSite() {
   return state.activeSite === 'eu' ? 'eu' : 'com';
 }
 
+function hubSettings(site = getActiveSite()) {
+  const key = site === 'eu' ? 'eu' : 'com';
+  const hub = state.settings?.hubBySite?.[key];
+  if (hub && typeof hub === 'object') return hub;
+  /* flat fallback before migration lands in state */
+  return state.settings || {};
+}
+
 function isEuSiteEnabled() {
   return state.settings?.wsEuEnabled === true && String(state.settings?.apiKeyEu || '').trim() !== '';
 }
@@ -105,7 +113,7 @@ function syncSiteTabsUi() {
   if (euTab) {
     euTab.disabled = !euOn;
     euTab.title = euOn
-      ? 'stake.eu Live-Chat'
+      ? 'stake.eu Live-Chat · eigene RH/Automsg/Automute'
       : 'In Settings: „stake.eu Chat parallel“ aktivieren + EU API-Key';
   }
   if (!euOn && state.activeSite === 'eu') {
@@ -119,6 +127,43 @@ function syncSiteTabsUi() {
   if (liveTitle) {
     liveTitle.textContent = site === 'eu' ? 'Live Chat · stake.eu' : 'Live Chat';
   }
+  const siteHint = $('hubSiteHint');
+  if (siteHint) {
+    siteHint.textContent =
+      site === 'eu'
+        ? 'Einstellungen RH / Automsg / Automute gelten nur für stake.eu'
+        : 'Einstellungen RH / Automsg / Automute gelten nur für stake.com';
+  }
+}
+
+function applyHubSettingsToUi() {
+  const site = getActiveSite();
+  const cur = getSelectedRhSession();
+  if (!cur || (cur.site || 'com') !== site) {
+    const next =
+      state.rhSessions.find((s) => s.active && (s.site || 'com') === site) ||
+      state.rhSessions.find((s) => (s.site || 'com') === site) ||
+      null;
+    state.rhActiveId = next?.id || null;
+  }
+  const s = state.settings || {};
+  if ($('prefChatroom') && s.prefChatroom) $('prefChatroom').value = s.prefChatroom;
+  applyRhDefaultGameSelection(s.rhDefaultGame);
+  if ($('rhTimerMinutes')) $('rhTimerMinutes').value = String(s.rhCrashTimerMinutes ?? 60);
+  if ($('rhTimerSeconds')) $('rhTimerSeconds').value = String(s.rhCrashTimerSeconds ?? 0);
+  loadRhAutopostUiFromSettings();
+  loadAutoMsgUiFromSettings();
+  window.AutomutePanel?.loadFromSettings?.();
+  renderRhSessionsList();
+  updateRhGameSelectOptions();
+  updateRhAutopostStatus();
+  if (getSelectedRhSession()) {
+    loadRhSessionSettingsUi(getSelectedRhSession());
+    renderRhBets();
+    refreshRhStatusLine();
+  }
+  syncAutoMsgTimers();
+  syncRhAutopostTimer();
 }
 
 async function setActiveSite(site) {
@@ -132,6 +177,7 @@ async function setActiveSite(site) {
     /* ignore */
   }
   syncSiteTabsUi();
+  applyHubSettingsToUi();
   LiveChat.invalidateChatDom();
   renderChats({ forceFull: true });
   renderHubIndexes();
@@ -161,14 +207,23 @@ function setHistoryOut(html, title = 'Historie') {
   showOverlay(title, html, { html: true });
 }
 
-function chatId() {
-  const site = getActiveSite();
-  const room = state.settings.prefChatroom || 'German';
+function chatId(site = getActiveSite()) {
+  const hub = hubSettings(site);
+  const room = hub.prefChatroom || state.settings.prefChatroom || 'German';
   if (site === 'eu') {
     const eu = C.CHATROOMS_EU || {};
     return eu[room] || eu.de || eu.German || C.DEFAULT_EU_CHAT_ID || '';
   }
   return (C.CHATROOMS && C.CHATROOMS[room]) || C.CHATROOMS?.German || '';
+}
+
+async function sendChatToSite(message, site = getActiveSite()) {
+  return modHub.sendChat({
+    message,
+    useGraphql: true,
+    chatId: chatId(site),
+    site
+  });
 }
 
 function parseBetFromText(text) {
@@ -443,11 +498,17 @@ function getSelectedRhSession() {
   return getRhSession(state.rhActiveId);
 }
 
-function findActiveRhForGame(game) {
-  return state.rhSessions.find((s) => s.active && s.game === game) || null;
+function findActiveRhForGame(game, site = getActiveSite()) {
+  const key = site === 'eu' ? 'eu' : 'com';
+  return state.rhSessions.find((s) => s.active && s.game === game && (s.site || 'com') === key) || null;
 }
 
-function getActiveRhSessions() {
+function getActiveRhSessions(site = getActiveSite()) {
+  const key = site === 'eu' ? 'eu' : 'com';
+  return state.rhSessions.filter((s) => s.active && (s.site || 'com') === key);
+}
+
+function getAllActiveRhSessions() {
   return state.rhSessions.filter((s) => s.active);
 }
 
@@ -501,7 +562,7 @@ async function enterRhOvertime(sessionId) {
   session.overtime = true;
   session.overtimeSince = Date.now();
   await modHub.appendLog(`--- RH ${session.game} | Timer abgelaufen → Verlängerung bis Stop ---`);
-  stopRhAutopostOnHit(`${session.game} RH — Timer abgelaufen`);
+  stopRhAutopostOnHit(`${session.game} RH — Timer abgelaufen`, session.site || 'com');
   renderRhSessionsList();
   if (sessionId === state.rhActiveId) refreshRhStatusLine();
 }
@@ -570,15 +631,19 @@ function renderRhSessionsList() {
   const box = $('rhSessionsList');
   const countEl = $('rhSessionCount');
   if (!box) return;
-  const activeCount = getActiveRhSessions().length;
-  if (countEl) countEl.textContent = `${activeCount} aktiv`;
+  const site = getActiveSite();
+  const sessions = state.rhSessions.filter((s) => (s.site || 'com') === site);
+  const activeCount = sessions.filter((s) => s.active).length;
+  if (countEl) countEl.textContent = `${activeCount} aktiv · ${site === 'eu' ? 'EU' : 'COM'}`;
 
-  if (!state.rhSessions.length) {
-    box.innerHTML = '<p class="hint rh-sessions-empty">Noch keine RH — Spiel wählen und Start.</p>';
+  if (!sessions.length) {
+    box.innerHTML = `<p class="hint rh-sessions-empty">Noch keine RH auf ${
+      site === 'eu' ? 'stake.eu' : 'stake.com'
+    } — Spiel wählen und Start.</p>`;
     return;
   }
 
-  box.innerHTML = state.rhSessions
+  box.innerHTML = sessions
     .map((s) => {
       const selected = s.id === state.rhActiveId;
       const rowCls = ['rh-session-row', s.active ? 'active' : 'ended', s.overtime ? 'overtime' : '', selected ? 'selected' : '']
@@ -599,7 +664,7 @@ function renderRhSessionsList() {
 }
 
 function syncRhStatusTimer() {
-  const needsTick = getActiveRhSessions().some((s) => s.mode === 'highestMulti');
+  const needsTick = getAllActiveRhSessions().some((s) => s.mode === 'highestMulti');
   if (!needsTick) {
     clearRhStatusTimer();
     return;
@@ -680,7 +745,7 @@ async function postRhPlaceAnnounce(bet, session, place) {
     $('rhModeHint').textContent = `Zu lang (${msg.length}/${RH_CHAT_MAX_LEN} Zeichen).`;
     return { ok: false, error: 'Nachricht zu lang' };
   }
-  const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+  const res = await sendChatToSite(msg);
   const label = session.game ? `${session.game} RH — ` : '';
   $('rhModeHint').textContent = res.ok
     ? `${label}Platz ${place} gepostet (${msg.length}/${RH_CHAT_MAX_LEN})`
@@ -759,7 +824,7 @@ async function sendRhStopBlueprintToChat() {
   if (!state.loggedIn) {
     return { ok: false, error: 'Nicht eingeloggt' };
   }
-  return modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+  return sendChatToSite(msg);
 }
 
 function updateRhGameModeUi() {
@@ -943,18 +1008,41 @@ function saveRhSessionSettings() {
   $('rhRecordStatus').textContent = `${session.game} RH — Text${extra} gespeichert.`;
 }
 
-function isRhAutopostEnabled() {
-  return !!($('rhAutopostEnabled')?.checked ?? state.settings.rhAutopostEnabled);
+function isRhAutopostEnabled(site = getActiveSite()) {
+  if (site === getActiveSite()) {
+    return !!($('rhAutopostEnabled')?.checked ?? hubSettings(site).rhAutopostEnabled);
+  }
+  return !!hubSettings(site).rhAutopostEnabled;
 }
 
-function getRhAutopostIntervalMinutes() {
-  const raw = $('rhAutopostInterval')?.value ?? state.settings.rhAutopostIntervalMinutes ?? 15;
-  return Math.max(0, Math.min(1440, Number(raw) || 0));
+function getRhAutopostIntervalMinutes(site = getActiveSite()) {
+  if (site === getActiveSite()) {
+    const raw = $('rhAutopostInterval')?.value ?? hubSettings(site).rhAutopostIntervalMinutes ?? 15;
+    return Math.max(0, Math.min(1440, Number(raw) || 0));
+  }
+  return Math.max(0, Math.min(1440, Number(hubSettings(site).rhAutopostIntervalMinutes) || 0));
 }
 
-function isRhAutopostStopOnHit() {
-  if ($('rhAutopostStopOnHit')) return !!$('rhAutopostStopOnHit').checked;
-  return state.settings.rhAutopostStopOnHit !== false;
+function isRhAutopostStopOnHit(site = getActiveSite()) {
+  if (site === getActiveSite() && $('rhAutopostStopOnHit')) {
+    return !!$('rhAutopostStopOnHit').checked;
+  }
+  return hubSettings(site).rhAutopostStopOnHit !== false;
+}
+
+function ensureRhAutopostRuntime() {
+  if (!state.rhAutopostBySite) {
+    state.rhAutopostBySite = {
+      com: { timer: null, lastSent: 0, paused: false, inflight: false },
+      eu: { timer: null, lastSent: 0, paused: false, inflight: false }
+    };
+  }
+  return state.rhAutopostBySite;
+}
+
+function rhRuntime(site = getActiveSite()) {
+  const map = ensureRhAutopostRuntime();
+  return map[site === 'eu' ? 'eu' : 'com'];
 }
 
 function loadRhAutopostUiFromSettings() {
@@ -975,21 +1063,25 @@ async function persistRhAutopostSettings() {
     rhAutopostIntervalMinutes: getRhAutopostIntervalMinutes(),
     rhAutopostStopOnHit: isRhAutopostStopOnHit()
   });
-  if (!isRhAutopostStopOnHit()) state.rhAutopostPausedOnHit = false;
+  if (!isRhAutopostStopOnHit()) resetRhAutopostHitPause();
   syncRhAutopostTimer();
   updateRhAutopostStatus();
 }
 
-function resetRhAutopostHitPause() {
-  state.rhAutopostPausedOnHit = false;
+function resetRhAutopostHitPause(site = getActiveSite()) {
+  rhRuntime(site).paused = false;
+  if (site === getActiveSite()) state.rhAutopostPausedOnHit = false;
 }
 
-function stopRhAutopostOnHit(statusNote = '') {
-  if (!isRhAutopostStopOnHit()) return;
-  state.rhAutopostPausedOnHit = true;
-  clearRhAutopostTimer();
+function stopRhAutopostOnHit(statusNote = '', site = getActiveSite()) {
+  const siteKey = site === 'eu' ? 'eu' : 'com';
+  if (!isRhAutopostStopOnHit(siteKey)) return;
+  const rt = rhRuntime(siteKey);
+  rt.paused = true;
+  if (siteKey === getActiveSite()) state.rhAutopostPausedOnHit = true;
+  clearRhAutopostTimer(siteKey);
   updateRhAutopostStatus();
-  if (statusNote && $('rhRecordStatus')) {
+  if (statusNote && $('rhRecordStatus') && siteKey === getActiveSite()) {
     $('rhRecordStatus').textContent = `${statusNote} · Autopost gestoppt (Treffer)`;
   }
 }
@@ -997,15 +1089,17 @@ function stopRhAutopostOnHit(statusNote = '') {
 function updateRhAutopostStatus() {
   const el = $('rhAutopostStatus');
   if (!el) return;
-  const enabled = isRhAutopostEnabled();
-  const min = getRhAutopostIntervalMinutes();
+  const site = getActiveSite();
+  const rt = rhRuntime(site);
+  const enabled = isRhAutopostEnabled(site);
+  const min = getRhAutopostIntervalMinutes(site);
   el.classList.remove('is-active');
   if (!enabled || min < 1) {
     el.textContent = 'Autopost aus';
     return;
   }
-  if (state.rhAutopostPausedOnHit) {
-    el.textContent = isRhAutopostStopOnHit()
+  if (rt.paused) {
+    el.textContent = isRhAutopostStopOnHit(site)
       ? 'Autopost pausiert — Treffer (neue RH starten zum Fortsetzen)'
       : 'Autopost pausiert';
     el.classList.add('is-active');
@@ -1015,13 +1109,13 @@ function updateRhAutopostStatus() {
     el.textContent = `Autopost alle ${min} min — zuerst einloggen`;
     return;
   }
-  if (getActiveRhSessions().length === 0) {
+  if (getActiveRhSessions(site).length === 0) {
     el.textContent = `Autopost alle ${min} min — wartet auf RH-Start`;
     el.classList.add('is-active');
     return;
   }
   const ms = min * 60 * 1000;
-  const last = state.rhAutopostLastSent || 0;
+  const last = rt.lastSent || 0;
   if (last > 0) {
     const leftMs = Math.max(0, ms - (Date.now() - last));
     const leftMin = Math.ceil(leftMs / 60000);
@@ -1032,66 +1126,86 @@ function updateRhAutopostStatus() {
   el.classList.add('is-active');
 }
 
-function clearRhAutopostTimer() {
+function clearRhAutopostTimer(site) {
+  if (site) {
+    const rt = rhRuntime(site);
+    if (rt.timer) {
+      clearTimeout(rt.timer);
+      rt.timer = null;
+    }
+    return;
+  }
+  const map = ensureRhAutopostRuntime();
+  for (const key of ['com', 'eu']) {
+    if (map[key].timer) {
+      clearTimeout(map[key].timer);
+      map[key].timer = null;
+    }
+  }
   if (state.rhAutopostTimer) {
     clearTimeout(state.rhAutopostTimer);
     state.rhAutopostTimer = null;
   }
 }
 
-function scheduleRhAutopost() {
-  clearRhAutopostTimer();
-  if (!state.loggedIn || !isRhAutopostEnabled() || state.rhAutopostPausedOnHit) return;
-  const min = getRhAutopostIntervalMinutes();
+function scheduleRhAutopost(site = getActiveSite()) {
+  const siteKey = site === 'eu' ? 'eu' : 'com';
+  if (siteKey === 'eu' && !state.settings?.wsEuEnabled) return;
+  clearRhAutopostTimer(siteKey);
+  const rt = rhRuntime(siteKey);
+  if (!state.loggedIn || !isRhAutopostEnabled(siteKey) || rt.paused) return;
+  const min = getRhAutopostIntervalMinutes(siteKey);
   if (min < 1) return;
-  if (getActiveRhSessions().length === 0) return;
+  if (getActiveRhSessions(siteKey).length === 0) return;
 
   const ms = min * 60 * 1000;
-  const last = state.rhAutopostLastSent || 0;
+  const last = rt.lastSent || 0;
   const elapsed = last > 0 ? Date.now() - last : 0;
   const delay = last > 0 ? Math.max(1000, ms - elapsed) : ms;
 
-  state.rhAutopostTimer = setTimeout(async () => {
-    state.rhAutopostTimer = null;
-    if (!state.loggedIn || !isRhAutopostEnabled() || getActiveRhSessions().length === 0) {
-      updateRhAutopostStatus();
+  rt.timer = setTimeout(async () => {
+    rt.timer = null;
+    if (!state.loggedIn || !isRhAutopostEnabled(siteKey) || getActiveRhSessions(siteKey).length === 0) {
+      if (siteKey === getActiveSite()) updateRhAutopostStatus();
       return;
     }
-    if (state.rhAutopostInflight) {
-      scheduleRhAutopost();
+    if (rt.inflight) {
+      scheduleRhAutopost(siteKey);
       return;
     }
-    state.rhAutopostInflight = true;
+    rt.inflight = true;
     try {
-      await postRhAnnouncement({ auto: true });
+      await postRhAnnouncement({ auto: true, site: siteKey });
     } finally {
-      state.rhAutopostInflight = false;
+      rt.inflight = false;
     }
   }, delay);
-  updateRhAutopostStatus();
+  if (siteKey === getActiveSite()) updateRhAutopostStatus();
 }
 
 function syncRhAutopostTimer() {
   clearRhAutopostTimer();
-  if (!state.loggedIn || !isRhAutopostEnabled() || state.rhAutopostPausedOnHit) {
+  if (!state.loggedIn) {
     updateRhAutopostStatus();
     return;
   }
-  const min = getRhAutopostIntervalMinutes();
-  if (min < 1) {
-    updateRhAutopostStatus();
-    return;
+  const sites = ['com'];
+  if (state.settings?.wsEuEnabled) sites.push('eu');
+  for (const site of sites) {
+    const rt = rhRuntime(site);
+    if (!isRhAutopostEnabled(site) || rt.paused) continue;
+    const min = getRhAutopostIntervalMinutes(site);
+    if (min < 1) continue;
+    if (getActiveRhSessions(site).length === 0) continue;
+    scheduleRhAutopost(site);
   }
-  if (getActiveRhSessions().length === 0) {
-    updateRhAutopostStatus();
-    return;
-  }
-  scheduleRhAutopost();
+  updateRhAutopostStatus();
 }
 
 async function postRhSessionMessage(session, message, { auto = false } = {}) {
   const msg = String(message || '').trim();
   const gameLabel = session?.game ? `${session.game} RH — ` : '';
+  const site = session?.site === 'eu' ? 'eu' : 'com';
   if (!msg) {
     if (!auto) $('rhRecordStatus').textContent = `${gameLabel}RH-Nachricht fehlt.`;
     return { ok: false, error: 'empty_message' };
@@ -1100,7 +1214,7 @@ async function postRhSessionMessage(session, message, { auto = false } = {}) {
     if (!auto) $('rhRecordStatus').textContent = 'Zuerst einloggen (API-Key).';
     return { ok: false, error: 'not_logged_in' };
   }
-  const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+  const res = await sendChatToSite(msg, site);
   if (res.ok) {
     $('rhRecordStatus').textContent = auto
       ? `${gameLabel}Auto: RH-Ankündigung gesendet.`
@@ -1111,14 +1225,16 @@ async function postRhSessionMessage(session, message, { auto = false } = {}) {
   return res;
 }
 
-async function postRhAnnouncement({ auto = false } = {}) {
-  if (auto && getActiveRhSessions().length === 0) {
-    updateRhAutopostStatus();
+async function postRhAnnouncement({ auto = false, site = getActiveSite() } = {}) {
+  const siteKey = site === 'eu' ? 'eu' : 'com';
+  const rt = rhRuntime(siteKey);
+  if (auto && getActiveRhSessions(siteKey).length === 0) {
+    if (siteKey === getActiveSite()) updateRhAutopostStatus();
     return { ok: false, error: 'no_active_rh' };
   }
 
   if (auto) {
-    const sessions = getActiveRhSessions().filter((s) => (s.chatMessage || '').trim());
+    const sessions = getActiveRhSessions(siteKey).filter((s) => (s.chatMessage || '').trim());
     if (sessions.length) {
       let lastRes = { ok: true };
       for (let i = 0; i < sessions.length; i++) {
@@ -1127,16 +1243,18 @@ async function postRhAnnouncement({ auto = false } = {}) {
         if (i < sessions.length - 1) await new Promise((r) => setTimeout(r, 500));
       }
       if (lastRes.ok) {
-        state.rhAutopostLastSent = Date.now();
-        if (isRhAutopostEnabled() && getRhAutopostIntervalMinutes() > 0) {
-          scheduleRhAutopost();
+        rt.lastSent = Date.now();
+        if (isRhAutopostEnabled(siteKey) && getRhAutopostIntervalMinutes(siteKey) > 0) {
+          scheduleRhAutopost(siteKey);
         }
-      } else if (isRhAutopostEnabled()) {
-        state.rhAutopostTimer = setTimeout(() => scheduleRhAutopost(), 60000);
-        const gameLabel = sessions[0]?.game ? `${sessions[0].game} RH — ` : '';
-        $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${lastRes.error} — Retry in 1 min`;
+      } else if (isRhAutopostEnabled(siteKey)) {
+        rt.timer = setTimeout(() => scheduleRhAutopost(siteKey), 60000);
+        if (siteKey === getActiveSite()) {
+          const gameLabel = sessions[0]?.game ? `${sessions[0].game} RH — ` : '';
+          $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${lastRes.error} — Retry in 1 min`;
+        }
       }
-      updateRhAutopostStatus();
+      if (siteKey === getActiveSite()) updateRhAutopostStatus();
       return lastRes;
     }
   }
@@ -1145,20 +1263,22 @@ async function postRhAnnouncement({ auto = false } = {}) {
   const msg = $('rhChatMessage')?.value.trim();
   const res = await postRhSessionMessage(session, msg, { auto });
   if (res.ok) {
-    state.rhAutopostLastSent = Date.now();
+    rt.lastSent = Date.now();
     if (
-      isRhAutopostEnabled() &&
-      getRhAutopostIntervalMinutes() > 0 &&
-      getActiveRhSessions().length > 0
+      isRhAutopostEnabled(siteKey) &&
+      getRhAutopostIntervalMinutes(siteKey) > 0 &&
+      getActiveRhSessions(siteKey).length > 0
     ) {
-      scheduleRhAutopost();
+      scheduleRhAutopost(siteKey);
     }
-  } else if (auto && isRhAutopostEnabled()) {
-    state.rhAutopostTimer = setTimeout(() => scheduleRhAutopost(), 60000);
-    const gameLabel = session?.game ? `${session.game} RH — ` : '';
-    $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${res.error} — Retry in 1 min`;
+  } else if (auto && isRhAutopostEnabled(siteKey)) {
+    rt.timer = setTimeout(() => scheduleRhAutopost(siteKey), 60000);
+    if (siteKey === getActiveSite()) {
+      const gameLabel = session?.game ? `${session.game} RH — ` : '';
+      $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${res.error} — Retry in 1 min`;
+    }
   }
-  updateRhAutopostStatus();
+  if (siteKey === getActiveSite()) updateRhAutopostStatus();
   return res;
 }
 
@@ -1545,12 +1665,13 @@ function migrateAutoMessages(settings) {
   return msgs;
 }
 
-function getAutoMessages() {
-  return Array.isArray(state.settings.autoMessages) ? state.settings.autoMessages : [];
+function getAutoMessages(site = getActiveSite()) {
+  const hub = hubSettings(site);
+  return Array.isArray(hub.autoMessages) ? hub.autoMessages : [];
 }
 
-function findAutoMessage(id) {
-  return getAutoMessages().find((m) => m.id === id) || null;
+function findAutoMessage(id, site = getActiveSite()) {
+  return getAutoMessages(site).find((m) => m.id === id) || null;
 }
 
 function buildAutoMsgMessage(entry) {
@@ -1628,35 +1749,43 @@ function clearAutoMsgTimers() {
   state.autoMsgTimers = {};
 }
 
-function scheduleAutoMsg(entry) {
+function autoMsgTimerKey(site, id) {
+  return `${site === 'eu' ? 'eu' : 'com'}:${id}`;
+}
+
+function scheduleAutoMsg(entry, site = getActiveSite()) {
   if (!entry?.id || !state.loggedIn) return;
+  const siteKey = site === 'eu' ? 'eu' : 'com';
+  if (siteKey === 'eu' && !state.settings?.wsEuEnabled) return;
   const id = entry.id;
-  if (state.autoMsgTimers[id]) {
-    clearTimeout(state.autoMsgTimers[id]);
-    delete state.autoMsgTimers[id];
+  const key = autoMsgTimerKey(siteKey, id);
+  if (state.autoMsgTimers[key]) {
+    clearTimeout(state.autoMsgTimers[key]);
+    delete state.autoMsgTimers[key];
   }
   if (!entry.autoEnabled) return;
   const min = Math.max(0, Number(entry.autoIntervalMinutes) || 0);
   if (min < 1) return;
 
   const ms = min * 60 * 1000;
-  const last = state.autoMsgLastSent[id] || 0;
+  state.autoMsgLastSent = state.autoMsgLastSent || {};
+  const last = state.autoMsgLastSent[key] || 0;
   const elapsed = last > 0 ? Date.now() - last : 0;
   const delay = last > 0 ? Math.max(1000, ms - elapsed) : ms;
 
-  state.autoMsgTimers[id] = setTimeout(async () => {
-    delete state.autoMsgTimers[id];
-    const current = findAutoMessage(id);
+  state.autoMsgTimers[key] = setTimeout(async () => {
+    delete state.autoMsgTimers[key];
+    const current = findAutoMessage(id, siteKey);
     if (!current?.autoEnabled || !state.loggedIn) return;
-    if (state.autoMsgInflight.has(id)) {
-      scheduleAutoMsg(current);
+    if (state.autoMsgInflight.has(key)) {
+      scheduleAutoMsg(current, siteKey);
       return;
     }
-    state.autoMsgInflight.add(id);
+    state.autoMsgInflight.add(key);
     try {
-      await postAutoMessage(id, { auto: true });
+      await postAutoMessage(id, { auto: true, site: siteKey });
     } finally {
-      state.autoMsgInflight.delete(id);
+      state.autoMsgInflight.delete(key);
     }
   }, delay);
 }
@@ -1666,13 +1795,18 @@ function syncAutoMsgTimers() {
   if (!state.loggedIn) return;
   state.autoMsgLastSent = state.autoMsgLastSent || {};
   state.autoMsgInflight = state.autoMsgInflight || new Set();
-  for (const m of getAutoMessages()) {
-    scheduleAutoMsg(m);
+  const sites = ['com'];
+  if (state.settings?.wsEuEnabled) sites.push('eu');
+  for (const site of sites) {
+    for (const m of migrateAutoMessages(hubSettings(site))) {
+      scheduleAutoMsg(m, site);
+    }
   }
 }
 
-async function postAutoMessage(id, { auto = false } = {}) {
-  const entry = findAutoMessage(id);
+async function postAutoMessage(id, { auto = false, site = getActiveSite() } = {}) {
+  const siteKey = site === 'eu' ? 'eu' : 'com';
+  const entry = findAutoMessage(id, siteKey);
   if (!entry) {
     setAutomsgStatus('Automsg nicht gefunden.');
     return { ok: false };
@@ -1686,22 +1820,27 @@ async function postAutoMessage(id, { auto = false } = {}) {
     setAutomsgStatus(`${entry.label || 'Automsg'} ist leer.`);
     return { ok: false };
   }
-  const res = await modHub.sendChat({ message: msg, useGraphql: true, chatId: chatId() });
+  const res = await sendChatToSite(msg, siteKey);
+  const key = autoMsgTimerKey(siteKey, id);
   if (res.ok) {
-    state.autoMsgLastSent[id] = Date.now();
-    const current = findAutoMessage(id) || entry;
+    state.autoMsgLastSent[key] = Date.now();
+    const current = findAutoMessage(id, siteKey) || entry;
     if (current?.autoEnabled && (Number(current.autoIntervalMinutes) || 0) > 0) {
-      scheduleAutoMsg(current);
+      scheduleAutoMsg(current, siteKey);
     }
+    const siteLabel = siteKey === 'eu' ? 'EU' : 'COM';
     setAutomsgStatus(
       auto
-        ? `Auto: „${entry.label}“ gesendet (${msg.length} Zeichen).`
-        : `„${entry.label}“ gesendet (${msg.length} Zeichen).`
+        ? `Auto [${siteLabel}]: „${entry.label}“ gesendet (${msg.length} Zeichen).`
+        : `[${siteLabel}] „${entry.label}“ gesendet (${msg.length} Zeichen).`
     );
   } else {
     setAutomsgStatus(`Fehler bei „${entry.label}“: ${res.error}`);
     if (auto && entry.autoEnabled) {
-      state.autoMsgTimers[id] = setTimeout(() => scheduleAutoMsg(findAutoMessage(id) || entry), 60000);
+      state.autoMsgTimers[key] = setTimeout(
+        () => scheduleAutoMsg(findAutoMessage(id, siteKey) || entry, siteKey),
+        60000
+      );
     }
   }
   return res;
@@ -2916,7 +3055,8 @@ async function applyPolicyMute() {
 }
 
 async function processBetForRh(line) {
-  const activeSessions = getActiveRhSessions();
+  const site = line.chatSource === 'eu' ? 'eu' : 'com';
+  const activeSessions = getActiveRhSessions(site);
   if (!activeSessions.length || !line.betId) return;
   if (isOwnModChatUser(line.username)) return;
 
@@ -2974,7 +3114,7 @@ async function processBetForRh(line) {
     line.rhHit = true;
     state.hitKeys.add(`${line.username}|${line.ts}`);
     if (minMultiHit) {
-      stopRhAutopostOnHit(`${game} RH — Treffer @${line.username}`);
+      stopRhAutopostOnHit(`${game} RH — Treffer @${line.username}`, site);
     }
     renderRhSessionsList();
     if (getSelectedRhSession()) refreshRhStatusLine();
@@ -3472,12 +3612,7 @@ function wireHub() {
     }
     const msg =
       mentionUser && state.validatedUser ? prependUserMentionForChat(raw, state.validatedUser) : raw;
-    const res = await modHub.sendChat({
-      message: msg,
-      useGraphql: true,
-      chatId: chatId(),
-      site: getActiveSite()
-    });
+    const res = await sendChatToSite(msg);
     if (res.ok) {
       const el = $(inputId);
       if (el) el.value = '';
@@ -3620,6 +3755,7 @@ function wireRh() {
     const highestMode = readRhHighestMultiEnabled(game);
     const session = {
       id: nextRhId(),
+      site: getActiveSite(),
       active: true,
       game,
       mode: highestMode ? 'highestMulti' : 'minMulti',
