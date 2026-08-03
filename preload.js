@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-let version = '0.4.74';
+let version = '0.4.75';
 try {
   version = ipcRenderer.sendSync('modhub-get-version') || version;
 } catch (_) {}
@@ -17,11 +17,11 @@ contextBridge.exposeInMainWorld('modHub', {
   toggleBrowser: (visible) => ipcRenderer.invoke('modhub-toggle-browser', { visible }),
   getConvRates: () => ipcRenderer.invoke('modhub-get-conv-rates'),
   sendChat: (payload) => ipcRenderer.invoke('modhub-send-chat', payload || {}),
-  betLookup: (betId) => ipcRenderer.invoke('modhub-bet-lookup', { betId }),
-  loadBets: () => ipcRenderer.invoke('modhub-load-bets'),
+  betLookup: (betId, opts) => ipcRenderer.invoke('modhub-bet-lookup', { betId, ...(opts || {}) }),
+  loadBets: (opts) => ipcRenderer.invoke('modhub-load-bets', opts || {}),
   trackBet: (payload) => ipcRenderer.invoke('modhub-track-bet', payload || {}),
-  refreshBet: (betId) => ipcRenderer.invoke('modhub-refresh-bet', { betId }),
-  clearBets: () => ipcRenderer.invoke('modhub-clear-bets'),
+  refreshBet: (betId, opts) => ipcRenderer.invoke('modhub-refresh-bet', { betId, ...(opts || {}) }),
+  clearBets: (opts) => ipcRenderer.invoke('modhub-clear-bets', opts || {}),
   validateUser: (name, opts) => ipcRenderer.invoke('modhub-user-validate', { name, ...(opts || {}) }),
   muteUser: (payload) => ipcRenderer.invoke('modhub-mute', payload || {}),
   unmuteUser: (payload) => ipcRenderer.invoke('modhub-unmute', payload || {}),
@@ -30,16 +30,16 @@ contextBridge.exposeInMainWorld('modHub', {
   tipHistory: (name, opts) => ipcRenderer.invoke('modhub-tip-history', { name, ...(opts || {}) }),
   chatHistory: (name, opts) => ipcRenderer.invoke('modhub-chat-history', { name, ...(opts || {}) }),
   muteHistory: (name, opts) => ipcRenderer.invoke('modhub-mute-history', { name, ...(opts || {}) }),
-  appendLog: (line) => ipcRenderer.invoke('modhub-append-log', { line }),
-  loadBlueprints: () => ipcRenderer.invoke('modhub-load-blueprints'),
+  appendLog: (line, opts) => ipcRenderer.invoke('modhub-append-log', { line, ...(opts || {}) }),
+  loadBlueprints: (opts) => ipcRenderer.invoke('modhub-load-blueprints', opts || {}),
   seedBlueprints: (opts) => ipcRenderer.invoke('modhub-seed-blueprints', opts || {}),
   appendBlueprint: (payload) => ipcRenderer.invoke('modhub-append-blueprint', payload || {}),
-  loadVeri2: () => ipcRenderer.invoke('modhub-load-veri2'),
-  addVeri2: (username) => ipcRenderer.invoke('modhub-add-veri2', { username }),
-  loadMutedWarned: () => ipcRenderer.invoke('modhub-load-muted-warned'),
-  duplicateIps: () => ipcRenderer.invoke('modhub-duplicate-ips'),
+  loadVeri2: (opts) => ipcRenderer.invoke('modhub-load-veri2', opts || {}),
+  addVeri2: (username, opts) => ipcRenderer.invoke('modhub-add-veri2', { username, ...(opts || {}) }),
+  loadMutedWarned: (opts) => ipcRenderer.invoke('modhub-load-muted-warned', opts || {}),
+  duplicateIps: (opts) => ipcRenderer.invoke('modhub-duplicate-ips', opts || {}),
   automuteStatus: () => ipcRenderer.invoke('modhub-automute-status'),
-  automuteLog: (limit) => ipcRenderer.invoke('modhub-automute-log', { limit }),
+  automuteLog: (limit, opts) => ipcRenderer.invoke('modhub-automute-log', { limit, ...(opts || {}) }),
   automuteTest: (payload) => ipcRenderer.invoke('modhub-automute-test', payload || {}),
   notifySoundsList: () => ipcRenderer.invoke('modhub-notify-sounds-list'),
   notifySoundImport: () => ipcRenderer.invoke('modhub-notify-sound-import'),
@@ -47,7 +47,7 @@ contextBridge.exposeInMainWorld('modHub', {
   notifySoundData: (id) => ipcRenderer.invoke('modhub-notify-sound-data', { id }),
   scoreLiveMessage: (input) => ipcRenderer.sendSync('modhub-live-flag', input || {}),
   analyseRun: (opts) => ipcRenderer.invoke('modhub-analyse-run', opts || {}),
-  analyseListFiles: () => ipcRenderer.invoke('modhub-analyse-list-files'),
+  analyseListFiles: (opts) => ipcRenderer.invoke('modhub-analyse-list-files', opts || {}),
   onAnalyseProgress: (handler) => {
     const w = (_e, p) => handler(p);
     ipcRenderer.on('modhub-analyse-progress', w);

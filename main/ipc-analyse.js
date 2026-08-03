@@ -1,14 +1,19 @@
 /**
  * Analyse-IPC — synchron im Main-Prozess mit Fortschritts-Events (zuverlässiger als Worker in Electron).
  * @param {import('electron').IpcMain} ipcMain
- * @param {{ getDataDir: () => string, analyseEngine: { runAnalyse: Function, listChatLogFiles: Function } }} deps
+ * @param {{ getDataDir: (site?: string) => string, analyseEngine: { runAnalyse: Function, listChatLogFiles: Function } }} deps
  */
 function registerAnalyseIpc(ipcMain, { getDataDir, analyseEngine }) {
   let runSeq = 0;
 
+  function resolveSite(options = {}) {
+    return options.site === 'eu' ? 'eu' : 'com';
+  }
+
   ipcMain.handle('modhub-analyse-run', async (event, options = {}) => {
     const sender = event.sender;
-    const dir = getDataDir();
+    const site = resolveSite(options);
+    const dir = getDataDir(site);
     const mySeq = ++runSeq;
 
     const sendProgress = (payload) => {
@@ -18,7 +23,7 @@ function registerAnalyseIpc(ipcMain, { getDataDir, analyseEngine }) {
       }
     };
 
-    sendProgress({ phase: 'init', percent: 2, detail: 'Start…' });
+    sendProgress({ phase: 'init', percent: 2, detail: `Start (${site === 'eu' ? 'stake.eu' : 'stake.com'})…` });
 
     return new Promise((resolve) => {
       setImmediate(() => {
@@ -29,20 +34,27 @@ function registerAnalyseIpc(ipcMain, { getDataDir, analyseEngine }) {
         try {
           const result = analyseEngine.runAnalyse(dir, {
             ...(options || {}),
+            site,
             onProgress: (p) => sendProgress(p)
           });
+          if (result && typeof result === 'object') result.site = site;
           resolve(result);
         } catch (err) {
-          resolve({ ok: false, error: err.message || String(err) });
+          resolve({ ok: false, error: err.message || String(err), site });
         }
       });
     });
   });
 
-  ipcMain.handle('modhub-analyse-list-files', async () => {
+  ipcMain.handle('modhub-analyse-list-files', async (_e, options = {}) => {
     try {
-      const files = analyseEngine.listChatLogFiles(getDataDir());
-      return { ok: true, files: files.map((f) => ({ basename: f.basename, dateKey: f.dateKey })) };
+      const site = resolveSite(options);
+      const files = analyseEngine.listChatLogFiles(getDataDir(site));
+      return {
+        ok: true,
+        site,
+        files: files.map((f) => ({ basename: f.basename, dateKey: f.dateKey, site: f.site }))
+      };
     } catch (err) {
       return { ok: false, error: err.message || String(err) };
     }

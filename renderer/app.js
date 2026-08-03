@@ -131,8 +131,8 @@ function syncSiteTabsUi() {
   if (siteHint) {
     siteHint.textContent =
       site === 'eu'
-        ? 'Einstellungen RH / Automsg / Automute gelten nur für stake.eu'
-        : 'Einstellungen RH / Automsg / Automute gelten nur für stake.com';
+        ? 'Alles getrennt: Chat-Logs, Analyse, Veri2, HashIP, Blueprints nur für stake.eu'
+        : 'Alles getrennt: Chat-Logs, Analyse, Veri2, HashIP, Blueprints nur für stake.com';
   }
 }
 
@@ -178,9 +178,43 @@ async function setActiveSite(site) {
   }
   syncSiteTabsUi();
   applyHubSettingsToUi();
+  await reloadSiteScopedData();
   LiveChat.invalidateChatDom();
   renderChats({ forceFull: true });
   renderHubIndexes();
+}
+
+async function reloadSiteScopedData() {
+  const site = getActiveSite();
+  try {
+    await refreshBlueprints({ site });
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    await refreshVeri2({ site });
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    await refreshMutedWarnedSets({ site });
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    const res = await modHub.loadBets({ site });
+    if (res?.ok && Array.isArray(res.bets)) {
+      state.bets = res.bets;
+      renderBetsTable();
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    window.AutomutePanel?.onTabShow?.();
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 function wireSiteTabs() {
@@ -375,9 +409,10 @@ function scoreIncomingFlag(line) {
   });
 }
 
-async function refreshMutedWarnedSets() {
+async function refreshMutedWarnedSets(opts = {}) {
   try {
-    const res = await modHub.loadMutedWarned();
+    const site = opts.site || getActiveSite();
+    const res = await modHub.loadMutedWarned({ site });
     if (!res?.ok) return;
     state.mutedLocalSet = new Set((res.muted || []).map((r) => String(r.user || '').toLowerCase()).filter(Boolean));
     state.warnedLocalSet = new Set((res.warned || []).map((r) => String(r.user || '').toLowerCase()).filter(Boolean));
@@ -561,7 +596,9 @@ async function enterRhOvertime(sessionId) {
   clearSessionDeadlineTimer(session);
   session.overtime = true;
   session.overtimeSince = Date.now();
-  await modHub.appendLog(`--- RH ${session.game} | Timer abgelaufen → Verlängerung bis Stop ---`);
+  await modHub.appendLog(`--- RH ${session.game} | Timer abgelaufen → Verlängerung bis Stop ---`, {
+    site: session.site || getActiveSite()
+  });
   stopRhAutopostOnHit(`${session.game} RH — Timer abgelaufen`, session.site || 'com');
   renderRhSessionsList();
   if (sessionId === state.rhActiveId) refreshRhStatusLine();
@@ -2220,21 +2257,24 @@ function updateLoginUi() {
   renderHubIndexes();
 }
 
-async function refreshVeri2() {
-  const res = await modHub.loadVeri2();
+async function refreshVeri2(opts = {}) {
+  const site = opts.site || getActiveSite();
+  const res = await modHub.loadVeri2({ site });
   if (res.ok) state.veri2 = new Set((res.users || []).map((u) => u.toLowerCase()));
 }
 
-async function refreshBlueprints() {
-  const res = await modHub.loadBlueprints();
+async function refreshBlueprints(opts = {}) {
+  const site = opts.site || getActiveSite();
+  const res = await modHub.loadBlueprints({ site });
   if (!res.ok) return;
   state.blueprints.chat = res.chat || [];
   state.blueprints.mute = res.mute || [];
   state.blueprints.warn = res.warn || [];
   state.blueprints.rh = res.rh || [];
-  if (res.dataPath && !state.settings.dataPath) {
-    state.settings.dataPath = res.dataPath;
-    $('dataPathLabel').textContent = res.dataPath;
+  const pathLabel = res.rootPath || res.dataPath;
+  if (pathLabel) {
+    state.settings.dataPath = pathLabel;
+    if ($('dataPathLabel')) $('dataPathLabel').textContent = pathLabel;
   }
   const fill = (sel, lines) => {
     const el = $(sel);
@@ -2569,7 +2609,8 @@ function betSortMoney(b, field) {
 function getFilteredSortedBets() {
   readBetsFiltersFromUi();
   const v = state.betsView;
-  let rows = [...state.bets];
+  const site = getActiveSite();
+  let rows = [...state.bets].filter((b) => (b.site || 'com') === site);
 
   if (v.filterUser) {
     const q = v.filterUser.replace(/^@/, '').toLowerCase();
@@ -2745,15 +2786,19 @@ function wireBets() {
 
   $('btnBetsReload')?.addEventListener('click', async () => {
     await ensureConvRates(true);
-    const res = await modHub.loadBets();
+    const res = await modHub.loadBets({ site: getActiveSite() });
     if (res.ok) setBetsList(res.bets);
     else renderBetsTable();
   });
 
   $('btnBetsClear')?.addEventListener('click', async () => {
-    await modHub.clearBets();
-    state.bets = [];
+    const site = getActiveSite();
+    await modHub.clearBets({ site });
+    state.bets = state.bets.filter((b) => (b.site || 'com') !== site);
     state.betByKey = {};
+    for (const b of state.bets) {
+      if (b.key) state.betByKey[b.key] = b;
+    }
     state.selectedBetKey = null;
     renderBetsTable();
   });
@@ -3105,7 +3150,7 @@ async function processBetForRh(line) {
     if (!highestMode) minMultiHit = true;
 
     const logLine = `${new Date().toLocaleString()} | ${session.game} RH | ${hidden ? '[versteckt] ' : ''}${fmtMulti(multiplier)}x | ${game} | ${casinoId} | @${line.username}`;
-    await modHub.appendLog(logLine);
+    await modHub.appendLog(logLine, { site: session.site || getActiveSite() });
 
     if (session.id === state.rhActiveId) renderRhBets();
   }
@@ -3262,13 +3307,22 @@ function wireHub() {
     LiveChat.invalidateChatDom();
     if (isChatAutoscrollEnabled()) {
       const max = Number(state.settings.maxChatRows) || 1000;
-      if (state.chatLines.length > max) {
-        const drop = state.chatLines.length - max;
-        state.chatLines = state.chatLines.slice(drop);
-        state.chatLines.forEach((l, i) => {
-          l.idx = i;
-        });
-      }
+      const trimSite = (site) => {
+        const wantEu = site === 'eu';
+        const idxs = [];
+        for (let i = 0; i < state.chatLines.length; i++) {
+          const isEu = state.chatLines[i].chatSource === 'eu';
+          if (wantEu ? isEu : !isEu) idxs.push(i);
+        }
+        if (idxs.length <= max) return;
+        const drop = new Set(idxs.slice(0, idxs.length - max));
+        state.chatLines = state.chatLines.filter((_, i) => !drop.has(i));
+      };
+      trimSite('com');
+      trimSite('eu');
+      state.chatLines.forEach((l, i) => {
+        l.idx = i;
+      });
     }
     renderChats({ forceFull: true });
   });
@@ -3287,11 +3341,17 @@ function wireHub() {
   });
 
   $('btnClearLive')?.addEventListener('click', () => {
-    state.chatLines = [];
-    state.tagged = [];
-    state.rains = [];
-    state.flagged = [];
-    state.liveFlagRoll = new Map();
+    const site = getActiveSite();
+    state.chatLines = state.chatLines.filter((l) =>
+      site === 'eu' ? l.chatSource !== 'eu' : l.chatSource === 'eu'
+    );
+    state.chatLines.forEach((l, i) => {
+      l.idx = i;
+    });
+    const keepOther = (t) => (site === 'eu' ? t.chatSource !== 'eu' : t.chatSource === 'eu');
+    state.tagged = (state.tagged || []).filter(keepOther);
+    state.rains = (state.rains || []).filter(keepOther);
+    state.flagged = (state.flagged || []).filter(keepOther);
     LiveChat.invalidateChatDom();
     renderChats({ forceFull: true });
     renderHubIndexes();
@@ -3688,11 +3748,14 @@ async function finishRhSession(sessionId, reason, opts = {}) {
       ? `Timer ${session.deadlineLabel} + Verlängerung`
       : `Timer ${session.deadlineLabel}`;
     await modHub.appendLog(
-      `--- RH STOP ${session.game} höchster Multi | ${timerNote} | ${reason} | Gewinner: ${leader ? formatRhLeaderLine(leader) : '—'} ---`
+      `--- RH STOP ${session.game} höchster Multi | ${timerNote} | ${reason} | Gewinner: ${leader ? formatRhLeaderLine(leader) : '—'} ---`,
+      { site: session.site || getActiveSite() }
     );
   } else {
     summary = `${session.game} gestoppt (${reason}). ${session.bets.length} Wetten geloggt.`;
-    await modHub.appendLog(`--- RH STOP ${session.game} >= ${session.minMulti}x (${session.bets.length} bets) ---`);
+    await modHub.appendLog(`--- RH STOP ${session.game} >= ${session.minMulti}x (${session.bets.length} bets) ---`, {
+      site: session.site || getActiveSite()
+    });
   }
   if (opts.announced) {
     summary = `${session.game} RH — STOP gesendet · ${summary}`;
@@ -3780,12 +3843,16 @@ function wireRh() {
         rhCrashTimerMinutes: Math.max(0, Number($('rhTimerMinutes')?.value) || 0),
         rhCrashTimerSeconds: Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0))
       });
-      await modHub.appendLog(`--- RH START ${game} | höchster Multi | Timer ${session.deadlineLabel} ---`);
+      await modHub.appendLog(`--- RH START ${game} | höchster Multi | Timer ${session.deadlineLabel} ---`, {
+        site: session.site || getActiveSite()
+      });
       session.deadlineTimer = setTimeout(() => {
         if (getRhSession(session.id)?.active) enterRhOvertime(session.id);
       }, durationMs);
     } else {
-      await modHub.appendLog(`--- RH START ${game} >= ${session.minMulti}x ---`);
+      await modHub.appendLog(`--- RH START ${game} >= ${session.minMulti}x ---`, {
+        site: session.site || getActiveSite()
+      });
     }
 
     state.rhSessions.push(session);

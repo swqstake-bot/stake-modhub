@@ -45,6 +45,55 @@ describe('file-logs loadBetsLog', () => {
     flushAll();
     fs.rmSync(dir, { recursive: true, force: true });
   });
+
+  it('schreibt Chat/Rain/Bets getrennt für com und eu', () => {
+    const {
+      chatLogFilename,
+      rainLogFilename,
+      betsLogFilename,
+      logLiveMessage,
+      appendBetLog,
+      listBetsLogFiles
+    } = require('../lib/file-logs');
+    const { parseFilenameDayKey, listChatLogFiles } = require('../lib/analyse/load-chat-logs');
+
+    assert.match(chatLogFilename('com'), /Chat_de\.csv$/);
+    assert.match(chatLogFilename('eu'), /Chat_eu\.csv$/);
+    assert.match(rainLogFilename('com'), /Rain_de\.csv$/);
+    assert.match(rainLogFilename('eu'), /Rain_eu\.csv$/);
+    assert.match(betsLogFilename('com'), /Bets_de\.csv$/);
+    assert.match(betsLogFilename('eu'), /Bets_eu\.csv$/);
+
+    const de = parseFilenameDayKey('382026Chat_de.csv');
+    const eu = parseFilenameDayKey('382026Chat_eu.csv');
+    assert.equal(de?.site, 'com');
+    assert.equal(eu?.site, 'eu');
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'modhub-site-logs-'));
+    logLiveMessage(dir, { username: 'alice', message: 'hi com', kind: 'text' }, 'com');
+    logLiveMessage(dir, { username: 'bob', message: 'hi eu', kind: 'text' }, 'eu');
+    logLiveMessage(dir, { username: 'rain', kind: 'rain', rain: { giver: 'rain', amount: 1 } }, 'eu');
+    appendBetLog(dir, {
+      betId: 'eu-bet-1',
+      username: 'bob',
+      game: 'Dice',
+      multiplier: 2,
+      lookupOk: true,
+      site: 'eu',
+      firstSeenAt: Date.now()
+    });
+    flushAll();
+
+    const chats = listChatLogFiles(dir);
+    assert.ok(chats.some((f) => f.site === 'com'));
+    assert.ok(chats.some((f) => f.site === 'eu'));
+    assert.ok(fs.existsSync(path.join(dir, chatLogFilename('com'))));
+    assert.ok(fs.existsSync(path.join(dir, chatLogFilename('eu'))));
+    assert.ok(fs.existsSync(path.join(dir, rainLogFilename('eu'))));
+    assert.ok(listBetsLogFiles(dir).some((f) => /Bets_eu\.csv$/i.test(f)));
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 });
 
 describe('gz-spam ratio', () => {

@@ -26,9 +26,30 @@
     return Number(getCtx().state.settings.maxChatRows) || 1000;
   }
 
+  function lineSiteKey(line) {
+    return line?.chatSource === 'eu' ? 'eu' : 'com';
+  }
+
+  function matchesActiveSite(line) {
+    const site = getCtx().state.activeSite === 'eu' ? 'eu' : 'com';
+    const euEnabled = getCtx().state.settings?.wsEuEnabled === true;
+    if (!euEnabled) return true;
+    if (site === 'eu') return line.chatSource === 'eu';
+    return line.chatSource !== 'eu';
+  }
+
+  /** Site zuerst filtern, dann kappen — sonst frisst .com den EU-Chat. */
+  function getSiteChatLines(lines) {
+    const list = Array.isArray(lines) ? lines : [];
+    return list.filter(matchesActiveSite);
+  }
+
   function getChatLinesForDisplay(lines) {
-    if (!isChatAutoscrollEnabled()) return lines;
-    return lines.length > 300 ? lines.slice(-300) : lines;
+    const siteLines = getSiteChatLines(lines);
+    if (!isChatAutoscrollEnabled()) return siteLines;
+    const max = getEffectiveChatStoreMax();
+    if (!Number.isFinite(max) || siteLines.length <= max) return siteLines;
+    return siteLines.slice(-max);
   }
 
   function getChatFilterKeyword() {
@@ -44,16 +65,8 @@
     return user.includes(lower) || msg.includes(lower);
   }
 
-  function matchesActiveSite(line) {
-    const site = getCtx().state.activeSite === 'eu' ? 'eu' : 'com';
-    const euEnabled = getCtx().state.settings?.wsEuEnabled === true;
-    if (!euEnabled) return true;
-    if (site === 'eu') return line.chatSource === 'eu';
-    return line.chatSource !== 'eu';
-  }
-
   function getDisplayChatLines(lines) {
-    const slice = getChatLinesForDisplay(lines).filter(matchesActiveSite);
+    const slice = getChatLinesForDisplay(lines);
     const keyword = getChatFilterKeyword();
     if (!keyword) {
       return { lines: slice, keyword: '', matchCount: slice.length, totalCount: slice.length };
@@ -85,6 +98,23 @@
     el.classList.remove('hidden');
   }
 
+  function trimChatStoreForSite(site, max) {
+    const { state } = getCtx();
+    if (!Number.isFinite(max) || max <= 0) return;
+    const wantEu = site === 'eu';
+    const siteIdx = [];
+    for (let i = 0; i < state.chatLines.length; i++) {
+      const isEu = state.chatLines[i].chatSource === 'eu';
+      if (wantEu ? isEu : !isEu) siteIdx.push(i);
+    }
+    if (siteIdx.length <= max) return;
+    const dropIdx = new Set(siteIdx.slice(0, siteIdx.length - max));
+    state.chatLines = state.chatLines.filter((_, i) => !dropIdx.has(i));
+    state.chatLines.forEach((l, i) => {
+      l.idx = i;
+    });
+  }
+
   function ensureLineUid(line) {
     const { state } = getCtx();
     if (line.uid == null) {
@@ -100,12 +130,8 @@
     line.idx = state.chatLines.length;
     state.chatLines.push(line);
     const max = getEffectiveChatStoreMax();
-    if (Number.isFinite(max) && state.chatLines.length > max) {
-      const drop = state.chatLines.length - max;
-      state.chatLines = state.chatLines.slice(drop);
-      state.chatLines.forEach((l, i) => {
-        l.idx = i;
-      });
+    if (Number.isFinite(max)) {
+      trimChatStoreForSite(lineSiteKey(line), max);
     }
     return line;
   }
@@ -218,14 +244,14 @@
     if (!el || !newLines.length) return;
     const { state } = getCtx();
     const autoscroll = isChatAutoscrollEnabled();
-    const maxDisplay = 300;
+    const maxDisplay = getEffectiveChatStoreMax();
     const frag = document.createDocumentFragment();
     const wrap = document.createElement('div');
     wrap.innerHTML = newLines.map((m) => formatChatLineHtml(m)).join('');
     while (wrap.firstChild) frag.appendChild(wrap.firstChild);
     el.appendChild(frag);
 
-    if (autoscroll && displayLines.length > maxDisplay) {
+    if (autoscroll && Number.isFinite(maxDisplay) && displayLines.length > maxDisplay) {
       const trim = displayLines.length - maxDisplay;
       const children = el.querySelectorAll('.chat-line');
       for (let i = 0; i < trim && children[i]; i++) {
@@ -234,7 +260,9 @@
     }
 
     state.chatDomHeadUid = displayLines[0]?.uid ?? null;
-    state.chatDomCount = Math.min(displayLines.length, autoscroll ? maxDisplay : displayLines.length);
+    state.chatDomCount = Number.isFinite(maxDisplay)
+      ? Math.min(displayLines.length, autoscroll ? maxDisplay : displayLines.length)
+      : displayLines.length;
 
     if (autoscroll) {
       el.scrollTop = el.scrollHeight;

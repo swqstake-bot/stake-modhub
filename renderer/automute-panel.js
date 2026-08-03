@@ -138,7 +138,9 @@
     const el = $('automuteRecentList');
     if (!el || !ctx?.modHub?.automuteLog) return;
     try {
-      const res = await ctx.modHub.automuteLog(25);
+      const res = await ctx.modHub.automuteLog(25, {
+        site: ctx.state?.activeSite === 'eu' ? 'eu' : 'com'
+      });
       const log = (res?.log || []).filter((e) => (e.ok || e.dryRun) && (e.preview || e.username));
       if (!log.length) {
         el.innerHTML = '<p class="hint">Noch keine Automutes.</p>';
@@ -250,7 +252,8 @@
       const res = await ctx.modHub.automuteTest({
         message: sample,
         username,
-        rules
+        rules,
+        site: ctx.state?.activeSite === 'eu' ? 'eu' : 'com'
       });
       const r = res?.result;
       if (!r?.match) {

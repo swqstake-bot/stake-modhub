@@ -302,7 +302,12 @@
   }
 
   function picksStorageKey(monthKey) {
-    return `modhub-friendlist-picks-${monthKey || 'default'}`;
+    const site = document.body.classList.contains('site-eu') ? 'eu' : 'com';
+    return `modhub-friendlist-picks-${site}-${monthKey || 'default'}`;
+  }
+
+  function getAnalyseSite() {
+    return document.body.classList.contains('site-eu') ? 'eu' : 'com';
   }
 
   function currentMonthKey() {
@@ -690,6 +695,7 @@
       return;
     }
     el.innerHTML = [
+      `<span><strong>${d.site === 'eu' ? 'stake.eu' : 'stake.com'}</strong></span>`,
       `<span><strong>${d.messagesUsed}</strong> ausgewertet</span>`,
       `<span>${d.messagesRaw} roh</span>`,
       `<span><strong>${d.users}</strong> User</span>`,
@@ -727,8 +733,10 @@
       setProgress(p.percent, p.detail || p.phase);
     });
     try {
-      const res = await modHub.analyseRun({ preset });
+      const site = getAnalyseSite();
+      const res = await modHub.analyseRun({ preset, site });
       state.data = res;
+      state.analyseSite = site;
       if (!res || typeof res !== 'object') {
         setStatus('Fehler: Leere Antwort vom Analyse-Backend.', true);
         return;
@@ -857,6 +865,13 @@
     refresh: runAnalyse,
     onTabShow() {
       updateModeUi();
+      const site = getAnalyseSite();
+      if (state.data?.ok && state.analyseSite && state.analyseSite !== site) {
+        state.data = null;
+        setStatus(`Site gewechselt → ${site === 'eu' ? 'stake.eu' : 'stake.com'}. Bitte Analyse neu laden.`);
+        setMeta();
+        return;
+      }
       if (state.data?.ok) {
         renderFriendlist();
         renderEnforcement();

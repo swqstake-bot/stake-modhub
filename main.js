@@ -9,7 +9,7 @@ const {
   readBundledBlueprints,
   bundledAvailable
 } = require('./lib/blueprint-defaults');
-const { ensureDataPath, getDatengrubePath } = require('./lib/data-path');
+const { ensureDataPath, getDatengrubeRoot, getNotifySoundsRoot, normalizeSiteKey } = require('./lib/data-path');
 const dataFiles = require('./lib/data-files');
 const analyseEngine = require('./lib/analyse');
 const { scoreLiveMessage } = require('./lib/analyse/live-flag');
@@ -113,7 +113,7 @@ const gqlEu = new StakeGraphQL(
 
 const autoHashQueue = new AutoHashQueue({
   getSettings: () => loadSettings(),
-  fetchUserHash: (name) => gql.getUserHash(name)
+  fetchUserHash: (name, site) => gqlClientForSite(site).getUserHash(name)
 });
 
 function getModNamesForAutomute() {
@@ -148,13 +148,14 @@ const automuteRelay = new AutomuteRelayClient({
 const autoMuteEngine = new AutoMuteEngine({
   getSettings: () => loadSettings(),
   getSettingsForSite: (site) => settingsForSite(site),
-  getDataDir: () => dataDir(),
+  getDataDir: (site) => dataDir(site),
   resolveUserId: (name, ctx) => resolveUserIdForAutomute(name, ctx?.site || 'com'),
   muteUser: async ({ userId, expire, message, site }) => {
-    const client = gqlClientForSite(site || 'com');
+    const siteKey = site === 'eu' ? 'eu' : 'com';
+    const client = gqlClientForSite(siteKey);
     const data = await client.muteUser(userId, expire, message);
     if (data?.muteUser?.name) {
-      fileLogs.appendMuted(dataDir(), data.muteUser.name, message || '', expire || '');
+      fileLogs.appendMuted(dataDir(siteKey), data.muteUser.name, message || '', expire || '');
     }
     return data;
   },
@@ -199,15 +200,20 @@ function processAutomuteBatch(batch, site = 'com') {
   }
 }
 
-function dataDir() {
-  return ensureDataPath();
+function dataDir(site) {
+  return ensureDataPath(normalizeSiteKey(site ?? loadSettings().activeSite));
+}
+
+function dataRoot() {
+  return getDatengrubeRoot();
 }
 
 function initDataStorage() {
-  const dataPath = dataDir();
-  saveSettings({ dataPath });
-  seedBlueprintDefaults(dataPath);
-  return dataPath;
+  const root = dataRoot();
+  seedBlueprintDefaults(dataDir('com'));
+  seedBlueprintDefaults(dataDir('eu'));
+  saveSettings({ dataPath: root });
+  return root;
 }
 
 function sendBetRecord(record) {
@@ -217,14 +223,19 @@ function sendBetRecord(record) {
 }
 
 const betRegistry = createBetRegistry({
-  lookupBet: (id) => gql.getBetLookup(id),
+  lookupBet: (id, site) => {
+    const client = site === 'eu' ? gqlEu : gql;
+    return client.getBetLookup(id);
+  },
   appendLog: (record) => {
-    fileLogs.appendBetLog(dataDir(), record);
+    const site = record?.site === 'eu' ? 'eu' : 'com';
+    fileLogs.appendBetLog(dataDir(site), record);
   }
 });
 
-function trackBetsInMessages(batch) {
+function trackBetsInMessages(batch, site = 'com') {
   if (!loggedInModUser) return;
+  const siteKey = site === 'eu' ? 'eu' : 'com';
   for (const m of batch) {
     if (!m?.message) continue;
     const ids = extractBetIds(m.message);
@@ -235,7 +246,8 @@ function trackBetsInMessages(batch) {
             betId: id,
             username: m.username,
             message: m.message,
-            timestamp: m.timestamp
+            timestamp: m.timestamp,
+            site: siteKey
           },
           sendBetRecord
         )
@@ -249,7 +261,7 @@ const chatWs = new StakeChatWebSocket({
     const s = loadSettings();
     if (s.logHash) {
       for (const m of batch) {
-        if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username);
+        if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username, 'com');
       }
     }
     processAutomuteBatch(batch, 'com');
@@ -267,7 +279,7 @@ const chatWsEu = new StakeChatWebSocket({
     const s = loadSettings();
     if (s.logHash) {
       for (const m of batch) {
-        if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username);
+        if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username, 'eu');
       }
     }
     processAutomuteBatch(batch, 'eu');
@@ -645,13 +657,14 @@ function broadcastLiveBatch(batch, source) {
   if (!Array.isArray(batch) || !batch.length) return;
   batch = dedupLiveBatch(batch, source);
   if (!batch.length) return;
-  trackBetsInMessages(batch);
+  const site = source === 'ws-eu' ? 'eu' : 'com';
+  trackBetsInMessages(batch, site);
   const s = loadSettings();
   if (s.logChat) {
-    const dir = dataDir();
+    const dir = dataDir(site);
     for (const m of batch) {
       if (!m || !m.username) continue;
-      fileLogs.logLiveMessage(dir, m);
+      fileLogs.logLiveMessage(dir, m, site);
     }
     fileLogs.flushAll();
   }
@@ -714,23 +727,25 @@ function registerIpc() {
     ...autoMuteEngine.getStatus()
   }));
 
-  ipcMain.handle('modhub-automute-log', async (_e, { limit } = {}) => {
+  ipcMain.handle('modhub-automute-log', async (_e, { limit, site } = {}) => {
     const cap = limit || 50;
-    const mem = autoMuteEngine.getRecentLog(cap);
-    const disk = dataFiles.loadAutomuteLog(dataDir(), cap * 2);
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    const mem = autoMuteEngine.getRecentLog(cap).filter((e) => (e.site || 'com') === siteKey);
+    const disk = dataFiles.loadAutomuteLog(dataDir(siteKey), cap * 2);
     const log = dataFiles.mergeAutomuteLogEntries(mem, disk, cap);
-    return { ok: true, log };
+    return { ok: true, log, site: siteKey };
   });
 
-  ipcMain.handle('modhub-automute-test', async (_e, { message, username, rules } = {}) => {
+  ipcMain.handle('modhub-automute-test', async (_e, { message, username, rules, site } = {}) => {
     const { migrateAutoMuteRules } = require('./lib/automute-defaults');
     const { previewAutomute } = require('./lib/automute-engine');
-    const s = loadSettings();
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    const s = settingsForSite(siteKey);
     const list = Array.isArray(rules) && rules.length ? rules.map((r) => require('./lib/automute-defaults').normalizeRule(r)) : migrateAutoMuteRules(s);
-    const strikes = dataFiles.loadAutomuteStrikes(dataDir());
+    const strikes = dataFiles.loadAutomuteStrikes(dataDir(siteKey));
     return {
       ok: true,
-      result: previewAutomute(String(message || ''), list, { username, strikes })
+      result: previewAutomute(String(message || ''), list, { username, strikes, site: siteKey })
     };
   });
 
@@ -751,7 +766,7 @@ function registerIpc() {
       const src = result.filePaths[0];
       const label = path.basename(src, path.extname(src));
       const s = loadSettings();
-      const { entry, customNotifySounds } = notifySoundsStore.importCustomSound(dataDir(), s, src, label);
+      const { entry, customNotifySounds } = notifySoundsStore.importCustomSound(getNotifySoundsRoot(), s, src, label);
       saveSettings({ customNotifySounds });
       return { ok: true, entry, sounds: customNotifySounds };
     } catch (e) {
@@ -761,34 +776,38 @@ function registerIpc() {
 
   ipcMain.handle('modhub-notify-sound-delete', async (_e, { id } = {}) => {
     const s = loadSettings();
-    const customNotifySounds = notifySoundsStore.deleteCustomSound(dataDir(), s, id);
+    const customNotifySounds = notifySoundsStore.deleteCustomSound(getNotifySoundsRoot(), s, id);
     saveSettings({ customNotifySounds });
     return { ok: true, sounds: customNotifySounds };
   });
 
   ipcMain.handle('modhub-notify-sound-data', async (_e, { id } = {}) => {
     const s = loadSettings();
-    const dataUrl = notifySoundsStore.readCustomSoundDataUrl(dataDir(), s, id);
+    const dataUrl = notifySoundsStore.readCustomSoundDataUrl(getNotifySoundsRoot(), s, id);
     if (!dataUrl) return { ok: false, error: 'not_found' };
     return { ok: true, dataUrl };
   });
 
   ipcMain.handle('modhub-pick-data-path', async () => {
-    const dataPath = initDataStorage();
+    const root = initDataStorage();
+    const siteKey = normalizeSiteKey(loadSettings().activeSite);
+    const dataPath = dataDir(siteKey);
     const bundled = readBundledBlueprints();
     const bp = dataFiles.loadBlueprints(dataPath, bundled);
-    await shell.openPath(dataPath);
-    return { ok: true, dataPath, opened: true, ...bp };
+    await shell.openPath(root);
+    return { ok: true, dataPath: root, sitePath: dataPath, site: siteKey, opened: true, ...bp };
   });
 
-  ipcMain.handle('modhub-seed-blueprints', async (_e, { force } = {}) => {
-    const dataPath = dataDir();
+  ipcMain.handle('modhub-seed-blueprints', async (_e, { force, site } = {}) => {
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    const dataPath = dataDir(siteKey);
     const seeded = seedBlueprintDefaults(dataPath, { force: !!force });
     const bundled = readBundledBlueprints();
     const bp = dataFiles.loadBlueprints(dataPath, bundled);
     return {
       ok: true,
       dataPath,
+      site: siteKey,
       seeded,
       bundledOk: bundledAvailable(),
       ...bp
@@ -856,10 +875,13 @@ function registerIpc() {
     await startNativeChatWs();
     openStakeChatCapture(false).catch(() => {});
     startLiveHealthMonitor();
-    const dataPath = dataDir();
-    betRegistry.hydrate(fileLogs.loadBetsLog(dataPath));
+    const dataPathCom = dataDir('com');
+    const dataPathEu = dataDir('eu');
+    betRegistry.hydrate(fileLogs.loadBetsLog(dataPathCom, 3000, 'com'), 'com');
+    betRegistry.hydrate(fileLogs.loadBetsLog(dataPathEu, 3000, 'eu'), 'eu');
     if (mainWin && !mainWin.isDestroyed()) {
-      mainWin.webContents.send('modhub-bets-loaded', { bets: betRegistry.list() });
+      const active = normalizeSiteKey(loadSettings().activeSite);
+      mainWin.webContents.send('modhub-bets-loaded', { bets: betRegistry.list(active), site: active });
     }
     return { ok: true, user: name, data, convRates };
   }
@@ -906,21 +928,23 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('modhub-bet-lookup', async (_e, { betId } = {}) => {
+  ipcMain.handle('modhub-bet-lookup', async (_e, { betId, site } = {}) => {
     try {
-      const data = await gql.getBetLookup(betId);
-      return { ok: true, data };
+      const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+      const data = await gqlClientForSite(siteKey).getBetLookup(betId);
+      return { ok: true, data, site: siteKey };
     } catch (e) {
       return { ok: false, error: e.message };
     }
   });
 
-  ipcMain.handle('modhub-load-bets', async () => {
+  ipcMain.handle('modhub-load-bets', async (_e, { site } = {}) => {
     try {
-      const dataPath = dataDir();
-      const disk = fileLogs.loadBetsLog(dataPath);
-      betRegistry.hydrate(disk);
-      return { ok: true, bets: betRegistry.list() };
+      const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+      const dataPath = dataDir(siteKey);
+      const disk = fileLogs.loadBetsLog(dataPath, 3000, siteKey);
+      betRegistry.hydrate(disk, siteKey);
+      return { ok: true, bets: betRegistry.list(siteKey), site: siteKey };
     } catch (e) {
       return { ok: false, error: e.message, bets: [] };
     }
@@ -928,23 +952,26 @@ function registerIpc() {
 
   ipcMain.handle('modhub-track-bet', async (_e, payload = {}) => {
     try {
-      return await betRegistry.track(payload, sendBetRecord);
+      const siteKey = normalizeSiteKey(payload.site ?? loadSettings().activeSite);
+      return await betRegistry.track({ ...payload, site: siteKey }, sendBetRecord);
     } catch (e) {
       return { ok: false, error: e.message };
     }
   });
 
-  ipcMain.handle('modhub-refresh-bet', async (_e, { betId } = {}) => {
+  ipcMain.handle('modhub-refresh-bet', async (_e, { betId, site } = {}) => {
     try {
-      return await betRegistry.refresh(betId, sendBetRecord);
+      const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+      return await betRegistry.refresh(betId, sendBetRecord, siteKey);
     } catch (e) {
       return { ok: false, error: e.message };
     }
   });
 
-  ipcMain.handle('modhub-clear-bets', async () => {
-    betRegistry.clear();
-    return { ok: true };
+  ipcMain.handle('modhub-clear-bets', async (_e, { site } = {}) => {
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    betRegistry.clear(siteKey);
+    return { ok: true, site: siteKey };
   });
 
   ipcMain.handle('modhub-user-validate', async (_e, { name, site } = {}) => {
@@ -969,10 +996,11 @@ function registerIpc() {
 
   ipcMain.handle('modhub-mute', async (_e, { userId, expire, message, site } = {}) => {
     try {
-      const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+      const siteKey = site === 'eu' ? 'eu' : 'com';
+      const client = gqlClientForSite(siteKey);
       const data = await client.muteUser(userId, expire, message);
       if (data?.muteUser?.name) {
-        fileLogs.appendMuted(dataDir(), data.muteUser.name, message || '', expire || '');
+        fileLogs.appendMuted(dataDir(siteKey), data.muteUser.name, message || '', expire || '');
       }
       return { ok: true, data };
     } catch (e) {
@@ -992,14 +1020,15 @@ function registerIpc() {
 
   ipcMain.handle('modhub-user-hash', async (_e, { name, site } = {}) => {
     try {
-      const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
+      const siteKey = site === 'eu' ? 'eu' : 'com';
+      const client = gqlClientForSite(siteKey);
       const data = await client.getUserHash(name);
       const u = data?.user;
       if (u?.name && u?.hashedIp) {
-        const dir = dataDir();
+        const dir = dataDir(siteKey);
         fileLogs.appendHashIp(dir, u.name, u.hashedIp);
         dataFiles.appendCheckedUserToday(dir, u.name);
-        autoHashQueue.reloadCheckedToday();
+        autoHashQueue.reloadCheckedToday(siteKey);
       }
       return { ok: true, data };
     } catch (e) {
@@ -1035,10 +1064,10 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('modhub-append-log', async (_e, { line } = {}) => {
-    const s = loadSettings();
-    fileLogs.appendSessionTxt(dataDir(), line);
-    return { ok: true };
+  ipcMain.handle('modhub-append-log', async (_e, { line, site } = {}) => {
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    fileLogs.appendSessionTxt(dataDir(siteKey), line);
+    return { ok: true, site: siteKey };
   });
 
   ipcMain.handle('modhub-get-conv-rates', async () => {
@@ -1070,19 +1099,20 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('modhub-load-blueprints', async () => {
-    const s = loadSettings();
+  ipcMain.handle('modhub-load-blueprints', async (_e, { site } = {}) => {
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
     const bundled = readBundledBlueprints();
-    const dataPath = dataDir();
+    const dataPath = dataDir(siteKey);
     seedBlueprintDefaults(dataPath);
     const bp = dataFiles.loadBlueprints(dataPath, bundled);
-    return { ok: true, dataPath, bundledOk: bundledAvailable(), ...bp };
+    return { ok: true, dataPath, site: siteKey, rootPath: dataRoot(), bundledOk: bundledAvailable(), ...bp };
   });
 
-  ipcMain.handle('modhub-append-blueprint', async (_e, { type, line } = {}) => {
+  ipcMain.handle('modhub-append-blueprint', async (_e, { type, line, site } = {}) => {
     const text = String(line || '').trim();
     if (!text) return { ok: false, error: 'empty_line' };
-    const dataPath = dataDir();
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    const dataPath = dataDir(siteKey);
     const bundled = readBundledBlueprints();
     const fn =
       type === 'mute'
@@ -1098,35 +1128,39 @@ function registerIpc() {
     if (!existing.includes(text)) {
       dataFiles.appendLineFile(dataPath, fn, text);
     }
-    return { ok: true, ...dataFiles.loadBlueprints(dataPath, bundled) };
+    return { ok: true, site: siteKey, ...dataFiles.loadBlueprints(dataPath, bundled) };
   });
 
-  ipcMain.handle('modhub-load-veri2', async () => {
-    return { ok: true, users: dataFiles.loadVeri2(dataDir()) };
+  ipcMain.handle('modhub-load-veri2', async (_e, { site } = {}) => {
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    return { ok: true, users: dataFiles.loadVeri2(dataDir(siteKey)), site: siteKey };
   });
 
-  ipcMain.handle('modhub-add-veri2', async (_e, { username } = {}) => {
-    const dir = dataDir();
+  ipcMain.handle('modhub-add-veri2', async (_e, { username, site } = {}) => {
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    const dir = dataDir(siteKey);
     dataFiles.addVeri2User(dir, username);
-    return { ok: true, users: dataFiles.loadVeri2(dir) };
+    return { ok: true, users: dataFiles.loadVeri2(dir), site: siteKey };
   });
 
-  ipcMain.handle('modhub-load-muted-warned', async () => {
-    return { ok: true, ...dataFiles.loadMutedWarned(dataDir()) };
+  ipcMain.handle('modhub-load-muted-warned', async (_e, { site } = {}) => {
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    return { ok: true, site: siteKey, ...dataFiles.loadMutedWarned(dataDir(siteKey)) };
   });
 
-  ipcMain.handle('modhub-duplicate-ips', async () => {
-    const dir = dataDir();
+  ipcMain.handle('modhub-duplicate-ips', async (_e, { site } = {}) => {
+    const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+    const dir = dataDir(siteKey);
     const veri2 = new Set(dataFiles.loadVeri2(dir));
     const groups = dataFiles.findDuplicateIps(dir).map((g) => ({
       ...g,
       users: g.users.map((u) => ({ name: u, veri2: veri2.has(u.toLowerCase()) }))
     }));
-    return { ok: true, groups };
+    return { ok: true, groups, site: siteKey };
   });
 
   registerAnalyseIpc(ipcMain, {
-    getDataDir: dataDir,
+    getDataDir: (site) => dataDir(site),
     analyseEngine
   });
 
@@ -1144,7 +1178,7 @@ function registerIpc() {
       const chatId = resolveChatId(room, siteKey);
       const text = prependUserMention(msg, user);
       await client.sendMessage(chatId, text);
-      fileLogs.appendWarned(dataDir(), user, text);
+      fileLogs.appendWarned(dataDir(siteKey), user, text);
       fileLogs.flushAll();
       return { ok: true };
     } catch (e) {
@@ -1157,7 +1191,7 @@ function registerIpc() {
     const s = loadSettings();
     if (s.logHash) {
       for (const m of batch) {
-        if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username);
+        if (m.kind === 'text' && m.username) autoHashQueue.enqueue(m.username, 'com');
       }
     }
     processAutomuteBatch(batch, 'com');
