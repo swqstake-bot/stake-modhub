@@ -1198,7 +1198,7 @@ function scheduleRhAutopost(site = getActiveSite()) {
   const ms = min * 60 * 1000;
   const last = rt.lastSent || 0;
   const elapsed = last > 0 ? Date.now() - last : 0;
-  const delay = last > 0 ? Math.max(1000, ms - elapsed) : ms;
+  const delay = last > 0 ? Math.max(ms * 0.9, ms - elapsed) : ms;
 
   rt.timer = setTimeout(async () => {
     rt.timer = null;
@@ -1206,10 +1206,7 @@ function scheduleRhAutopost(site = getActiveSite()) {
       if (siteKey === getActiveSite()) updateRhAutopostStatus();
       return;
     }
-    if (rt.inflight) {
-      scheduleRhAutopost(siteKey);
-      return;
-    }
+    if (rt.inflight) return;
     rt.inflight = true;
     try {
       await postRhAnnouncement({ auto: true, site: siteKey });
@@ -1281,15 +1278,13 @@ async function postRhAnnouncement({ auto = false, site = getActiveSite() } = {})
       }
       if (lastRes.ok) {
         rt.lastSent = Date.now();
-        if (isRhAutopostEnabled(siteKey) && getRhAutopostIntervalMinutes(siteKey) > 0) {
-          scheduleRhAutopost(siteKey);
-        }
-      } else if (isRhAutopostEnabled(siteKey)) {
-        rt.timer = setTimeout(() => scheduleRhAutopost(siteKey), 60000);
-        if (siteKey === getActiveSite()) {
-          const gameLabel = sessions[0]?.game ? `${sessions[0].game} RH — ` : '';
-          $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${lastRes.error} — Retry in 1 min`;
-        }
+      }
+      if (isRhAutopostEnabled(siteKey) && getRhAutopostIntervalMinutes(siteKey) > 0) {
+        scheduleRhAutopost(siteKey);
+      }
+      if (!lastRes.ok && siteKey === getActiveSite()) {
+        const gameLabel = sessions[0]?.game ? `${sessions[0].game} RH — ` : '';
+        $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${lastRes.error} — Retry nach Intervall`;
       }
       if (siteKey === getActiveSite()) updateRhAutopostStatus();
       return lastRes;
@@ -1308,12 +1303,13 @@ async function postRhAnnouncement({ auto = false, site = getActiveSite() } = {})
     ) {
       scheduleRhAutopost(siteKey);
     }
-  } else if (auto && isRhAutopostEnabled(siteKey)) {
-    rt.timer = setTimeout(() => scheduleRhAutopost(siteKey), 60000);
-    if (siteKey === getActiveSite()) {
-      const gameLabel = session?.game ? `${session.game} RH — ` : '';
-      $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${res.error} — Retry in 1 min`;
-    }
+  }
+  if (auto && isRhAutopostEnabled(siteKey) && getRhAutopostIntervalMinutes(siteKey) > 0 && getActiveRhSessions(siteKey).length > 0) {
+    scheduleRhAutopost(siteKey);
+  }
+  if (!res.ok && auto && siteKey === getActiveSite()) {
+    const gameLabel = session?.game ? `${session.game} RH — ` : '';
+    $('rhRecordStatus').textContent = `${gameLabel}Auto-RH fehlgeschlagen: ${res.error} — Retry nach Intervall`;
   }
   if (siteKey === getActiveSite()) updateRhAutopostStatus();
   return res;
