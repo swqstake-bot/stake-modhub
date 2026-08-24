@@ -1,6 +1,6 @@
 {
   "name": "stake-modhub",
-  "version": "0.4.76",
+  "version": "0.4.77",
   "description": "Stake Mod Hub — Electron (ModHub + RH + Extension APIs)",
   "main": "main.js",
   "private": true,

@@ -85,13 +85,8 @@
     const optionCount = Math.max(0, (multiEl?.options?.length || 1) - 1);
     if (multiEl) {
       multiEl.title = optionCount ? `${optionCount} Multis in Payout-Tabelle` : '';
-      if (optionCount > 10) {
-        multiEl.size = 10;
-        multiEl.classList.add('rh-payout-multi--list');
-      } else {
-        multiEl.size = 1;
-        multiEl.classList.remove('rh-payout-multi--list');
-      }
+      multiEl.size = 1;
+      multiEl.classList.remove('rh-payout-multi--list');
     }
 
     if (multiEl && !multiEl.value && multiEl.options.length > 1) {
@@ -111,13 +106,8 @@
     const optionCount = Math.max(0, (elements.multiEl?.options?.length || 1) - 1);
     if (elements.multiEl) {
       elements.multiEl.title = optionCount ? `${optionCount} Multis in Payout-Tabelle` : '';
-      if (optionCount > 10) {
-        elements.multiEl.size = 10;
-        elements.multiEl.classList.add('rh-payout-multi--list');
-      } else {
-        elements.multiEl.size = 1;
-        elements.multiEl.classList.remove('rh-payout-multi--list');
-      }
+      elements.multiEl.size = 1;
+      elements.multiEl.classList.remove('rh-payout-multi--list');
     }
     if (elements.multiEl?.value && elements.minMultiEl) {
       elements.minMultiEl.value = elements.multiEl.value;

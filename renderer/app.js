@@ -604,17 +604,33 @@ async function enterRhOvertime(sessionId) {
   if (sessionId === state.rhActiveId) refreshRhStatusLine();
 }
 
+function preferredRhStartGame(preferred) {
+  const games = C.STAKE_ORIGINALS || [];
+  const fallback = C.DEFAULT_RH_GAME || 'Limbo';
+  const pick = preferred || state.settings?.rhDefaultGame || fallback;
+  if (pick && pick !== 'Mines' && games.includes(pick)) return pick;
+  if (games.includes(fallback)) return fallback;
+  return games.find((g) => g !== 'Mines') || games[0] || '';
+}
+
 function applyRhDefaultGameSelection(preferred) {
   const sel = $('rhGame');
   if (!sel) return;
-  const games = C.STAKE_ORIGINALS || [];
-  const pick =
-    preferred ||
-    state.settings?.rhDefaultGame ||
-    C.DEFAULT_RH_GAME ||
-    'Limbo';
-  if (games.includes(pick)) sel.value = pick;
-  else if (games.length) sel.value = games[0];
+  const pick = preferredRhStartGame(preferred);
+  if (pick) sel.value = pick;
+}
+
+function firstFreeRhStartGame() {
+  const sel = $('rhGame');
+  if (!sel) return '';
+  const preferred = preferredRhStartGame();
+  const opts = [...sel.options].filter((o) => !o.disabled);
+  return (
+    opts.find((o) => o.value === preferred)?.value ||
+    opts.find((o) => o.value !== 'Mines')?.value ||
+    opts[0]?.value ||
+    ''
+  );
 }
 
 function updateRhGameSelectOptions() {
@@ -624,10 +640,16 @@ function updateRhGameSelectOptions() {
   [...sel.options].forEach((opt) => {
     opt.disabled = activeGames.has(opt.value);
   });
+  const viewing = getSelectedRhSession();
+  if (viewing?.active && viewing.game) {
+    sel.value = viewing.game;
+    updateRhGameModeUi();
+    return;
+  }
   const cur = sel.value;
   if (cur && activeGames.has(cur)) {
-    const free = [...sel.options].find((o) => !o.disabled);
-    if (free) sel.value = free.value;
+    const free = firstFreeRhStartGame();
+    if (free) sel.value = free;
   }
   updateRhGameModeUi();
 }
@@ -3776,7 +3798,8 @@ function wireRh() {
       $('rhHighestMultiMode').checked = !!state.rhHighestMultiPref[game];
     }
     updateRhGameModeUi();
-    modHub.saveSettings({ rhDefaultGame: game || C.DEFAULT_RH_GAME || 'Limbo' }).then((s) => {
+    const defaultGame = game && game !== 'Mines' ? game : C.DEFAULT_RH_GAME || 'Limbo';
+    modHub.saveSettings({ rhDefaultGame: defaultGame }).then((s) => {
       state.settings = s;
     });
   });
