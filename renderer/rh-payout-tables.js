@@ -89,9 +89,17 @@
       multiEl.classList.remove('rh-payout-multi--list');
     }
 
-    if (multiEl && !multiEl.value && multiEl.options.length > 1) {
-      multiEl.selectedIndex = 1;
-      if (minMultiEl && multiEl.value) minMultiEl.value = multiEl.value;
+    // Select a payout row for display, but never overwrite the RH min-multi field here —
+    // that field belongs to the active session / manual input. Sync only on user change
+    // (multi/variant select) or when switching games in the RH form.
+    if (multiEl && multiEl.options.length > 1) {
+      const currentMin = Number(minMultiEl?.value) || 0;
+      const match =
+        currentMin > 0
+          ? [...multiEl.options].find((o) => o.value && Number(o.value) === currentMin)
+          : null;
+      if (match) multiEl.value = match.value;
+      else if (!multiEl.value) multiEl.selectedIndex = 1;
     }
   }
 
@@ -108,9 +116,12 @@
       elements.multiEl.title = optionCount ? `${optionCount} Multis in Payout-Tabelle` : '';
       elements.multiEl.size = 1;
       elements.multiEl.classList.remove('rh-payout-multi--list');
-    }
-    if (elements.multiEl?.value && elements.minMultiEl) {
-      elements.minMultiEl.value = elements.multiEl.value;
+      if (optionCount > 0) {
+        elements.multiEl.selectedIndex = 1;
+        if (elements.minMultiEl && elements.multiEl.value) {
+          elements.minMultiEl.value = elements.multiEl.value;
+        }
+      }
     }
   }
 

@@ -1035,10 +1035,13 @@ function loadRhSessionSettingsUi(session) {
     $('rhHighestMultiMode').checked = false;
     state.rhHighestMultiPref = state.rhHighestMultiPref || {};
     state.rhHighestMultiPref[session.game] = false;
-  } else if ($('rhMinMulti')) {
+  }
+  // Mode UI / payout refresh must run before restoring minMulti — payout used to
+  // overwrite the field with the first table row and then Save wrote that into the RH.
+  updateRhGameModeUi();
+  if (session.mode !== 'highestMulti' && $('rhMinMulti')) {
     $('rhMinMulti').value = String(session.minMulti ?? 0);
   }
-  updateRhGameModeUi();
 }
 
 function saveRhSessionSettings() {
@@ -1049,11 +1052,21 @@ function saveRhSessionSettings() {
   }
 
   session.chatMessage = ($('rhChatMessage')?.value || '').trim();
-  if (session.mode === 'highestMulti') {
-    session.timerMinutes = Math.max(0, Number($('rhTimerMinutes')?.value) || 0);
-    session.timerSeconds = Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0));
-  } else {
-    session.minMulti = Number($('rhMinMulti')?.value) || session.minMulti || 0;
+
+  // Form may already be set up for a *next* RH (other game / payout multi).
+  // Only apply multi/timer when the form still matches this session's game.
+  const formGame = $('rhGame')?.value || '';
+  const formMatchesSession = formGame === session.game;
+  let savedExtra = '';
+  if (formMatchesSession) {
+    if (session.mode === 'highestMulti') {
+      session.timerMinutes = Math.max(0, Number($('rhTimerMinutes')?.value) || 0);
+      session.timerSeconds = Math.max(0, Math.min(59, Number($('rhTimerSeconds')?.value) || 0));
+      savedExtra = ' & Timer';
+    } else {
+      session.minMulti = Number($('rhMinMulti')?.value) || session.minMulti || 0;
+      savedExtra = ' & Multi';
+    }
   }
   session.settingsSaved = true;
 
@@ -1063,8 +1076,9 @@ function saveRhSessionSettings() {
     btn.classList.add('saved-flash');
     setTimeout(() => btn.classList.remove('saved-flash'), 1200);
   }
-  const extra = session.mode === 'highestMulti' ? ' & Timer' : '';
-  $('rhRecordStatus').textContent = `${session.game} RH — Text${extra} gespeichert.`;
+  $('rhRecordStatus').textContent = formMatchesSession
+    ? `${session.game} RH — Text${savedExtra} gespeichert.`
+    : `${session.game} RH — Text gespeichert (Multi unverändert — Formular zeigt anderes Spiel).`;
 }
 
 function isRhAutopostEnabled(site = getActiveSite()) {
@@ -3798,6 +3812,11 @@ function wireRh() {
       $('rhHighestMultiMode').checked = !!state.rhHighestMultiPref[game];
     }
     updateRhGameModeUi();
+    // Switching game = prepare next RH: take payout suggestion into min-multi field.
+    const multiVal = $('rhPayoutMulti')?.value;
+    if (multiVal && $('rhMinMulti') && !$('rhMinMultiWrap')?.classList.contains('hidden')) {
+      $('rhMinMulti').value = multiVal;
+    }
     const defaultGame = game && game !== 'Mines' ? game : C.DEFAULT_RH_GAME || 'Limbo';
     modHub.saveSettings({ rhDefaultGame: defaultGame }).then((s) => {
       state.settings = s;
