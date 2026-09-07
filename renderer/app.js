@@ -1179,11 +1179,11 @@ function updateRhAutopostStatus() {
     return;
   }
   if (!state.loggedIn) {
-    el.textContent = `Autopost alle ${min} min — zuerst einloggen`;
+    el.textContent = `Autopost alle ${min} min (±10–30s) — zuerst einloggen`;
     return;
   }
   if (getActiveRhSessions(site).length === 0) {
-    el.textContent = `Autopost alle ${min} min — wartet auf RH-Start`;
+    el.textContent = `Autopost alle ${min} min (±10–30s) — wartet auf RH-Start`;
     el.classList.add('is-active');
     return;
   }
@@ -1192,11 +1192,20 @@ function updateRhAutopostStatus() {
   if (last > 0) {
     const leftMs = Math.max(0, ms - (Date.now() - last));
     const leftMin = Math.ceil(leftMs / 60000);
-    el.textContent = `Autopost alle ${min} min — nächster Post in ca. ${leftMin} min`;
+    el.textContent = `Autopost alle ${min} min (±10–30s) — nächster Post in ca. ${leftMin} min`;
   } else {
-    el.textContent = `Autopost alle ${min} min — erster Post in ca. ${min} min`;
+    el.textContent = `Autopost alle ${min} min (±10–30s) — erster Post in ca. ${min} min`;
   }
   el.classList.add('is-active');
+}
+
+/** Random 10–30s so RH/Automsg don't post on the exact clock minute. */
+function autopostJitterMs() {
+  return 10000 + Math.floor(Math.random() * 20001);
+}
+
+function withAutopostJitter(baseMs) {
+  return Math.max(1000, Number(baseMs) || 0) + autopostJitterMs();
 }
 
 function clearRhAutopostTimer(site) {
@@ -1234,7 +1243,8 @@ function scheduleRhAutopost(site = getActiveSite()) {
   const ms = min * 60 * 1000;
   const last = rt.lastSent || 0;
   const elapsed = last > 0 ? Date.now() - last : 0;
-  const delay = last > 0 ? Math.max(ms * 0.9, ms - elapsed) : ms;
+  const base = last > 0 ? Math.max(ms * 0.9, ms - elapsed) : ms;
+  const delay = withAutopostJitter(base);
 
   rt.timer = setTimeout(async () => {
     rt.timer = null;
@@ -1759,7 +1769,7 @@ function autoMsgMetaLabel(entry) {
   if (!entry?.autoEnabled) return 'Nur manuell';
   const min = Math.max(0, Number(entry.autoIntervalMinutes) || 0);
   if (min < 1) return 'Nur manuell';
-  return `Autopost alle ${min} min`;
+  return `Autopost alle ${min} min (±10–30s)`;
 }
 
 async function persistAutoMsgSettings(partial = {}) {
@@ -1840,7 +1850,8 @@ function scheduleAutoMsg(entry, site = getActiveSite()) {
   state.autoMsgLastSent = state.autoMsgLastSent || {};
   const last = state.autoMsgLastSent[key] || 0;
   const elapsed = last > 0 ? Date.now() - last : 0;
-  const delay = last > 0 ? Math.max(1000, ms - elapsed) : ms;
+  const base = last > 0 ? Math.max(1000, ms - elapsed) : ms;
+  const delay = withAutopostJitter(base);
 
   state.autoMsgTimers[key] = setTimeout(async () => {
     delete state.autoMsgTimers[key];

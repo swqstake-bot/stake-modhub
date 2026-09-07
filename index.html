@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.79</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.80</span></p>
       </div>
     </div>
     <nav class="site-tabs" id="siteTabs" aria-label="Stake Site">
@@ -277,7 +277,7 @@
                 <input id="rhAutopostInterval" type="number" min="0" max="1440" step="5" value="15" />
               </label>
               <label class="check rh-autopost-stop-check"><input type="checkbox" id="rhAutopostStopOnHit" checked /> Bei Treffer stoppen</label>
-              <span class="hint rh-autopost-hint">0 = aus · postet die RH-Ankündigung solange eine RH aktiv ist</span>
+              <span class="hint rh-autopost-hint">0 = aus · Intervall + 10–30s Zufall · solange RH aktiv</span>
             </div>
             <p id="rhAutopostStatus" class="hint rh-autopost-status">Autopost aus</p>
           </div>
@@ -702,7 +702,7 @@
       <label class="check"><input type="checkbox" id="autoMsgSettingsEnabled" /> Automatisch posten</label>
       <label>Intervall (Minuten)
         <input id="autoMsgSettingsInterval" type="number" min="0" max="1440" step="5" value="60" />
-        <span class="hint">0 = nur manuell</span>
+        <span class="hint">0 = nur manuell · sonst Intervall + 10–30s Zufall</span>
       </label>
       <p id="autoMsgSettingsPreview" class="hint automsg-preview"></p>
       <div class="row-inline">
