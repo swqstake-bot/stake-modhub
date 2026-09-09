@@ -86,7 +86,8 @@ const state = {
     wsSubscribed: false,
     wsEuSubscribed: false,
     wsHost: 'stake.bet',
-    wsEuHost: 'stake.eu'
+    wsEuHost: 'stake.eu',
+    wsTransport: 'node'
   }
 };
 
@@ -2262,19 +2263,22 @@ function updateLiveStatusUi() {
   badge.style.display = '';
 
   if (anyWsRecent) {
-    badge.textContent = 'WS';
+    badge.textContent = st.wsTransport === 'chromium' ? 'WS·Chrome' : 'WS';
     badge.classList.add('ok');
     live.textContent = 'Live';
-    debug.textContent = `Native WS · ${wsLabel}`;
+    debug.textContent =
+      st.wsTransport === 'chromium'
+        ? `WS (Chromium) · ${wsLabel}`
+        : `Native WS · ${wsLabel}`;
   } else if (browserRecent) {
     badge.style.display = 'none';
     live.textContent = 'Live';
     debug.textContent = 'Chat-Capture im Hintergrund';
   } else if (st.wsSubscribed || (euEnabled && st.wsEuSubscribed)) {
-    badge.textContent = 'WS';
+    badge.textContent = st.wsTransport === 'chromium' ? 'WS·Chrome' : 'WS';
     badge.classList.add('warn');
     live.textContent = 'Live';
-    debug.textContent = `Native WS · ${wsLabel} · warte auf Chat…`;
+    debug.textContent = `${st.wsTransport === 'chromium' ? 'WS (Chromium)' : 'Native WS'} · ${wsLabel} · warte auf Chat…`;
   } else {
     badge.textContent = 'WS';
     live.textContent = state.loggedIn ? 'Live' : 'Live: aus';
@@ -4446,6 +4450,7 @@ async function init() {
   modHub.onWsStatus((st) => {
     const phase = st?.phase || '';
     const isEu = st.stream === 'eu';
+    if (st.transport) state.liveStats.wsTransport = st.transport;
     if (st.wsHost) {
       if (isEu) state.liveStats.wsEuHost = st.wsHost;
       else state.liveStats.wsHost = st.wsHost;
@@ -4472,6 +4477,16 @@ async function init() {
     }
 
     if (phase === 'graphql_error') {
+      const err = st.error || st.lastError || '';
+      if (err && !isEu) {
+        const badge = $('wsModeBadge');
+        if (badge) {
+          badge.style.display = '';
+          badge.textContent = 'WS: GQL';
+          badge.classList.add('warn');
+        }
+        if ($('wsDebug')) $('wsDebug').textContent = String(err).slice(0, 220);
+      }
       return;
     }
 

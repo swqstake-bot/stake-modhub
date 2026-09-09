@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('__MODHUB_BRIDGE', {
           : Date.now()
     };
     if (payload.rain && typeof payload.rain === 'object') item.rain = payload.rain;
+    if (Array.isArray(payload.flags) && payload.flags.length) item.flags = payload.flags;
+    if (Array.isArray(payload.roles) && payload.roles.length) item.roles = payload.roles;
     queue.push(item);
     if (!timer) timer = setTimeout(flush, 350);
   },

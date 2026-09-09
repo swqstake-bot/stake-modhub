@@ -14,6 +14,7 @@ const dataFiles = require('./lib/data-files');
 const analyseEngine = require('./lib/analyse');
 const { scoreLiveMessage } = require('./lib/analyse/live-flag');
 const { StakeChatWebSocket } = require('./lib/stake-chat-ws');
+const { StakeChatWsChromium } = require('./lib/stake-chat-ws-chromium');
 const { AutoHashQueue } = require('./lib/auto-hash-queue');
 const { AutoMuteEngine } = require('./lib/automute-engine');
 const { AutomuteRelayClient } = require('./lib/automute-relay-client');
@@ -271,7 +272,8 @@ const chatWs = new StakeChatWebSocket({
     if (mainWin && !mainWin.isDestroyed()) {
       mainWin.webContents.send('modhub-ws-status', status);
     }
-  }
+  },
+  ipcMain
 });
 
 const chatWsEu = new StakeChatWebSocket({
@@ -289,8 +291,35 @@ const chatWsEu = new StakeChatWebSocket({
     if (mainWin && !mainWin.isDestroyed()) {
       mainWin.webContents.send('modhub-ws-status', { ...status, stream: 'eu' });
     }
-  }
+  },
+  ipcMain
 });
+
+chatWs.chromium = new StakeChatWsChromium(
+  {
+    BrowserWindow,
+    getSession: () => session.defaultSession,
+    preloadPath: path.join(__dirname, 'preload', 'stake-ws-bridge-preload.js')
+  },
+  {
+    stream: 'com',
+    onFrame: (frame) => chatWs._onChromiumFrame(frame),
+    onStatus: (st) => chatWs._onChromiumStatus(st)
+  }
+);
+
+chatWsEu.chromium = new StakeChatWsChromium(
+  {
+    BrowserWindow,
+    getSession: () => session.defaultSession,
+    preloadPath: path.join(__dirname, 'preload', 'stake-ws-bridge-preload.js')
+  },
+  {
+    stream: 'eu',
+    onFrame: (frame) => chatWsEu._onChromiumFrame(frame),
+    onStatus: (st) => chatWsEu._onChromiumStatus(st)
+  }
+);
 
 async function refreshCookies() {
   const cookies = await session.defaultSession.cookies.get({});
@@ -301,22 +330,23 @@ async function refreshCookies() {
 }
 
 async function extractCfForHost(hostname) {
-  const s = loadSettings();
   const host = normalizeHostname(hostname);
-  if (!host) return '';
+  if (!host) return { value: '', method: '' };
   const url = `https://${host}/`;
   const cookies = await session.defaultSession.cookies.get({ url });
-  const name = s.cookieMethod === 'Permanent' ? 'cf_clearance' : '__cf_bm';
-  const hit = cookies.find((c) => c.name === name);
-  return hit?.value || '';
+  const clear = cookies.find((c) => c.name === 'cf_clearance');
+  const bm = cookies.find((c) => c.name === '__cf_bm');
+  if (clear?.value) return { value: clear.value, method: 'Permanent' };
+  if (bm?.value) return { value: bm.value, method: 'Non Permanent' };
+  return { value: '', method: '' };
 }
 
 async function extractCfToSettings() {
   const s = loadSettings();
   const hit = await extractCfForHost(s.stakeDomain);
-  if (hit) {
-    saveSettings({ clearance: hit });
-    return hit;
+  if (hit.value) {
+    saveSettings({ clearance: hit.value, cookieMethod: hit.method || s.cookieMethod });
+    return hit.value;
   }
   return '';
 }
@@ -330,11 +360,15 @@ async function prepareWsConnection() {
   const hosts = [...new Set([wsHost, mirror, euHost].filter(Boolean))];
   const patch = {};
   for (const h of hosts) {
-    const c = await extractCfForHost(h);
-    if (!c) continue;
+    const hit = await extractCfForHost(h);
+    if (!hit.value) continue;
     const isEu = euHost && h === euHost;
-    if (isEu) patch.clearanceEu = c;
-    else if (!patch.clearance) patch.clearance = c;
+    if (isEu) {
+      patch.clearanceEu = hit.value;
+    } else if (!patch.clearance) {
+      patch.clearance = hit.value;
+      if (hit.method) patch.cookieMethod = hit.method;
+    }
   }
   if (Object.keys(patch).length) saveSettings(patch);
   const next = loadSettings();
@@ -503,9 +537,10 @@ function openStakeLogin(stakeDomain, { site } = {}) {
       const cf = await extractCfForHost(host);
       const patch = {};
       if (site === 'eu') {
-        if (cf) patch.clearanceEu = cf;
-      } else if (cf) {
-        patch.clearance = cf;
+        if (cf.value) patch.clearanceEu = cf.value;
+      } else if (cf.value) {
+        patch.clearance = cf.value;
+        if (cf.method) patch.cookieMethod = cf.method;
       }
       if (Object.keys(patch).length) saveSettings(patch);
       const settings = loadSettings();

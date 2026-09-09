@@ -108,17 +108,27 @@
 
   function pickPrimaryFlag(flags) {
     if (!Array.isArray(flags) || !flags.length) return null;
-    let best = null;
-    let bestRank = -1;
+    let bestKnown = null;
+    let bestKnownScore = -1;
+    let firstUnknown = null;
     for (const raw of flags) {
       const f = typeof raw === 'string' ? raw : raw?.flag;
-      const rank = flagRank(f);
-      if (rank > bestRank) {
-        bestRank = rank;
-        best = normalizeFlag(f);
+      const norm = normalizeFlag(f);
+      if (!norm || norm === 'none') continue;
+      const orderRank = flagRank(norm);
+      const apiRank =
+        typeof raw === 'object' && raw && Number.isFinite(Number(raw.rank)) ? Number(raw.rank) : null;
+      if (orderRank >= 0 || (apiRank != null && apiRank > 0)) {
+        const score = Math.max(orderRank, apiRank != null ? apiRank : -1);
+        if (score > bestKnownScore) {
+          bestKnownScore = score;
+          bestKnown = norm;
+        }
+      } else if (!firstUnknown) {
+        firstUnknown = norm;
       }
     }
-    return best && best !== 'none' ? best : null;
+    return bestKnown || firstUnknown;
   }
 
   async function load() {

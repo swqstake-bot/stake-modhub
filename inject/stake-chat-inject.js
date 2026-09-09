@@ -89,7 +89,13 @@
   }
 
   function pickFlags(cm) {
-    return (cm?.user?.flags || []).map((f) => f?.flag).filter(Boolean);
+    return (cm?.user?.flags || [])
+      .map((f) => {
+        if (typeof f === 'string') return f;
+        if (!f?.flag) return null;
+        return Number.isFinite(Number(f.rank)) ? { flag: f.flag, rank: Number(f.rank) } : f.flag;
+      })
+      .filter(Boolean);
   }
 
   function pickRoles(cm) {

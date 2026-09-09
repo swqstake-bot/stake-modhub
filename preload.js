@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-let version = '0.4.80';
+let version = '0.4.81';
 try {
   version = ipcRenderer.sendSync('modhub-get-version') || version;
 } catch (_) {}
