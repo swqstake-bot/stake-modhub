@@ -59,6 +59,7 @@ const state = {
   activeSite: 'com',
   browserVisible: false,
   rhStatusTimer: null,
+  rhHiddenPollTimer: null,
   policyPending: null,
   chatHistoryLimit: 200,
   chatHistoryHighlight: '',
@@ -509,6 +510,84 @@ function clearRhStatusTimer() {
   if (state.rhStatusTimer) {
     clearInterval(state.rhStatusTimer);
     state.rhStatusTimer = null;
+  }
+}
+
+const RH_HIDDEN_POLL_MS = 30000;
+let rhHiddenPollInflight = false;
+
+function clearRhHiddenPollTimer() {
+  if (state.rhHiddenPollTimer) {
+    clearInterval(state.rhHiddenPollTimer);
+    state.rhHiddenPollTimer = null;
+  }
+}
+
+/** Active Crash/Slide (höchster Multi) sessions that still have hidden bets. */
+function getActiveRhSessionsWithHiddenBets() {
+  return getAllActiveRhSessions().filter(
+    (s) => s.mode === 'highestMulti' && s.bets?.some((b) => b.hidden && b.betId)
+  );
+}
+
+function syncRhHiddenPollTimer() {
+  if (!getActiveRhSessionsWithHiddenBets().length) {
+    clearRhHiddenPollTimer();
+    return;
+  }
+  if (state.rhHiddenPollTimer) return;
+  state.rhHiddenPollTimer = setInterval(() => {
+    pollRhHiddenBets().catch(() => {});
+  }, RH_HIDDEN_POLL_MS);
+}
+
+async function pollRhHiddenBets() {
+  if (rhHiddenPollInflight) return;
+  const sessions = getActiveRhSessionsWithHiddenBets();
+  if (!sessions.length) {
+    clearRhHiddenPollTimer();
+    return;
+  }
+  rhHiddenPollInflight = true;
+  let anyRevealed = false;
+  try {
+    for (const session of sessions) {
+      const site = session.site === 'eu' ? 'eu' : 'com';
+      for (const bet of session.bets) {
+        if (!bet.hidden || !bet.betId) continue;
+        const res = await modHub.betLookup(bet.betId, { site });
+        if (!res.ok || !res.data) continue;
+        const cacheKey = String(bet.betId).replace(/\./g, '');
+        const multi = normMulti(Number(res.data.multiplier) || bet.multiplier);
+        const amount = res.data.amount != null ? Number(res.data.amount) : bet.amount;
+        const game = res.data.game || bet.game;
+        if (res.data.hidden) {
+          state.betCache[cacheKey] = { game, multiplier: multi, amount, hidden: true };
+          continue;
+        }
+        bet.hidden = false;
+        bet.game = game;
+        bet.multiplier = multi;
+        bet.amount = amount;
+        if (res.data.user) bet.username = res.data.user;
+        state.betCache[cacheKey] = { game, multiplier: multi, amount, hidden: false };
+        anyRevealed = true;
+        await modHub.appendLog(
+          `${new Date().toLocaleString()} | ${session.game} RH | [sichtbar] ${fmtMulti(multi)}x | ${game} | ${
+            bet.casinoId || bet.betId
+          } | @${bet.username}`,
+          { site }
+        );
+      }
+    }
+    if (anyRevealed) {
+      renderRhSessionsList();
+      renderRhBets();
+      refreshRhStatusLine();
+    }
+  } finally {
+    rhHiddenPollInflight = false;
+    syncRhHiddenPollTimer();
   }
 }
 
@@ -1516,7 +1595,7 @@ function renderRhBets() {
         const hiddenCls = b.hidden ? ' bet-hidden' : '';
         const hiddenMark = b.hidden ? '<span class="bet-hidden-mark" title="Versteckte Wette (Hidden)">●</span> ' : '';
         const titleAttr = b.hidden
-          ? 'Versteckte Wette (zählt nicht für Führung) — Klick = Bet-ID kopieren'
+          ? 'Versteckte Wette (zählt nicht für Führung; alle 30s erneut geprüft) — Klick = Bet-ID kopieren'
           : isLeader
             ? 'Aktuelle Führung — Klick = Bet-ID kopieren'
             : 'Klick = Bet-ID kopieren';
@@ -3210,6 +3289,7 @@ async function processBetForRh(line) {
     }
     renderRhSessionsList();
     if (getSelectedRhSession()) refreshRhStatusLine();
+    if (betHidden) syncRhHiddenPollTimer();
     LiveChat.invalidateChatDom();
     renderChats({ forceFull: true });
   }
@@ -3784,6 +3864,7 @@ async function finishRhSession(sessionId, reason, opts = {}) {
   session.active = false;
   clearSessionDeadlineTimer(session);
   syncRhStatusTimer();
+  syncRhHiddenPollTimer();
 
   const leader = getRhLeader(session);
   let summary;
