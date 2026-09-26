@@ -9,7 +9,10 @@
   function chatHistoryItemText(h) {
     const data = h?.data;
     if (!data) return '(kein Inhalt)';
-    if (data.message) return String(data.message);
+    if (data.message) {
+      const reply = data.replyChatMessageId ? '↩ ' : '';
+      return `${reply}${String(data.message)}`;
+    }
     if (data.bot?.message) return String(data.bot.message);
     const tip = data.tip;
     if (tip) {

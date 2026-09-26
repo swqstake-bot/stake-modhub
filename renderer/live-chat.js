@@ -62,7 +62,10 @@
     const lower = keyword.toLowerCase();
     const user = stripAt(line.username || '').toLowerCase();
     const msg = String(line.message || '').toLowerCase();
-    return user.includes(lower) || msg.includes(lower);
+    if (user.includes(lower) || msg.includes(lower)) return true;
+    const replyUser = stripAt(line.reply?.username || '').toLowerCase();
+    const replyMsg = String(line.reply?.message || '').toLowerCase();
+    return replyUser.includes(lower) || replyMsg.includes(lower);
   }
 
   function getDisplayChatLines(lines) {
@@ -160,6 +163,7 @@
     const betAttr = m.betId ? ` data-bet="${esc(m.betId)}" title="Bet-ID: ${esc(m.betId)} — Doppelklick = Lookup"` : '';
     const idxAttr = ` data-idx="${m.idx}" data-uid="${m.uid}"`;
     const msgCls = m.betId ? ' has-bet-id' : '';
+    const replyCls = m.replyChatMessageId || m.reply ? ' has-reply' : '';
     const displayTs = m.receivedAt ?? m.ts;
     const timeLabel = formatChatTime(displayTs);
     const serverLabel = m.receivedAt && m.ts !== m.receivedAt ? formatChatTime(m.ts) : '';
@@ -186,7 +190,27 @@
     const euMark =
       m.chatSource === 'eu' ? `<span class="chat-source-eu" title="stake.eu">EU</span>` : '';
 
-    return `<div class="${cls}${msgCls}"${idxAttr}${betAttr}>${euMark}<span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span>${badgeHtml}<span class="chat-user-wrap">${userHtml}</span>: ${msgHtml}</div>`;
+    let replyHtml = '';
+    if (m.replyChatMessageId || m.reply) {
+      const replyUser = stripAt(m.reply?.username || '');
+      const replyMsg = String(m.reply?.message || '');
+      const replyTarget = replyUser
+        ? `Antwort an <span class="chat-reply-user">@${esc(replyUser)}</span>`
+        : 'Antwort';
+      const quoteHtml = replyUser || replyMsg
+        ? `<div class="chat-reply-quote"><span class="chat-reply-quote-user">${esc(
+            replyUser || '?'
+          )}:</span> ${
+            window.Emotes?.formatMessageHtml
+              ? window.Emotes.formatMessageHtml(replyMsg, esc)
+              : esc(replyMsg)
+          }</div>`
+        : '';
+      replyHtml = `<div class="chat-reply-block"><div class="chat-reply-meta"><span class="chat-reply-icon" aria-hidden="true">↩</span> ${replyTarget}</div><div class="chat-reply-body">${msgHtml}</div>${quoteHtml}</div>`;
+    }
+
+    const bodyHtml = replyHtml || msgHtml;
+    return `<div class="${cls}${msgCls}${replyCls}"${idxAttr}${betAttr}>${euMark}<span class="chat-time" title="${esc(timeTitle)}">${esc(timeLabel)}</span>${badgeHtml}<span class="chat-user-wrap">${userHtml}</span>: ${bodyHtml}</div>`;
   }
 
   function needsFullChatRender(displayLines) {

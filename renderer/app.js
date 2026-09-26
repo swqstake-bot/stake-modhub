@@ -19,6 +19,8 @@ const state = {
   validatedUserId: '',
   validatedUserHashedIp: '',
   chatLines: [],
+  /** @type {Map<string, { username: string, message: string }>} */
+  chatMessageById: new Map(),
   rhSessions: [],
   rhHighestMultiPref: {},
   rhActiveId: null,
@@ -342,6 +344,31 @@ function formatChatTime(ts) {
   const ss = String(d.getSeconds()).padStart(2, '0');
   const tenth = Math.floor(d.getMilliseconds() / 100);
   return `${hh}:${mm}:${ss},${tenth}`;
+}
+
+function rememberChatMessageById(line) {
+  const id = line?.messageId;
+  if (!id) return;
+  if (!(state.chatMessageById instanceof Map)) state.chatMessageById = new Map();
+  state.chatMessageById.set(String(id), {
+    username: line.username || '',
+    message: String(line.message || '')
+  });
+  if (state.chatMessageById.size > 2500) {
+    const oldest = state.chatMessageById.keys().next().value;
+    if (oldest != null) state.chatMessageById.delete(oldest);
+  }
+}
+
+function resolveChatReply(line) {
+  const replyId = line?.replyChatMessageId;
+  if (!replyId) return;
+  const parent = state.chatMessageById?.get(String(replyId));
+  line.reply = {
+    id: String(replyId),
+    username: parent?.username || '',
+    message: parent?.message || ''
+  };
 }
 
 function parseChatLine(username, message, kind, ts) {
@@ -3325,6 +3352,10 @@ function ingestLiveMessageSync(m, { receivedAt, chatSource } = {}) {
   if (Array.isArray(m.flags) && m.flags.length) line.flags = m.flags;
   if (Array.isArray(m.roles) && m.roles.length) line.roles = m.roles;
   else if (isOwnModChatUser(line.username)) line.roles = ['moderator'];
+  if (m.messageId) line.messageId = String(m.messageId);
+  if (m.replyChatMessageId) line.replyChatMessageId = String(m.replyChatMessageId);
+  resolveChatReply(line);
+  rememberChatMessageById(line);
   line.modMention = isMentionOfMod(line.message);
   pushChatLine(line);
 

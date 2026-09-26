@@ -147,14 +147,19 @@
     const botMsg = cm?.data?.bot?.message;
     const text = cm?.data?.message || botMsg || '';
     if (username && text) {
-      push({
+      const payload = {
         username,
         message: String(text),
         kind: botMsg ? 'bot' : 'text',
         timestamp: ts,
         flags,
         roles
-      });
+      };
+      if (cm.id) payload.messageId = String(cm.id);
+      if (cm?.data?.replyChatMessageId) {
+        payload.replyChatMessageId = String(cm.data.replyChatMessageId);
+      }
+      push(payload);
     }
   }
 
