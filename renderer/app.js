@@ -65,6 +65,8 @@ const state = {
   rhCrashLiveTimer: null,
   rhCrashLiveInflight: false,
   rhCrashLiveLast: null,
+  /** @type {{ gameId: string|null, roster: object[], lastFullAt: number, backoffUntil: number }} */
+  rhCrashLiveCache: { gameId: null, roster: [], lastFullAt: 0, backoffUntil: 0 },
   policyPending: null,
   chatHistoryLimit: 200,
   chatHistoryHighlight: '',
@@ -623,7 +625,10 @@ async function pollRhHiddenBets() {
   }
 }
 
-const RH_CRASH_LIVE_POLL_MS = 1000;
+/** Light tick (multi + cashedOut). Full leaderboard only on new round / refresh. */
+const RH_CRASH_LIVE_POLL_MS = 2500;
+const RH_CRASH_LIVE_FULL_MS = 20000;
+const RH_CRASH_LIVE_BACKOFF_MS = 15000;
 
 function getActiveCrashRhSession() {
   const all = getAllActiveRhSessions().filter((s) => s.game === 'Crash');
@@ -637,6 +642,12 @@ function clearRhCrashLiveTimer() {
     clearInterval(state.rhCrashLiveTimer);
     state.rhCrashLiveTimer = null;
   }
+}
+
+function resetRhCrashLiveCache() {
+  state.rhCrashLiveCache = { gameId: null, roster: [], lastFullAt: 0, backoffUntil: 0 };
+  state.rhCrashLiveLast = null;
+  return state.rhCrashLiveCache;
 }
 
 function setRhCrashLiveVisible(on) {
@@ -654,7 +665,21 @@ function crashBetStillIn(bet, cashedOutIds) {
   return true;
 }
 
-function renderRhCrashLive(game) {
+function buildCrashStillInList(game, roster) {
+  const cashedOutIds = new Set((game?.cashedOut || []).map((b) => String(b.id)).filter(Boolean));
+  const source = Array.isArray(roster) && roster.length ? roster : game?.leaderboard || [];
+  return source
+    .filter((b) => crashBetStillIn(b, cashedOutIds))
+    .map((b) => ({
+      username: stripAt(b.user?.name || '?'),
+      cashoutAt: b.cashoutAt != null ? Number(b.cashoutAt) : null,
+      amount: b.amount != null ? Number(b.amount) : null
+    }))
+    .filter((b) => b.username && b.username !== '?')
+    .sort((a, b) => (b.cashoutAt || 0) - (a.cashoutAt || 0) || (b.amount || 0) - (a.amount || 0));
+}
+
+function renderRhCrashLive(game, opts = {}) {
   const multiEl = $('rhCrashLiveMulti');
   const metaEl = $('rhCrashLiveMeta');
   const statusEl = $('rhCrashLiveStatus');
@@ -668,6 +693,10 @@ function renderRhCrashLive(game) {
     if (statusEl) statusEl.textContent = '—';
     box.innerHTML = '<div class="hint">Crash-RH starten für Live-Multi.</div>';
     return;
+  }
+
+  if (opts.rateLimited) {
+    if (statusEl) statusEl.textContent = 'Rate-Limit — Pause';
   }
 
   const status = String(game.status || '').toLowerCase();
@@ -690,24 +719,15 @@ function renderRhCrashLive(game) {
     multiEl.textContent = '—';
   }
 
-  if (statusEl) {
+  if (statusEl && !opts.rateLimited) {
     if (ended && game.crashpoint != null) statusEl.textContent = `Crash @ ${fmtMulti(game.crashpoint)}x`;
     else if (status === 'in_progress' || status === 'progress') statusEl.textContent = 'läuft';
-    else if (game.nextRoundIn != null) statusEl.textContent = `nächste in ${Math.max(0, Math.round(Number(game.nextRoundIn) / 1000))}s`;
-    else statusEl.textContent = status || '—';
+    else if (game.nextRoundIn != null) {
+      statusEl.textContent = `nächste in ${Math.max(0, Math.round(Number(game.nextRoundIn) / 1000))}s`;
+    } else statusEl.textContent = status || '—';
   }
 
-  const cashedOutIds = new Set((game.cashedOut || []).map((b) => String(b.id)).filter(Boolean));
-  const stillIn = (game.leaderboard || [])
-    .filter((b) => crashBetStillIn(b, cashedOutIds))
-    .map((b) => ({
-      username: stripAt(b.user?.name || '?'),
-      cashoutAt: b.cashoutAt != null ? Number(b.cashoutAt) : null,
-      amount: b.amount != null ? Number(b.amount) : null
-    }))
-    .filter((b) => b.username && b.username !== '?')
-    .sort((a, b) => (b.cashoutAt || 0) - (a.cashoutAt || 0) || (b.amount || 0) - (a.amount || 0));
-
+  const stillIn = buildCrashStillInList(game, state.rhCrashLiveCache?.roster);
   if (metaEl) metaEl.textContent = `Noch drin: ${stillIn.length}`;
 
   if (!stillIn.length) {
@@ -728,26 +748,87 @@ function renderRhCrashLive(game) {
       .join('') + (more ? `<div class="hint">+${more} weitere</div>` : '');
 }
 
+function isCrashRateLimitError(res) {
+  if (!res || res.ok) return false;
+  if (res.status === 429) return true;
+  const msg = String(res.error || '').toLowerCase();
+  return /rate.?limit|anfrage.?limit|too many|429/.test(msg);
+}
+
 async function pollRhCrashLive() {
   if (state.rhCrashLiveInflight) return;
   const session = getActiveCrashRhSession();
   if (!session) {
     clearRhCrashLiveTimer();
     setRhCrashLiveVisible(false);
+    resetRhCrashLiveCache();
     renderRhCrashLive(null);
     return;
   }
   setRhCrashLiveVisible(true);
+
+  if (!state.rhCrashLiveCache) resetRhCrashLiveCache();
+  const cache = state.rhCrashLiveCache;
+  const now = Date.now();
+  if (cache.backoffUntil && now < cache.backoffUntil) {
+    if (state.rhCrashLiveLast) renderRhCrashLive(state.rhCrashLiveLast, { rateLimited: true });
+    else if ($('rhCrashLiveStatus')) $('rhCrashLiveStatus').textContent = 'Rate-Limit — Pause';
+    return;
+  }
+
   state.rhCrashLiveInflight = true;
   try {
     const site = session.site === 'eu' ? 'eu' : 'com';
-    const res = await modHub.crashGameLive({ site });
-    if (!res.ok) {
-      if ($('rhCrashLiveStatus')) $('rhCrashLiveStatus').textContent = res.error || 'Fehler';
+    const rosterStale =
+      !cache.roster.length ||
+      !cache.gameId ||
+      now - (cache.lastFullAt || 0) >= RH_CRASH_LIVE_FULL_MS;
+
+    // Light tick: multi + cashedOut (small). Full board only when roster missing/stale/new round.
+    const tickRes = await modHub.crashGameLive({ site, full: false });
+    if (!tickRes.ok) {
+      if (isCrashRateLimitError(tickRes)) {
+        cache.backoffUntil = now + RH_CRASH_LIVE_BACKOFF_MS;
+        if (state.rhCrashLiveLast) renderRhCrashLive(state.rhCrashLiveLast, { rateLimited: true });
+        else if ($('rhCrashLiveStatus')) $('rhCrashLiveStatus').textContent = 'Rate-Limit — Pause';
+      } else if ($('rhCrashLiveStatus')) {
+        $('rhCrashLiveStatus').textContent = tickRes.error || 'Fehler';
+      }
       return;
     }
-    state.rhCrashLiveLast = res.data;
-    renderRhCrashLive(res.data);
+
+    const tick = tickRes.data;
+    const gameId = tick?.id ? String(tick.id) : null;
+    const roundChanged = !!(gameId && cache.gameId && gameId !== cache.gameId);
+    if (roundChanged) {
+      cache.roster = [];
+      cache.lastFullAt = 0;
+    }
+    if (gameId) cache.gameId = gameId;
+
+    let game = { ...(state.rhCrashLiveLast || {}), ...tick };
+    if (rosterStale || roundChanged || !cache.roster.length) {
+      const fullRes = await modHub.crashGameLive({ site, full: true });
+      if (!fullRes.ok) {
+        if (isCrashRateLimitError(fullRes)) {
+          cache.backoffUntil = now + RH_CRASH_LIVE_BACKOFF_MS;
+          state.rhCrashLiveLast = game;
+          renderRhCrashLive(game, { rateLimited: true });
+          return;
+        }
+      } else if (fullRes.data) {
+        game = { ...game, ...fullRes.data };
+        if (Array.isArray(fullRes.data.leaderboard)) {
+          cache.roster = fullRes.data.leaderboard;
+          cache.lastFullAt = Date.now();
+          cache.gameId = fullRes.data.id ? String(fullRes.data.id) : cache.gameId;
+        }
+      }
+    }
+
+    cache.backoffUntil = 0;
+    state.rhCrashLiveLast = game;
+    renderRhCrashLive(game);
   } finally {
     state.rhCrashLiveInflight = false;
   }
@@ -758,6 +839,7 @@ function syncRhCrashLive() {
   if (!session) {
     clearRhCrashLiveTimer();
     setRhCrashLiveVisible(false);
+    resetRhCrashLiveCache();
     renderRhCrashLive(null);
     return;
   }

@@ -973,13 +973,14 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('modhub-crash-game-live', async (_e, { site } = {}) => {
+  ipcMain.handle('modhub-crash-game-live', async (_e, { site, full } = {}) => {
     try {
       const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
-      const data = await gqlClientForSite(siteKey).getCrashGameLive();
-      return { ok: true, data, site: siteKey };
+      const data = await gqlClientForSite(siteKey).getCrashGameLive({ full: !!full });
+      return { ok: true, data, site: siteKey, full: !!full };
     } catch (e) {
-      return { ok: false, error: e.message, data: null };
+      const status = e && e.status != null ? e.status : null;
+      return { ok: false, error: e.message, data: null, status };
     }
   });
 
