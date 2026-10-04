@@ -973,6 +973,16 @@ function registerIpc() {
     }
   });
 
+  ipcMain.handle('modhub-crash-game-live', async (_e, { site } = {}) => {
+    try {
+      const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);
+      const data = await gqlClientForSite(siteKey).getCrashGameLive();
+      return { ok: true, data, site: siteKey };
+    } catch (e) {
+      return { ok: false, error: e.message, data: null };
+    }
+  });
+
   ipcMain.handle('modhub-load-bets', async (_e, { site } = {}) => {
     try {
       const siteKey = normalizeSiteKey(site ?? loadSettings().activeSite);

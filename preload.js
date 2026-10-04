@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-let version = '0.4.83';
+let version = '0.4.84';
 try {
   version = ipcRenderer.sendSync('modhub-get-version') || version;
 } catch (_) {}
@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('modHub', {
   getConvRates: () => ipcRenderer.invoke('modhub-get-conv-rates'),
   sendChat: (payload) => ipcRenderer.invoke('modhub-send-chat', payload || {}),
   betLookup: (betId, opts) => ipcRenderer.invoke('modhub-bet-lookup', { betId, ...(opts || {}) }),
+  crashGameLive: (opts) => ipcRenderer.invoke('modhub-crash-game-live', opts || {}),
   loadBets: (opts) => ipcRenderer.invoke('modhub-load-bets', opts || {}),
   trackBet: (payload) => ipcRenderer.invoke('modhub-track-bet', payload || {}),
   refreshBet: (betId, opts) => ipcRenderer.invoke('modhub-refresh-bet', { betId, ...(opts || {}) }),

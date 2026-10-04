@@ -1692,6 +1692,73 @@ body.site-eu .site-tab[data-site="eu"].active {
   padding: 6px;
 }
 
+.rh-crash-live-section {
+  flex: 0 1 28%;
+  max-height: 28vh;
+  min-height: 120px;
+}
+
+.rh-crash-live-section .panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rh-crash-live {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--stake-border);
+  border-radius: var(--stake-radius);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.rh-crash-live-multi {
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #7ec8ff;
+  line-height: 1.1;
+}
+
+.rh-crash-live-multi.is-ended {
+  color: var(--stake-danger, #f10260);
+}
+
+.rh-crash-live-meta {
+  font-size: 11px;
+}
+
+.rh-crash-live-players {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.rh-crash-live-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 1px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.rh-crash-live-row .user {
+  font-weight: 600;
+}
+
+.rh-crash-live-row .cashout {
+  color: var(--stake-text-dim);
+  white-space: nowrap;
+}
+
 .rh-bp-block .rh-msg-label {
   flex: 1;
   display: flex;

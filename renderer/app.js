@@ -62,6 +62,9 @@ const state = {
   browserVisible: false,
   rhStatusTimer: null,
   rhHiddenPollTimer: null,
+  rhCrashLiveTimer: null,
+  rhCrashLiveInflight: false,
+  rhCrashLiveLast: null,
   policyPending: null,
   chatHistoryLimit: 200,
   chatHistoryHighlight: '',
@@ -186,6 +189,8 @@ async function setActiveSite(site) {
   LiveChat.invalidateChatDom();
   renderChats({ forceFull: true });
   renderHubIndexes();
+  clearRhCrashLiveTimer();
+  syncRhCrashLive();
 }
 
 async function reloadSiteScopedData() {
@@ -615,6 +620,153 @@ async function pollRhHiddenBets() {
   } finally {
     rhHiddenPollInflight = false;
     syncRhHiddenPollTimer();
+  }
+}
+
+const RH_CRASH_LIVE_POLL_MS = 1000;
+
+function getActiveCrashRhSession() {
+  const all = getAllActiveRhSessions().filter((s) => s.game === 'Crash');
+  if (!all.length) return null;
+  const site = getActiveSite();
+  return all.find((s) => (s.site || 'com') === site) || all[0];
+}
+
+function clearRhCrashLiveTimer() {
+  if (state.rhCrashLiveTimer) {
+    clearInterval(state.rhCrashLiveTimer);
+    state.rhCrashLiveTimer = null;
+  }
+}
+
+function setRhCrashLiveVisible(on) {
+  $('rhCrashLiveSection')?.classList.toggle('hidden', !on);
+}
+
+function crashBetStillIn(bet, cashedOutIds) {
+  if (!bet) return false;
+  if (bet.id && cashedOutIds.has(String(bet.id))) return false;
+  if (bet.payout != null && Number(bet.payout) > 0) return false;
+  const multi = bet.payoutMultiplier;
+  if (multi != null && Number(multi) > 0) return false;
+  const result = String(bet.result || '').toLowerCase();
+  if (result && result !== 'pending' && result !== 'active' && result !== 'open') return false;
+  return true;
+}
+
+function renderRhCrashLive(game) {
+  const multiEl = $('rhCrashLiveMulti');
+  const metaEl = $('rhCrashLiveMeta');
+  const statusEl = $('rhCrashLiveStatus');
+  const box = $('rhCrashLivePlayers');
+  if (!multiEl || !box) return;
+
+  if (!game) {
+    multiEl.textContent = '—';
+    multiEl.classList.remove('is-ended');
+    if (metaEl) metaEl.textContent = 'Noch drin: —';
+    if (statusEl) statusEl.textContent = '—';
+    box.innerHTML = '<div class="hint">Crash-RH starten für Live-Multi.</div>';
+    return;
+  }
+
+  const status = String(game.status || '').toLowerCase();
+  const ended = status === 'ended' || status === 'complete' || status === 'crashed';
+  const multi =
+    ended && game.crashpoint != null
+      ? Number(game.crashpoint)
+      : game.multiplier != null
+        ? Number(game.multiplier)
+        : null;
+
+  multiEl.classList.toggle('is-ended', ended);
+  if (multi != null && Number.isFinite(multi) && multi > 0) {
+    multiEl.textContent = `${fmtMulti(multi)}x`;
+  } else if (status === 'in_progress' || status === 'progress') {
+    multiEl.textContent = '…';
+  } else if (game.nextRoundIn != null) {
+    multiEl.textContent = '—';
+  } else {
+    multiEl.textContent = '—';
+  }
+
+  if (statusEl) {
+    if (ended && game.crashpoint != null) statusEl.textContent = `Crash @ ${fmtMulti(game.crashpoint)}x`;
+    else if (status === 'in_progress' || status === 'progress') statusEl.textContent = 'läuft';
+    else if (game.nextRoundIn != null) statusEl.textContent = `nächste in ${Math.max(0, Math.round(Number(game.nextRoundIn) / 1000))}s`;
+    else statusEl.textContent = status || '—';
+  }
+
+  const cashedOutIds = new Set((game.cashedOut || []).map((b) => String(b.id)).filter(Boolean));
+  const stillIn = (game.leaderboard || [])
+    .filter((b) => crashBetStillIn(b, cashedOutIds))
+    .map((b) => ({
+      username: stripAt(b.user?.name || '?'),
+      cashoutAt: b.cashoutAt != null ? Number(b.cashoutAt) : null,
+      amount: b.amount != null ? Number(b.amount) : null
+    }))
+    .filter((b) => b.username && b.username !== '?')
+    .sort((a, b) => (b.cashoutAt || 0) - (a.cashoutAt || 0) || (b.amount || 0) - (a.amount || 0));
+
+  if (metaEl) metaEl.textContent = `Noch drin: ${stillIn.length}`;
+
+  if (!stillIn.length) {
+    box.innerHTML = '<div class="hint">Niemand mehr im Round — oder Runde zwischen den Rounds.</div>';
+    return;
+  }
+
+  const maxRows = 80;
+  const rows = stillIn.slice(0, maxRows);
+  const more = stillIn.length > maxRows ? stillIn.length - maxRows : 0;
+  box.innerHTML =
+    rows
+      .map((b) => {
+        const target =
+          b.cashoutAt != null && b.cashoutAt > 0 ? `<span class="cashout">@ ${fmtMulti(b.cashoutAt)}x</span>` : '';
+        return `<div class="rh-crash-live-row"><span class="user">@${esc(b.username)}</span>${target}</div>`;
+      })
+      .join('') + (more ? `<div class="hint">+${more} weitere</div>` : '');
+}
+
+async function pollRhCrashLive() {
+  if (state.rhCrashLiveInflight) return;
+  const session = getActiveCrashRhSession();
+  if (!session) {
+    clearRhCrashLiveTimer();
+    setRhCrashLiveVisible(false);
+    renderRhCrashLive(null);
+    return;
+  }
+  setRhCrashLiveVisible(true);
+  state.rhCrashLiveInflight = true;
+  try {
+    const site = session.site === 'eu' ? 'eu' : 'com';
+    const res = await modHub.crashGameLive({ site });
+    if (!res.ok) {
+      if ($('rhCrashLiveStatus')) $('rhCrashLiveStatus').textContent = res.error || 'Fehler';
+      return;
+    }
+    state.rhCrashLiveLast = res.data;
+    renderRhCrashLive(res.data);
+  } finally {
+    state.rhCrashLiveInflight = false;
+  }
+}
+
+function syncRhCrashLive() {
+  const session = getActiveCrashRhSession();
+  if (!session) {
+    clearRhCrashLiveTimer();
+    setRhCrashLiveVisible(false);
+    renderRhCrashLive(null);
+    return;
+  }
+  setRhCrashLiveVisible(true);
+  if (!state.rhCrashLiveTimer) {
+    pollRhCrashLive().catch(() => {});
+    state.rhCrashLiveTimer = setInterval(() => {
+      pollRhCrashLive().catch(() => {});
+    }, RH_CRASH_LIVE_POLL_MS);
   }
 }
 
@@ -3896,6 +4048,7 @@ async function finishRhSession(sessionId, reason, opts = {}) {
   clearSessionDeadlineTimer(session);
   syncRhStatusTimer();
   syncRhHiddenPollTimer();
+  syncRhCrashLive();
 
   const leader = getRhLeader(session);
   let summary;
@@ -4024,6 +4177,7 @@ function wireRh() {
     selectRhSession(session.id);
     updateRhGameSelectOptions();
     syncRhStatusTimer();
+    syncRhCrashLive();
     refreshRhStatusLine();
     setRhStopButtonsEnabled(true);
     resetRhAutopostHitPause();
