@@ -75,9 +75,11 @@
   function setModMode(mode) {
     const grid = document.querySelector('.hub-mod-grid');
     if (!grid) return;
-    grid.dataset.modMode = mode;
+    const current = grid.dataset.modMode || 'none';
+    const next = !mode || current === mode ? 'none' : mode;
+    grid.dataset.modMode = next;
     document.querySelectorAll('.mod-mode-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.modMode === mode);
+      btn.classList.toggle('active', btn.dataset.modMode === next);
     });
   }
 
@@ -349,7 +351,7 @@
       btn.addEventListener('click', () => setRhTab(btn.dataset.rhTab));
     });
     document.querySelectorAll('.mod-mode-btn').forEach((btn) => {
-      btn.addEventListener('click', () => setModMode(btn.dataset.modMode || 'chat'));
+      btn.addEventListener('click', () => setModMode(btn.dataset.modMode || 'none'));
     });
 
     $('btnChatGear')?.addEventListener('click', (e) => {

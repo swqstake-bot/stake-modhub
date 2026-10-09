@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">v<span id="appVersion">0.4.88</span></p>
+        <p class="sub">v<span id="appVersion">0.4.89</span></p>
       </div>
     </div>
     <nav class="site-tabs" id="siteTabs" aria-label="Stake Site">
@@ -166,7 +166,7 @@
         <div id="hubColSplit" class="hub-split hub-split-col" title="Breite der Mod-Spalte ziehen"></div>
         <div class="hub-right">
           <div class="panel compact hub-mod-panel">
-            <div class="hub-mod-grid" data-mod-mode="chat">
+            <div class="hub-mod-grid hub-mod-scroll" data-mod-mode="none">
               <div class="span-all hub-mod-head">
                 <h3>Mod</h3>
                 <button type="button" id="btnCollapseMod" class="sm" title="Mod-Spalte einklappen">Einklappen</button>
@@ -193,28 +193,10 @@
                 <button type="button" id="btnOpenWatchlistFromMod" class="sm" title="Watchlist öffnen">Watchlist</button>
               </div>
               <div class="span-all mod-mode-switch" role="tablist">
-                <button type="button" class="mod-mode-btn active" data-mod-mode="chat">Chat</button>
                 <button type="button" class="mod-mode-btn" data-mod-mode="warn">Warn-Text</button>
                 <button type="button" class="mod-mode-btn" data-mod-mode="mute">Mute-Text</button>
               </div>
               <p class="span-all hint mod-mode-hint" data-mod-hint="mute">Dauer und Grund setzt du in Mod Action. Hier nur der Chat-Text danach.</p>
-              <div class="mod-mode-pane" data-mod-pane="chat">
-                <label class="compact-label">Chat-Vorlage <select id="cbChatBlueprints"><option value="">—</option></select></label>
-                <label class="compact-label span-all hub-msg-row hub-msg-row--chat">
-                  <span class="hub-msg-label">Chat-Text <span class="hint">(max. 160, Enter = Senden)</span></span>
-                  <div class="hub-msg-input-row hub-msg-input-row--chat">
-                    <textarea id="chatMessage" rows="3" maxlength="160" placeholder="Chat-Nachricht…"></textarea>
-                    <div class="hub-chat-side-actions">
-                      <button type="button" id="btnEmotePicker" class="sm hub-emote-btn" title="Emotes einfügen">😀</button>
-                      <button type="button" id="btnSendChat" class="primary sm" disabled title="Chat-Text senden (Enter)">Senden</button>
-                    </div>
-                  </div>
-                  <div id="emotePicker" class="emote-picker hidden" role="listbox" aria-label="Emotes"></div>
-                  <div id="emoteAutocomplete" class="emote-autocomplete hidden" role="listbox" aria-label="Emote-Vervollständigung"></div>
-                  <div id="mentionAutocomplete" class="mention-autocomplete hidden" role="listbox" aria-label="User erwähnen"></div>
-                </label>
-                <button type="button" id="btnAddChatBp" class="sm hub-bp-save">Als Vorlage speichern</button>
-              </div>
               <div class="mod-mode-pane" data-mod-pane="warn">
                 <label class="compact-label">Warn-Vorlage <select id="cbWarnBlueprints"><option value="">—</option></select></label>
                 <label class="compact-label hub-msg-row">
@@ -238,6 +220,23 @@
                 </label>
                 <button type="button" id="btnAddMuteBp" class="sm hub-bp-save">Als Vorlage speichern</button>
               </div>
+            </div>
+            <div class="hub-chat-compose">
+              <label class="compact-label">Chat-Vorlage <select id="cbChatBlueprints"><option value="">—</option></select></label>
+              <label class="compact-label hub-msg-row hub-msg-row--chat">
+                <span class="hub-msg-label">Chat <span class="hint">(max. 160, Enter = Senden)</span></span>
+                <div class="hub-msg-input-row hub-msg-input-row--chat">
+                  <textarea id="chatMessage" rows="4" maxlength="160" placeholder="Chat-Nachricht…"></textarea>
+                  <div class="hub-chat-side-actions">
+                    <button type="button" id="btnEmotePicker" class="sm hub-emote-btn" title="Emotes einfügen">😀</button>
+                    <button type="button" id="btnSendChat" class="primary sm" disabled title="Chat-Text senden (Enter)">Senden</button>
+                  </div>
+                </div>
+                <div id="emotePicker" class="emote-picker hidden" role="listbox" aria-label="Emotes"></div>
+                <div id="emoteAutocomplete" class="emote-autocomplete hidden" role="listbox" aria-label="Emote-Vervollständigung"></div>
+                <div id="mentionAutocomplete" class="mention-autocomplete hidden" role="listbox" aria-label="User erwähnen"></div>
+              </label>
+              <button type="button" id="btnAddChatBp" class="sm hub-bp-save">Als Vorlage speichern</button>
             </div>
           </div>
         </div>

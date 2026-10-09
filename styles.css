@@ -4217,22 +4217,51 @@ body[data-mark-filter='rh-hit'] #liveChat .chat-line:not(.rh-hit) {
   border-color: var(--stake-primary-border);
 }
 
-.hub-mod-grid[data-mod-mode='chat'] [data-mod-hint='mute'],
-.hub-mod-grid[data-mod-mode='warn'] [data-mod-hint='mute'] {
+.mod-mode-hint {
   display: none;
+  margin: 0;
+}
+
+.hub-mod-grid[data-mod-mode='mute'] [data-mod-hint='mute'] {
+  display: block;
 }
 
 .mod-mode-pane {
   display: none;
 }
 
-.hub-mod-grid[data-mod-mode='chat'] > [data-mod-pane='chat'],
 .hub-mod-grid[data-mod-mode='warn'] > [data-mod-pane='warn'],
 .hub-mod-grid[data-mod-mode='mute'] > [data-mod-pane='mute'] {
   display: flex;
   flex-direction: column;
   gap: 6px;
   grid-column: 1 / -1;
+}
+
+.hub-mod-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.hub-mod-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  align-content: start;
+}
+
+.hub-chat-compose {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--stake-border);
+}
+
+.hub-chat-compose textarea {
+  min-height: 5.6em;
 }
 
 .mod-period-keep {
