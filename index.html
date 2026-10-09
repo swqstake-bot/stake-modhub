@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.86</span></p>
+        <p class="sub">v<span id="appVersion">0.4.87</span></p>
       </div>
     </div>
     <nav class="site-tabs" id="siteTabs" aria-label="Stake Site">
@@ -23,10 +23,18 @@
       <button type="button" class="site-tab" data-site="eu" id="siteTabEu" disabled title="In Settings optional aktivieren">stake.eu</button>
     </nav>
     <div class="topbar-right">
-      <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In Taskleiste verstecken (Tray)">Hide</button>
-      <span class="badge" id="modUserBadge">Nicht eingeloggt</span>
-      <span class="badge muted" id="liveStatus">Live: aus</span>
-      <span class="badge" id="wsModeBadge">WS: —</span>
+      <button type="button" id="btnShowBrowser" class="sm" title="Stake-Fenster einblenden">Browser</button>
+      <button type="button" id="btnHideToTray" class="sm topbar-hide" title="In die Taskleiste legen">Ausblenden</button>
+      <span class="conn-cluster" id="connCluster">
+        <span class="badge" id="modUserBadge">Nicht eingeloggt</span>
+        <span class="conn-dots" title="Verbindung">
+          <span class="conn-dot" id="connDotCom" title="stake.com"></span>
+          <span class="conn-dot hidden" id="connDotEu" title="stake.eu"></span>
+        </span>
+        <span class="badge muted conn-live" id="liveStatus">Live: aus</span>
+        <span class="badge conn-ws" id="wsModeBadge">WS: —</span>
+      </span>
+      <button type="button" id="topModChatBtn" class="sm top-modchat hidden" title="Team-Chat öffnen">Mods <span id="topModChatUnread" class="tab-count hidden">0</span></button>
       <div class="window-controls" id="windowControls" hidden>
         <button type="button" class="win-ctrl" data-action="minimize" aria-label="Minimize window" title="Minimize">
           <svg viewBox="0 0 10 1" aria-hidden="true"><rect width="10" height="1" fill="currentColor" /></svg>
@@ -40,167 +48,196 @@
       </div>
     </div>
   </header>
+  <div id="siteChrome" class="site-chrome" aria-hidden="true"></div>
 
   <nav class="tabs">
-    <button class="tab active" data-tab="hub">Hub</button>
-    <button class="tab" data-tab="rh">Rollhunt</button>
-    <button class="tab" data-tab="wetten">Wetten</button>
-    <button class="tab" data-tab="automsg">Automsg</button>
-    <button class="tab" data-tab="automute">Automute</button>
-    <button class="tab" data-tab="analyse">Analyse</button>
-    <button class="tab" data-tab="watchlist">Watchlist <span id="tabWatchCount" class="tab-count hidden">0</span></button>
-    <button class="tab" data-tab="settings">Settings</button>
+    <div class="tab-group">
+      <span class="tab-group-label">Schicht</span>
+      <button class="tab active" data-tab="hub">Hub</button>
+    </div>
+    <div class="tab-group">
+      <span class="tab-group-label">Moderation</span>
+      <button class="tab" data-tab="watchlist">Watchlist <span id="tabWatchCount" class="tab-count hidden">0</span></button>
+      <button class="tab" data-tab="analyse">Analyse</button>
+    </div>
+    <div class="tab-group">
+      <span class="tab-group-label">Automation</span>
+      <button class="tab" data-tab="rh">Rollhunt</button>
+      <button class="tab" data-tab="automsg">Automsg</button>
+      <button class="tab" data-tab="automute">Automute</button>
+    </div>
+    <div class="tab-group">
+      <span class="tab-group-label">Daten</span>
+      <button class="tab" data-tab="wetten">Wetten</button>
+    </div>
+    <div class="tab-group tab-group-end">
+      <button class="tab" data-tab="settings">Einstellungen</button>
+    </div>
   </nav>
 
   <main class="tab-panels">
     <section id="panel-hub" class="panel-view active">
-      <div class="hub-toolbar row-inline">
-        <button type="button" id="btnShowBrowser" class="sm">Browser anzeigen</button>
-        <button type="button" id="btnAllMsg" class="sm">Allmsg</button>
-        <button type="button" id="btnUndoMark" class="sm">Undo mark</button>
-        <button type="button" id="btnAltCheck" class="sm">Alt-Check IP</button>
-        <label class="check-inline"><input type="checkbox" id="autoscroll" checked /> Autoscroll</label>
-      </div>
       <div class="hub-layout">
         <div class="hub-left">
           <div class="panel-head">
             <div class="panel-head-left">
-              <h2>Live Chat</h2>
+              <h2 id="liveChatTitle">Live Chat</h2>
               <time id="hubClock" class="hub-clock" datetime="">--:--:--</time>
             </div>
             <div class="panel-head-actions">
-              <label class="check-inline hub-chat-opt" title="Feste Farbe pro Username">
-                <input type="checkbox" id="colorChat" checked /> Colour Chat
+              <label class="check-inline hub-chat-opt" title="Automatisch nach unten scrollen">
+                <input type="checkbox" id="autoscroll" checked /> Autoscroll
               </label>
-              <label class="check-inline hub-chat-opt" title="VIP-Rank neben dem Namen (Bilder aus HAR oder Kurz-Chip)">
-                <input type="checkbox" id="showVipRankBadges" checked /> VIP Badges
-              </label>
+              <button type="button" id="btnAllMsg" class="sm" title="Nur Nachrichten des validierten Users">Nur User</button>
+              <button type="button" id="btnUndoMark" class="sm" title="Gelbe Allmsg-Markierung aufheben">Mark weg</button>
               <div class="hub-font-size" title="Schriftgröße Live-Chat">
                 <button type="button" id="btnLiveChatFontDown" class="sm hub-font-btn" aria-label="Schrift kleiner">−</button>
                 <span id="liveChatFontSizeLabel" class="hub-font-label">13px</span>
                 <button type="button" id="btnLiveChatFontUp" class="sm hub-font-btn" aria-label="Schrift größer">+</button>
               </div>
-              <label class="hub-chat-filter" title="Nur Zeilen mit Keyword (Username oder Nachricht)">
+              <label class="hub-chat-filter" title="Nur Zeilen mit Keyword (Username oder Nachricht). Taste / fokussiert das Feld.">
                 <input type="search" id="liveChatFilter" placeholder="Filter User/Text…" autocomplete="off" spellcheck="false" />
               </label>
               <span id="liveChatFilterStatus" class="hub-chat-filter-status hidden" aria-live="polite"></span>
-              <button type="button" id="btnClearLive" class="sm">Clear</button>
-            </div>
-          </div>
-          <div id="liveChat" class="chat-box chat-box-live"></div>
-          <div class="hub-subcols">
-            <div class="subcol">
-              <div class="subcol-head">
-                <h4 class="subcol-title" title="Wer dich @ erwähnt hat · Doppelklick = Live-Scroll oder API-Chat-Historie">Tagged <span id="tagIndexCount" class="subcol-count">0</span></h4>
-                <button type="button" id="btnClearTagged" class="sm" title="Tagged-Liste leeren">Clear</button>
-              </div>
-              <div id="tagIndex" class="index-list"></div>
-            </div>
-            <div class="subcol">
-              <div class="subcol-head">
-                <h4 class="subcol-title">Rains <span id="rainIndexCount" class="subcol-count">0</span></h4>
-                <button type="button" id="btnClearRains" class="sm" title="Rain-Liste leeren">Clear</button>
-              </div>
-              <div id="rainIndex" class="index-list"></div>
-            </div>
-            <div class="subcol">
-              <div class="subcol-head">
-                <h4 class="subcol-title" title="Live-Heuristik — Doppelklick öffnet API-Chat-Historie">Auffällig <span id="flaggedIndexCount" class="subcol-count">0</span></h4>
-                <button type="button" id="btnClearFlagged" class="sm" title="Auffälligkeiten-Liste leeren">Clear</button>
-              </div>
-              <div id="flaggedIndex" class="index-list"></div>
-            </div>
-            <div class="subcol subcol-watch">
-              <div class="subcol-head">
-                <h4 class="subcol-title" title="Nur neue Nachrichten von Usern auf deiner Watchlist · Doppelklick = Live-Scroll · Verwalten im Tab „Watchlist“">
-                  <span class="subcol-eye">👁</span> Watch <span id="watchIndexCount" class="subcol-count">0</span>
-                </h4>
-                <div class="subcol-head-actions">
-                  <button type="button" id="btnOpenWatchlist" class="sm" title="Watchlist verwalten (User entfernen)">Liste</button>
-                  <button type="button" id="btnClearWatch" class="sm" title="Watch-Nachrichten leeren (Watchlist bleibt)">Clear</button>
+              <button type="button" id="btnClearLive" class="sm">Leeren</button>
+              <div class="hub-gear">
+                <button type="button" id="btnChatGear" class="sm" title="Darstellung" aria-expanded="false">Darstellung</button>
+                <div id="chatGearPop" class="hub-gear-pop hidden">
+                  <label class="check-inline hub-chat-opt" title="Feste Farbe pro Username">
+                    <input type="checkbox" id="colorChat" checked /> Colour Chat
+                  </label>
+                  <label class="check-inline hub-chat-opt" title="VIP-Rank neben dem Namen">
+                    <input type="checkbox" id="showVipRankBadges" checked /> VIP-Badges
+                  </label>
+                  <label class="check-inline hub-chat-opt" title="Kompaktere Schrift und Abstände">
+                    <input type="checkbox" id="densityCompact" /> Kompakt
+                  </label>
+                  <label class="check-inline hub-chat-opt" title="Kurzer Hinweis, wenn ein beobachteter User schreibt und der Hub nicht offen ist">
+                    <input type="checkbox" id="watchToastEnabled" checked /> Watch-Hinweis
+                  </label>
                 </div>
               </div>
-              <div id="watchIndex" class="index-list index-list-watch"></div>
+            </div>
+          </div>
+          <div id="chatMarkLegend" class="chat-mark-legend" aria-label="Farb-Legende"></div>
+          <div id="liveChat" class="chat-box chat-box-live"></div>
+          <div id="hubIndexSplit" class="hub-split" title="Höhe der Leiste ziehen"></div>
+          <div class="hub-index-dock">
+            <div class="hub-index-tabs" role="tablist">
+              <button type="button" class="hub-index-tab active" data-index="watch">Beobachten <span id="watchIndexCount" class="subcol-count">0</span></button>
+              <button type="button" class="hub-index-tab" data-index="flagged">Auffällig <span id="flaggedIndexCount" class="subcol-count">0</span></button>
+              <button type="button" class="hub-index-tab" data-index="tagged">Erwähnt <span id="tagIndexCount" class="subcol-count">0</span></button>
+              <button type="button" class="hub-index-tab" data-index="rains">Rains <span id="rainIndexCount" class="subcol-count">0</span></button>
+            </div>
+            <div class="hub-index-panes">
+              <div class="subcol subcol-watch hub-index-pane active" data-index-pane="watch">
+                <div class="subcol-head">
+                  <h4 class="subcol-title" title="Neue Nachrichten von Usern auf der Watchlist. Klick springt zur Zeile.">Beobachten</h4>
+                  <div class="subcol-head-actions">
+                    <button type="button" id="btnOpenWatchlist" class="sm" title="Watchlist verwalten">Liste</button>
+                    <button type="button" id="btnClearWatch" class="sm" title="Nachrichten leeren, Watchlist bleibt">Leeren</button>
+                  </div>
+                </div>
+                <div id="watchIndex" class="index-list index-list-watch"></div>
+              </div>
+              <div class="subcol hub-index-pane" data-index-pane="flagged">
+                <div class="subcol-head">
+                  <h4 class="subcol-title" title="Live-Heuristik. Klick öffnet die API-Chat-Historie.">Auffällig</h4>
+                  <button type="button" id="btnClearFlagged" class="sm">Leeren</button>
+                </div>
+                <div id="flaggedIndex" class="index-list"></div>
+              </div>
+              <div class="subcol hub-index-pane" data-index-pane="tagged">
+                <div class="subcol-head">
+                  <h4 class="subcol-title" title="Wer dich erwähnt hat. Klick springt zur Zeile oder öffnet die Historie.">Erwähnt</h4>
+                  <button type="button" id="btnClearTagged" class="sm">Leeren</button>
+                </div>
+                <div id="tagIndex" class="index-list"></div>
+              </div>
+              <div class="subcol hub-index-pane" data-index-pane="rains">
+                <div class="subcol-head">
+                  <h4 class="subcol-title">Rains</h4>
+                  <button type="button" id="btnClearRains" class="sm">Leeren</button>
+                </div>
+                <div id="rainIndex" class="index-list"></div>
+              </div>
             </div>
           </div>
         </div>
+        <div id="hubColSplit" class="hub-split hub-split-col" title="Breite der Mod-Spalte ziehen"></div>
         <div class="hub-right">
           <div class="panel compact hub-mod-panel">
-            <div class="hub-mod-grid">
-              <h3 class="span-all">Mod</h3>
+            <div class="hub-mod-grid" data-mod-mode="chat">
+              <div class="span-all hub-mod-head">
+                <h3>Mod</h3>
+                <button type="button" id="btnCollapseMod" class="sm" title="Mod-Spalte einklappen">Einklappen</button>
+              </div>
               <div class="span-all hub-validate-row">
                 <input id="validateUsername" type="text" placeholder="Username" />
-                <button type="button" id="btnValidate" class="primary sm">Validate</button>
+                <button type="button" id="btnValidate" class="primary sm">Prüfen</button>
               </div>
+              <p id="hubUserChip" class="hub-user-chip span-all">Kein User gewählt</p>
               <p id="validateStatus" class="status-line span-all">—</p>
               <button type="button" id="btnModAction" class="primary hub-mod-action-btn span-all" disabled>Mod Action</button>
-              <div class="btn-grid span-all hub-action-grid">
-                <button type="button" id="btnWarn" disabled>Warn</button>
-                <button type="button" id="btnUserHash" disabled>IP Hash</button>
+              <div class="btn-grid span-all hub-action-grid hub-action-user">
+                <button type="button" id="btnWarn" disabled>Warnung</button>
+                <button type="button" id="btnChatHistory" disabled title="API-Chat-Historie des validierten Users">Verlauf</button>
+                <button type="button" id="btnWatchUser" class="hub-watch-btn" disabled title="User beobachten. Taste W, wenn kein Textfeld fokussiert ist.">Beobachten</button>
                 <button type="button" id="btnAddVeri2" disabled>Veri2</button>
-                <button type="button" id="btnChatHistory" disabled title="API-Chat-Historie des validierten Users">History</button>
-                <button type="button" id="btnWatchUser" class="hub-watch-btn" disabled title="User beobachten: neue Nachrichten landen in der Watch-Box unten im Hub">👁 Watch</button>
-                <button type="button" id="btnMutedList" disabled title="Lokal gemutete User (Liste)">Muted</button>
-                <button type="button" id="btnWarnedList" disabled title="Lokal gewarnte User (Liste)">Warned</button>
+                <button type="button" id="btnUserHash" disabled>IP-Hash</button>
+                <button type="button" id="btnAltCheck" class="sm" title="Doppelte IPs aus der Hash-Datei">Alt-Check</button>
               </div>
-              <label class="compact-label">Mute-Zeit <select id="mutePeriod"></select></label>
-              <label class="compact-label">Mute-BP <select id="cbMuteBlueprints"><option value="">—</option></select></label>
-              <label class="compact-label span-all hub-msg-row">
-                <span class="hub-msg-label">Mute-Text</span>
-                <div class="hub-msg-input-row">
-                  <input id="muteMessage" type="text" />
-                  <button type="button" id="btnSendMute" class="primary sm" disabled title="Mute-Text in den Chat senden">Senden</button>
-                </div>
-              </label>
-              <label class="compact-label">Warn-BP <select id="cbWarnBlueprints"><option value="">—</option></select></label>
-              <label class="compact-label span-all hub-msg-row">
-                <span class="hub-msg-label">Warn-Text</span>
-                <div class="hub-msg-input-row">
-                  <input id="warnMessage" type="text" />
-                  <button type="button" id="btnSendWarn" class="primary sm" disabled title="Warn-Text in den Chat senden">Senden</button>
-                </div>
-              </label>
-              <label class="compact-label">Chat-BP <select id="cbChatBlueprints"><option value="">—</option></select></label>
-              <label class="compact-label span-all hub-msg-row hub-msg-row--chat">
-                <span class="hub-msg-label">Chat-Text <span class="hint">(max. 160, Enter = Senden)</span></span>
-                <div class="hub-msg-input-row hub-msg-input-row--chat">
-                  <textarea id="chatMessage" rows="3" maxlength="160" placeholder="Chat-Nachricht…"></textarea>
-                  <div class="hub-chat-side-actions">
-                    <button type="button" id="btnEmotePicker" class="sm hub-emote-btn" title="Emotes einfügen">😀</button>
-                    <button type="button" id="btnSendChat" class="primary sm" disabled title="Chat-Text senden (Enter)">Senden</button>
+              <div class="span-all hub-list-row">
+                <span class="hub-list-label">Listen</span>
+                <button type="button" id="btnMutedList" disabled title="Lokal gemutete User">Gemutet</button>
+                <button type="button" id="btnWarnedList" disabled title="Lokal gewarnte User">Gewarnt</button>
+                <button type="button" id="btnOpenWatchlistFromMod" class="sm" title="Watchlist öffnen">Watchlist</button>
+              </div>
+              <div class="span-all mod-mode-switch" role="tablist">
+                <button type="button" class="mod-mode-btn active" data-mod-mode="chat">Chat</button>
+                <button type="button" class="mod-mode-btn" data-mod-mode="warn">Warn-Text</button>
+                <button type="button" class="mod-mode-btn" data-mod-mode="mute">Mute-Text</button>
+              </div>
+              <p class="span-all hint mod-mode-hint" data-mod-hint="mute">Dauer und Grund setzt du in Mod Action. Hier nur der Chat-Text danach.</p>
+              <div class="mod-mode-pane" data-mod-pane="chat">
+                <label class="compact-label">Chat-Vorlage <select id="cbChatBlueprints"><option value="">—</option></select></label>
+                <label class="compact-label span-all hub-msg-row hub-msg-row--chat">
+                  <span class="hub-msg-label">Chat-Text <span class="hint">(max. 160, Enter = Senden)</span></span>
+                  <div class="hub-msg-input-row hub-msg-input-row--chat">
+                    <textarea id="chatMessage" rows="3" maxlength="160" placeholder="Chat-Nachricht…"></textarea>
+                    <div class="hub-chat-side-actions">
+                      <button type="button" id="btnEmotePicker" class="sm hub-emote-btn" title="Emotes einfügen">😀</button>
+                      <button type="button" id="btnSendChat" class="primary sm" disabled title="Chat-Text senden (Enter)">Senden</button>
+                    </div>
                   </div>
-                </div>
-                <div id="emotePicker" class="emote-picker hidden" role="listbox" aria-label="Emotes"></div>
-                <div id="emoteAutocomplete" class="emote-autocomplete hidden" role="listbox" aria-label="Emote-Vervollständigung"></div>
-                <div id="mentionAutocomplete" class="mention-autocomplete hidden" role="listbox" aria-label="User erwähnen"></div>
-              </label>
-              <div class="span-all row-inline hub-bp-row">
-                <button type="button" id="btnAddMuteBp" class="sm">+ Mute BP</button>
-                <button type="button" id="btnAddWarnBp" class="sm">+ Warn BP</button>
-                <button type="button" id="btnAddChatBp" class="sm">+ Chat BP</button>
+                  <div id="emotePicker" class="emote-picker hidden" role="listbox" aria-label="Emotes"></div>
+                  <div id="emoteAutocomplete" class="emote-autocomplete hidden" role="listbox" aria-label="Emote-Vervollständigung"></div>
+                  <div id="mentionAutocomplete" class="mention-autocomplete hidden" role="listbox" aria-label="User erwähnen"></div>
+                </label>
+                <button type="button" id="btnAddChatBp" class="sm hub-bp-save">Als Vorlage speichern</button>
               </div>
-            </div>
-          </div>
-          <div id="modChatPanel" class="mod-chat-panel hidden" data-status="off">
-            <button type="button" id="modChatToggle" class="mod-chat-toggle" title="Team-Chat (nur DE-Mods)">
-              <span id="modChatDot" class="mod-chat-dot"></span>
-              <span class="mod-chat-toggle-main">
-                <span class="mod-chat-toggle-label">Mod Chat</span>
-                <span id="modChatUnread" class="mod-chat-unread hidden" aria-hidden="true">0</span>
-              </span>
-              <span id="modChatOnlineCount" class="mod-chat-online-count hidden" title="Mods online"></span>
-              <span id="modChatChevron" class="mod-chat-chevron">▼</span>
-            </button>
-            <div id="modChatBody" class="mod-chat-body hidden">
-              <div class="mod-chat-meta-row">
-                <p id="modChatStatus" class="mod-chat-status"></p>
-                <div id="modChatOnline" class="mod-chat-online" aria-label="Mod-Anwesenheit"></div>
+              <div class="mod-mode-pane" data-mod-pane="warn">
+                <label class="compact-label">Warn-Vorlage <select id="cbWarnBlueprints"><option value="">—</option></select></label>
+                <label class="compact-label hub-msg-row">
+                  <span class="hub-msg-label">Warn-Text</span>
+                  <div class="hub-msg-input-row">
+                    <input id="warnMessage" type="text" />
+                    <button type="button" id="btnSendWarn" class="primary sm" disabled title="Warn-Text in den Chat senden">Senden</button>
+                  </div>
+                </label>
+                <button type="button" id="btnAddWarnBp" class="sm hub-bp-save">Als Vorlage speichern</button>
               </div>
-              <div id="modChatLog" class="mod-chat-log"></div>
-              <div class="mod-chat-input-row">
-                <input id="modChatInput" type="text" maxlength="500" placeholder="Nachricht an Mods…" autocomplete="off" />
-                <button type="button" id="modChatSend" class="primary sm">Send</button>
-                <button type="button" id="modChatReconnect" class="sm" title="Neu verbinden">↻</button>
+              <div class="mod-mode-pane" data-mod-pane="mute">
+                <label class="compact-label mod-period-keep">Mute-Zeit <select id="mutePeriod"></select></label>
+                <label class="compact-label">Mute-Vorlage <select id="cbMuteBlueprints"><option value="">—</option></select></label>
+                <label class="compact-label hub-msg-row">
+                  <span class="hub-msg-label">Text nach dem Mute</span>
+                  <div class="hub-msg-input-row">
+                    <input id="muteMessage" type="text" />
+                    <button type="button" id="btnSendMute" class="primary sm" disabled title="Mute-Text in den Chat senden">Senden</button>
+                  </div>
+                </label>
+                <button type="button" id="btnAddMuteBp" class="sm hub-bp-save">Als Vorlage speichern</button>
               </div>
             </div>
           </div>
@@ -209,7 +246,12 @@
     </section>
 
     <section id="panel-rh" class="panel-view">
-      <div class="rh-layout">
+      <div class="rh-subtabs" role="tablist">
+        <button type="button" class="rh-subtab active" data-rh-tab="scanner">Scanner</button>
+        <button type="button" class="rh-subtab" data-rh-tab="chat">Chat</button>
+        <button type="button" class="rh-subtab" data-rh-tab="trivia">Trivia</button>
+      </div>
+      <div class="rh-layout" id="rhLayout" data-rh-tab="scanner">
         <div class="rh-config panel">
           <h2>Rollhunt Scanner</h2>
           <p id="hubSiteHint" class="hint">Alles getrennt pro Site: Logs, Analyse, Veri2, HashIP, Blueprints, RH/Automsg/Automute (oben stake.com / stake.eu).</p>
@@ -251,7 +293,7 @@
           <div class="row-inline">
             <button type="button" id="btnRhStart" class="primary">RH Start</button>
             <button type="button" id="btnRhStop" class="sm" disabled>RH beenden</button>
-            <button type="button" id="btnRhClear" class="danger sm">Clear</button>
+            <button type="button" id="btnRhClear" class="danger sm">Leeren</button>
           </div>
           <div id="rhPostLeaderWrap" class="rh-post-leader-wrap hidden">
             <div class="rh-place-post-row">
@@ -304,7 +346,7 @@
           <div class="row-inline rh-trivia-actions">
             <button type="button" id="btnRhTriviaStart" class="primary sm">Start</button>
             <button type="button" id="btnRhTriviaStop" class="sm" disabled>Stop</button>
-            <button type="button" id="btnRhTriviaClear" class="sm">Clear</button>
+            <button type="button" id="btnRhTriviaClear" class="sm">Leeren</button>
           </div>
           <p id="rhTriviaStatus" class="status-line hint">Inaktiv</p>
           <div class="rh-trivia-log-wrap">
@@ -313,7 +355,7 @@
           </div>
         </div>
         <div class="rh-stack pane">
-          <section class="rh-pane-section">
+          <section class="rh-pane-section rh-pane-live">
             <div class="panel-head"><h3>Live Chat (RH)</h3></div>
             <div id="rhLiveChat" class="chat-box chat-box-rh-chat"></div>
           </section>
@@ -328,7 +370,7 @@
               <div id="rhCrashLivePlayers" class="rh-crash-live-players"></div>
             </div>
           </section>
-          <section class="rh-pane-section">
+          <section class="rh-pane-section rh-pane-bets">
             <div class="panel-head"><h3 id="rhBetLogTitle">Wetten (aufsteigend)</h3></div>
             <div id="rhBetLog" class="chat-box chat-box-rh-bets bet-log"></div>
           </section>
@@ -493,6 +535,8 @@
         </div>
         <div class="analyse-meta row-inline" id="analyseMeta"></div>
 
+        <div class="analyse-main-split">
+        <div class="analyse-main-col">
         <div id="analyseFriendlistBlock" class="analyse-block">
           <h3>Friendlist-Kandidaten <span class="hint">(max. 2 auswählen)</span></h3>
           <p class="hint">Stammchatter mit Substanz — ≥150 Msgs/Monat, ≥10 aktive Tage. Spaltenköpfe anklicken zum Sortieren; Erklärung unten aufklappen.</p>
@@ -537,6 +581,7 @@
           </details>
         </div>
 
+        </div>
         <div id="analyseDetail" class="panel compact analyse-detail hidden">
           <div class="panel-head">
             <h3 id="analyseDetailTitle">User-Details</h3>
@@ -547,8 +592,9 @@
           <ul id="analyseDetailMsgs" class="analyse-msg-list"></ul>
           <div class="row-inline analyse-detail-actions">
             <button type="button" id="btnAnalyseModAction" class="sm primary">Mod Action</button>
-            <button type="button" id="btnAnalyseWatch" class="sm hub-watch-btn" title="User auf die Watchlist setzen — neue Nachrichten erscheinen im Hub in der Watch-Box">👁 Watchlist</button>
+            <button type="button" id="btnAnalyseWatch" class="sm hub-watch-btn" title="User beobachten — neue Nachrichten landen in der Hub-Leiste">Beobachten</button>
           </div>
+        </div>
         </div>
       </div>
     </section>
@@ -563,7 +609,7 @@
           <div class="panel-head-actions">
             <form id="watchlistAddForm" class="watchlist-add-row" autocomplete="off">
               <input id="watchlistAddInput" type="text" placeholder="Username hinzufügen…" spellcheck="false" />
-              <button type="submit" class="sm primary">+ Watch</button>
+              <button type="submit" class="sm primary">+ Beobachten</button>
             </form>
             <button type="button" id="btnWatchlistClearAll" class="sm" title="Alle User von der Watchlist entfernen">Alle entfernen</button>
           </div>
@@ -594,7 +640,7 @@
     <section id="panel-settings" class="panel-view">
       <div class="panel settings-panel">
         <h2>Einstellungen</h2>
-        <div class="grid-2">
+        <div class="grid-2" data-settings-page="connect">
           <label>Stake Mirror (GraphQL) <select id="stakeDomain"></select></label>
           <label>WS Host (Live-Chat) <input id="wsHost" type="text" value="stake.bet" placeholder="stake.bet" /></label>
           <label>Chatroom <select id="prefChatroom"></select></label>
@@ -607,7 +653,7 @@
           </label>
           <label>CF Wert <input id="clearance" type="text" /></label>
         </div>
-        <div class="panel compact eu-settings-panel">
+        <div class="panel compact eu-settings-panel" data-settings-page="eu">
           <h3>stake.eu (optional)</h3>
           <p class="hint">Separater Live-Chat + eigener API-Key. Oben per Tab zwischen stake.com und stake.eu wechseln — beide Streams laufen parallel, wenn aktiv.</p>
           <label class="check"><input type="checkbox" id="wsEuEnabled" /> stake.eu Chat parallel aktivieren</label>
@@ -620,23 +666,23 @@
             <span id="euLoginStatus" class="status-line">—</span>
           </div>
         </div>
-        <div class="row-inline">
+        <div class="row-inline" data-settings-page="logs">
           <button type="button" id="btnPickPath">Datengrube öffnen</button>
           <span id="dataPathLabel" class="status-line">—</span>
         </div>
-        <label class="check"><input type="checkbox" id="logChat" checked /> Chat-Log (com→Chat_de / Rain_de, eu→Chat_eu / Rain_eu)</label>
-        <button type="button" id="btnSeedBlueprints" class="sm">Standard-Blueprints importieren</button>
-        <p class="hint">Alle Logs, Blueprints und CSVs liegen in <code>Datengrube/</code> (installiert: neben den Einstellungen in <code>%APPDATA%</code>, nicht im Programmordner — Updates löschen nichts).</p>
-        <label class="check"><input type="checkbox" id="colorChatSettings" checked /> Colour Chat (feste User-Farben)</label>
-        <label class="check"><input type="checkbox" id="showVipRankBadgesSettings" checked /> VIP-Rank-Badges im Live-Chat</label>
-        <div class="grid-2 mod-chat-settings">
+        <label class="check" data-settings-page="logs"><input type="checkbox" id="logChat" checked /> Chat-Log (com→Chat_de / Rain_de, eu→Chat_eu / Rain_eu)</label>
+        <button type="button" id="btnSeedBlueprints" class="sm" data-settings-page="logs">Standard-Blueprints importieren</button>
+        <p class="hint" data-settings-page="logs">Alle Logs, Blueprints und CSVs liegen in <code>Datengrube/</code> (installiert: neben den Einstellungen in <code>%APPDATA%</code>, nicht im Programmordner — Updates löschen nichts).</p>
+        <label class="check" data-settings-page="chat"><input type="checkbox" id="colorChatSettings" checked /> Colour Chat (feste User-Farben)</label>
+        <label class="check" data-settings-page="chat"><input type="checkbox" id="showVipRankBadgesSettings" checked /> VIP-Rank-Badges im Live-Chat</label>
+        <div class="grid-2 mod-chat-settings" data-settings-page="chat">
           <label class="check"><input type="checkbox" id="modChatEnabled" checked /> Mod-Team-Chat (Relay)</label>
           <label>Mod-Chat Server <input id="modChatUrl" type="text" value="wss://announcement-anaheim-filled-ripe.trycloudflare.com" placeholder="wss://….trycloudflare.com" /></label>
         </div>
-        <p class="hint mod-chat-hint">Standard: <code>wss://announcement-anaheim-filled-ripe.trycloudflare.com</code> (Cloudflare Tunnel). Alte LAN-URLs (<code>192.168.x</code>) werden beim Start automatisch migriert. URL wechselt bei jedem <code>cloudflared</code>-Neustart.</p>
-        <label class="check"><input type="checkbox" id="logHash" checked /> Auto IP-Hash (1×/Tag pro User)</label>
-        <label class="check"><input type="checkbox" id="useNativeWs" checked /> Native WebSocket (empfohlen)</label>
-        <div class="grid-2">
+        <p class="hint mod-chat-hint" data-settings-page="chat">Standard: <code>wss://announcement-anaheim-filled-ripe.trycloudflare.com</code> (Cloudflare Tunnel). Alte LAN-URLs (<code>192.168.x</code>) werden beim Start automatisch migriert. URL wechselt bei jedem <code>cloudflared</code>-Neustart.</p>
+        <label class="check" data-settings-page="logs"><input type="checkbox" id="logHash" checked /> Auto IP-Hash (1×/Tag pro User)</label>
+        <label class="check" data-settings-page="logs"><input type="checkbox" id="useNativeWs" checked /> Native WebSocket (empfohlen)</label>
+        <div class="grid-2" data-settings-page="chat">
           <label>Max Chat-Zeilen <input id="maxChatRows" type="number" min="100" max="5000" value="1000" /></label>
           <label>Live-Chat Schrift
             <select id="liveChatFontSize">
@@ -649,7 +695,7 @@
           </label>
           <label>Hash-Reset (Uhrzeit) <input id="autodelTime" type="time" value="23:59" /></label>
         </div>
-        <div class="panel compact notify-sounds-panel">
+        <div class="panel compact notify-sounds-panel" data-settings-page="sounds">
           <h3>Benachrichtigungstöne</h3>
           <p class="hint">Eigene Sounds (MP3, WAV, OGG, M4A …) für @Mod-Erwähnungen und Automute-Regeln. Gespeichert in <code>Datengrube/NotifySounds/</code>.</p>
           <div class="row-inline">
@@ -660,15 +706,15 @@
             <p class="hint">Noch keine eigenen Sounds.</p>
           </div>
         </div>
-        <div class="panel compact">
+        <div class="panel compact" data-settings-page="updates">
           <h3>Updates (GitHub)</h3>
-          <p class="hint">Installierte App prüft beim Start und alle 4&nbsp;h automatisch auf GitHub-Releases (<code>latest.yml</code>).</p>
+          <p class="hint">Stake Mod Hub · ModHub + Rollhunt. Installierte App prüft beim Start und alle 4&nbsp;h automatisch auf GitHub-Releases (<code>latest.yml</code>).</p>
           <div class="row-inline">
             <button type="button" id="btnCheckUpdate" class="sm">Nach Updates suchen</button>
             <span id="updateStatus" class="status-line">—</span>
           </div>
         </div>
-        <div class="auth-block panel compact">
+        <div class="auth-block panel compact" data-settings-page="connect">
           <h3>Anmeldung</h3>
           <p class="hint">API-Key + Login. Bei <strong>HTTP 403</strong> (VPN/Cloudflare): <strong>Cookies aktualisieren</strong> — Stake kurz im Fenster öffnen, einloggen, Fenster schließen, dann erneut Login.</p>
           <div class="row-inline">
@@ -681,6 +727,39 @@
       </div>
     </section>
   </main>
+
+  <div id="modChatPanel" class="mod-chat-panel mod-chat-dock hidden" data-status="off">
+    <button type="button" id="modChatToggle" class="mod-chat-toggle" title="Team-Chat (nur DE-Mods)">
+      <span id="modChatDot" class="mod-chat-dot"></span>
+      <span class="mod-chat-toggle-main">
+        <span class="mod-chat-toggle-label">Mod Chat</span>
+        <span id="modChatUnread" class="mod-chat-unread hidden" aria-hidden="true">0</span>
+      </span>
+      <span id="modChatOnlineCount" class="mod-chat-online-count hidden" title="Mods online"></span>
+      <span id="modChatChevron" class="mod-chat-chevron">▼</span>
+    </button>
+    <div id="modChatBody" class="mod-chat-body hidden">
+      <div class="mod-chat-meta-row">
+        <p id="modChatStatus" class="mod-chat-status"></p>
+        <div id="modChatOnline" class="mod-chat-online" aria-label="Mod-Anwesenheit"></div>
+      </div>
+      <div id="modChatLog" class="mod-chat-log"></div>
+      <div class="mod-chat-input-row">
+        <input id="modChatInput" type="text" maxlength="500" placeholder="Nachricht an Mods…" autocomplete="off" />
+        <button type="button" id="modChatSend" class="primary sm">Senden</button>
+        <button type="button" id="modChatReconnect" class="sm" title="Neu verbinden">↻</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="watchToast" class="watch-toast hidden" role="status"></div>
+
+  <div id="cmdk" class="cmdk hidden" role="dialog" aria-label="Suche">
+    <div class="cmdk-box">
+      <input id="cmdkInput" type="text" placeholder="User oder Tab…  (Strg+K)" autocomplete="off" spellcheck="false" />
+      <div id="cmdkList" class="cmdk-list"></div>
+    </div>
+  </div>
 
   <div id="updateToast" class="update-toast hidden" aria-live="polite">
     <h4 id="updateToastTitle">Update verfügbar</h4>
@@ -877,6 +956,7 @@
   <script src="./renderer/automute-defaults.js"></script>
   <script src="./renderer/notify-sounds.js"></script>
   <script src="./renderer/automute-panel.js"></script>
+  <script src="./renderer/ui-shell.js"></script>
   <script src="./renderer/app.js"></script>
 </body>
 </html>
