@@ -51,6 +51,8 @@ const state = {
   tagged: [],
   rains: [],
   flagged: [],
+  /** New live messages from users on the (per-site) watchlist — Hub "Watch" box. */
+  watchIndex: [],
   liveFlagRoll: new Map(),
   mutedLocalSet: new Set(),
   warnedLocalSet: new Set(),
@@ -191,6 +193,8 @@ async function setActiveSite(site) {
   LiveChat.invalidateChatDom();
   renderChats({ forceFull: true });
   renderHubIndexes();
+  syncWatchButtonUi();
+  renderWatchlistPanel();
   clearRhCrashLiveTimer();
   syncRhCrashLive();
 }
@@ -400,6 +404,21 @@ function buildTaggedIndexEntry(line) {
     time: formatChatTime(displayTs),
     text: line.message,
     preview: line.message.slice(0, 120),
+    idx: line.idx,
+    uid: line.uid,
+    chatSource: line.chatSource || ''
+  };
+}
+
+function buildWatchIndexEntry(line) {
+  const displayTs = line.receivedAt ?? line.ts;
+  return {
+    kind: 'watch',
+    username: line.username,
+    time: formatChatTime(displayTs),
+    ts: displayTs,
+    text: line.message,
+    preview: line.message.slice(0, 160),
     idx: line.idx,
     uid: line.uid,
     chatSource: line.chatSource || ''
@@ -1706,6 +1725,242 @@ function isVeri2(name) {
   return state.veri2.has(String(name || '').toLowerCase());
 }
 
+/* ───────── Watchlist (pro Site) ───────── */
+const WATCH_INDEX_MAX = 120;
+const WATCH_SOURCE_LABEL = { hub: 'Hub', chat: 'Chat', analyse: 'Analyse', manual: 'Manuell' };
+
+function siteKeyFromChatSource(chatSource) {
+  return chatSource === 'eu' ? 'eu' : 'com';
+}
+
+function normalizeWatchName(name) {
+  return stripAt(String(name || '').trim()).toLowerCase();
+}
+
+function getWatchlist(site = getActiveSite()) {
+  const list = hubSettings(site)?.watchlist;
+  return Array.isArray(list) ? list : [];
+}
+
+/**
+ * @param {string} name
+ * @param {string} [chatSource] '' | 'eu' — site of the chat line; omitted → active site
+ */
+function isWatchedUser(name, chatSource) {
+  const key = normalizeWatchName(name);
+  if (!key) return false;
+  const site = chatSource === undefined ? getActiveSite() : siteKeyFromChatSource(chatSource);
+  const list = getWatchlist(site);
+  for (let i = 0; i < list.length; i++) {
+    if (normalizeWatchName(list[i]?.username) === key) return true;
+  }
+  return false;
+}
+
+function findWatchEntry(name, site = getActiveSite()) {
+  const key = normalizeWatchName(name);
+  return getWatchlist(site).find((w) => normalizeWatchName(w?.username) === key) || null;
+}
+
+async function saveWatchlist(site, list) {
+  const key = site === 'eu' ? 'eu' : 'com';
+  try {
+    state.settings = await modHub.saveSettings({ hubBySite: { [key]: { watchlist: list } } });
+  } catch (_) {
+    /* ignore */
+  }
+  onWatchlistChanged();
+}
+
+async function addWatchUser(name, { source = 'hub', site = getActiveSite() } = {}) {
+  const user = stripAt(String(name || '').trim());
+  if (!user) return false;
+  if (findWatchEntry(user, site)) return false;
+  const list = getWatchlist(site).slice();
+  list.push({ username: user, addedAt: Date.now(), source });
+  await saveWatchlist(site, list);
+  return true;
+}
+
+async function removeWatchUser(name, site = getActiveSite()) {
+  const key = normalizeWatchName(name);
+  const list = getWatchlist(site).filter((w) => normalizeWatchName(w?.username) !== key);
+  await saveWatchlist(site, list);
+}
+
+/** @returns {Promise<boolean>} true = jetzt auf der Watchlist */
+async function toggleWatchUser(name, opts = {}) {
+  const site = opts.site || getActiveSite();
+  if (findWatchEntry(name, site)) {
+    await removeWatchUser(name, site);
+    return false;
+  }
+  await addWatchUser(name, { ...opts, site });
+  return true;
+}
+
+function onWatchlistChanged() {
+  state.watchIndex = state.watchIndex.filter((it) => isWatchedUser(it.username, it.chatSource));
+  LiveChat.invalidateChatDom();
+  renderChats({ forceFull: true });
+  renderHubIndexes();
+  syncWatchButtonUi();
+  renderWatchlistPanel();
+  window.AnalysePanel?.onWatchlistChanged?.();
+}
+
+function syncWatchButtonUi() {
+  const btn = $('btnWatchUser');
+  if (!btn) return;
+  const name = state.validatedUser || '';
+  const on = !!name && isWatchedUser(name);
+  btn.classList.toggle('is-on', on);
+  btn.textContent = on ? '👁 Unwatch' : '👁 Watch';
+  btn.title = on
+    ? `${name} von der Watchlist entfernen`
+    : 'User beobachten: neue Nachrichten landen in der Watch-Box unten im Hub';
+  btn.disabled = !name;
+}
+
+function formatWatchSince(ts) {
+  const n = Number(ts);
+  if (!n) return '—';
+  const d = new Date(n);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}.${mm}. ${hh}:${mi}`;
+}
+
+function collectWatchLiveStats() {
+  const stats = new Map();
+  for (const l of state.chatLines) {
+    if (!l?.username || !indexMatchesActiveSite(l)) continue;
+    const k = normalizeWatchName(l.username);
+    let s = stats.get(k);
+    if (!s) {
+      s = { count: 0, lastTs: 0, lastMsg: '' };
+      stats.set(k, s);
+    }
+    s.count++;
+    const ts = l.receivedAt ?? l.ts ?? 0;
+    if (ts >= s.lastTs) {
+      s.lastTs = ts;
+      s.lastMsg = l.message || '';
+    }
+  }
+  return stats;
+}
+
+function renderWatchlistPanel() {
+  const body = $('watchlistBody');
+  if (!body) return;
+  const site = getActiveSite();
+  const list = getWatchlist(site).slice().sort((a, b) => (b?.addedAt || 0) - (a?.addedAt || 0));
+
+  const hint = $('watchlistSiteHint');
+  if (hint) hint.textContent = site === 'eu' ? 'stake.eu · getrennt von .com' : 'stake.com · getrennt von .eu';
+  const tabCount = $('tabWatchCount');
+  if (tabCount) {
+    tabCount.textContent = String(list.length);
+    tabCount.classList.toggle('hidden', list.length === 0);
+  }
+  $('watchlistEmpty')?.classList.toggle('hidden', list.length > 0);
+  const clearAll = $('btnWatchlistClearAll');
+  if (clearAll) clearAll.disabled = list.length === 0;
+
+  const stats = collectWatchLiveStats();
+  body.innerHTML = list
+    .map((w) => {
+      const user = stripAt(w?.username || '');
+      const st = stats.get(normalizeWatchName(user));
+      const lastHtml = st?.lastTs
+        ? `<span class="watchlist-last-time">${esc(formatChatTime(st.lastTs))}</span> <span class="watchlist-last-msg">${esc(
+            String(st.lastMsg || '').slice(0, 140)
+          )}</span>`
+        : '<span class="watchlist-none">—</span>';
+      const src = WATCH_SOURCE_LABEL[w?.source] || WATCH_SOURCE_LABEL.manual;
+      return `<tr data-user="${esc(user)}">
+        <td><button type="button" class="linklike watchlist-user" data-action="hub" data-user="${esc(user)}" title="Im Hub validieren">${esc(user)}</button></td>
+        <td class="watchlist-since">${esc(formatWatchSince(w?.addedAt))}</td>
+        <td><span class="watchlist-src watchlist-src-${esc(w?.source || 'manual')}">${esc(src)}</span></td>
+        <td class="num">${st?.count || 0}</td>
+        <td class="watchlist-last">${lastHtml}</td>
+        <td class="watchlist-actions">
+          <button type="button" class="sm" data-action="history" data-user="${esc(user)}" title="API-Chat-Historie">History</button>
+          <button type="button" class="sm danger" data-action="remove" data-user="${esc(user)}" title="Von der Watchlist entfernen">✕ Entfernen</button>
+        </td>
+      </tr>`;
+    })
+    .join('');
+}
+
+async function openWatchItem(item) {
+  if (!item) return;
+  if (item.uid != null && scrollToLiveChatUid(item.uid)) return;
+  await openIndexChatHistory(item);
+}
+
+function wireWatchlist() {
+  $('btnWatchUser')?.addEventListener('click', async () => {
+    const name = state.validatedUser || stripAt($('validateUsername')?.value.trim() || '');
+    if (!name) return;
+    const on = await toggleWatchUser(name, { source: 'hub' });
+    const status = $('validateStatus');
+    if (status) {
+      status.textContent = on ? `👁 ${name} wird beobachtet` : `${name} von der Watchlist entfernt`;
+      status.style.color = on ? '#c084fc' : '';
+    }
+  });
+
+  $('btnClearWatch')?.addEventListener('click', () => {
+    state.watchIndex = [];
+    renderHubIndexes();
+  });
+
+  $('btnOpenWatchlist')?.addEventListener('click', () => {
+    document.querySelector('.tab[data-tab="watchlist"]')?.click();
+  });
+
+  $('watchlistAddForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = $('watchlistAddInput');
+    const name = stripAt(input?.value.trim() || '');
+    if (!name) return;
+    await addWatchUser(name, { source: 'manual' });
+    if (input) input.value = '';
+  });
+
+  $('btnWatchlistClearAll')?.addEventListener('click', async () => {
+    const site = getActiveSite();
+    const n = getWatchlist(site).length;
+    if (!n) return;
+    if (!window.confirm(`Alle ${n} User von der Watchlist (${site === 'eu' ? 'stake.eu' : 'stake.com'}) entfernen?`)) return;
+    await saveWatchlist(site, []);
+  });
+
+  $('watchlistBody')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const user = btn.dataset.user || '';
+    const action = btn.dataset.action;
+    if (!user) return;
+    if (action === 'remove') {
+      await removeWatchUser(user);
+    } else if (action === 'hub') {
+      document.querySelector('.tab[data-tab="hub"]')?.click();
+      fillValidateUsernameFromChat(user);
+    } else if (action === 'history') {
+      await validateAndOpenModAction(user, 'chat');
+    }
+  });
+}
+
+window.toggleWatchUser = toggleWatchUser;
+window.addWatchUser = addWatchUser;
+window.isWatchedUser = isWatchedUser;
+
 function parseMentionAliases(raw) {
   if (Array.isArray(raw)) {
     return raw.map((s) => stripAt(String(s || '').trim())).filter(Boolean);
@@ -2433,7 +2688,14 @@ function formatIndexItemHtml(it, i) {
             : flagKey === 'spam'
               ? 'index-item-flag-spam'
               : '';
-    const itemCls = ['index-item', modRainHit ? 'index-item-mod-rain' : '', flagCls].filter(Boolean).join(' ');
+    const itemCls = [
+      'index-item',
+      modRainHit ? 'index-item-mod-rain' : '',
+      it.kind === 'watch' ? 'index-item-watch' : '',
+      flagCls
+    ]
+      .filter(Boolean)
+      .join(' ');
     const sharesHtml = it.kind === 'rain' && it.shares?.length ? formatRainSharesHtml(it.shares) : '';
     const bodyHtml = sharesHtml || (msg ? esc(msg) : '');
     const subHtml = it.flagLabel
@@ -2483,10 +2745,37 @@ function indexMatchesActiveSite(it) {
   return site === 'eu' ? isEu : !isEu;
 }
 
+function setIndexCount(id, n) {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = String(n);
+  el.classList.toggle('is-zero', n === 0);
+}
+
 function renderHubIndexes() {
-  renderIndexList($('tagIndex'), state.tagged.filter(indexMatchesActiveSite), (it) => openTaggedItem(it));
-  renderIndexList($('rainIndex'), state.rains.filter(indexMatchesActiveSite), (it) => scrollToLine(it.idx));
-  renderIndexList($('flaggedIndex'), state.flagged.filter(indexMatchesActiveSite), (it) => openFlaggedChatHistory(it));
+  const tagged = state.tagged.filter(indexMatchesActiveSite);
+  const rains = state.rains.filter(indexMatchesActiveSite);
+  const flagged = state.flagged.filter(indexMatchesActiveSite);
+  const watch = state.watchIndex.filter(indexMatchesActiveSite);
+  renderIndexList($('tagIndex'), tagged, (it) => openTaggedItem(it));
+  renderIndexList($('rainIndex'), rains, (it) => scrollToLine(it.idx));
+  renderIndexList($('flaggedIndex'), flagged, (it) => openFlaggedChatHistory(it));
+  const watchEl = $('watchIndex');
+  if (watchEl) {
+    if (!getWatchlist().length) {
+      watchEl.innerHTML =
+        '<div class="hint index-empty">Noch niemand auf der Watchlist.<br>👁 Watch im Mod-Panel, Rechtsklick im Chat oder aus der Analyse.</div>';
+    } else {
+      renderIndexList(watchEl, watch, (it) => openWatchItem(it));
+      if (!watch.length) {
+        watchEl.innerHTML = '<div class="hint index-empty">Noch keine neuen Nachrichten von beobachteten Usern.</div>';
+      }
+    }
+  }
+  setIndexCount('tagIndexCount', tagged.length);
+  setIndexCount('rainIndexCount', rains.length);
+  setIndexCount('flaggedIndexCount', flagged.length);
+  setIndexCount('watchIndexCount', watch.length);
 }
 
 function scrollToLiveChatUid(uid) {
@@ -2579,6 +2868,8 @@ function setUserActionsEnabled(on) {
     const el = $(id);
     if (el) el.disabled = !on || !state.loggedIn;
   });
+  /* Watch ist lokal — braucht keinen Login, nur einen validierten User. */
+  syncWatchButtonUi();
 }
 
 function updateLiveStatusUi() {
@@ -3606,6 +3897,12 @@ function ingestLiveMessageSync(m, { receivedAt, chatSource } = {}) {
     if (state.rains.length > 50) state.rains.length = 50;
   }
 
+  if (line.username && isWatchedUser(line.username, line.chatSource)) {
+    line.watched = true;
+    state.watchIndex.unshift(buildWatchIndexEntry(line));
+    if (state.watchIndex.length > WATCH_INDEX_MAX) state.watchIndex.length = WATCH_INDEX_MAX;
+  }
+
   const flag = scoreIncomingFlag(line);
   if (flag) {
     state.flagged.unshift(buildFlaggedIndexEntry(line, flag));
@@ -3643,6 +3940,9 @@ function wireTabs() {
       if (btn.dataset.tab === 'automute') {
         window.AutomutePanel?.onTabShow?.();
       }
+      if (btn.dataset.tab === 'watchlist') {
+        renderWatchlistPanel();
+      }
     });
   });
 }
@@ -3674,7 +3974,10 @@ function ensureCtxMenu() {
   if ($('ctxMenu')) return;
   const menu = document.createElement('div');
   menu.id = 'ctxMenu';
-  menu.innerHTML = '<button type="button" data-action="bet">Bet Lookup</button><button type="button" data-action="validate">Validate User</button>';
+  menu.innerHTML =
+    '<button type="button" data-action="bet">Bet Lookup</button>' +
+    '<button type="button" data-action="validate">Validate User</button>' +
+    '<button type="button" data-action="watch" class="ctx-watch">👁 Watch User</button>';
   document.body.appendChild(menu);
   menu.addEventListener('click', (e) => {
     const action = e.target.closest('button')?.dataset?.action;
@@ -3685,6 +3988,9 @@ function ensureCtxMenu() {
     if (action === 'validate' && user) {
       $('validateUsername').value = user;
       $('btnValidate').click();
+    }
+    if (action === 'watch' && user) {
+      void toggleWatchUser(user, { source: 'chat' });
     }
   });
   document.addEventListener('click', () => {
@@ -3792,7 +4098,17 @@ function wireHub() {
     const menu = $('ctxMenu');
     menu.dataset.betId = row.getAttribute('data-bet') || '';
     const userEl = row.querySelector('.user');
-    menu.dataset.user = userEl ? userEl.textContent.replace(/^@/, '') : '';
+    const ctxUser = userEl ? (userEl.dataset.username || userEl.textContent).replace(/^@/, '').trim() : '';
+    menu.dataset.user = ctxUser;
+    const betBtn = menu.querySelector('[data-action="bet"]');
+    if (betBtn) betBtn.style.display = menu.dataset.betId ? '' : 'none';
+    const watchBtn = menu.querySelector('[data-action="watch"]');
+    if (watchBtn) {
+      const on = ctxUser && isWatchedUser(ctxUser, row.classList.contains('chat-source-eu') ? 'eu' : '');
+      watchBtn.textContent = on ? `👁 Unwatch ${ctxUser}` : `👁 Watch ${ctxUser}`;
+      watchBtn.classList.toggle('is-on', !!on);
+      watchBtn.style.display = ctxUser ? '' : 'none';
+    }
     menu.style.display = 'block';
     menu.style.left = `${e.clientX}px`;
     menu.style.top = `${e.clientY}px`;
@@ -4723,7 +5039,8 @@ async function init() {
     stripAt,
     formatChatTime,
     isVeri2,
-    isOwnModChatUser
+    isOwnModChatUser,
+    isWatched: isWatchedUser
   });
   ModChat?.init?.({
     state,
@@ -4754,6 +5071,7 @@ async function init() {
   wireTabs();
   wireSiteTabs();
   wireHub();
+  wireWatchlist();
   wireRh();
   wireBets();
   wireAutomsg();
@@ -4764,6 +5082,8 @@ async function init() {
   await loadSettingsUi();
   updateLoginUi();
   setUserActionsEnabled(false);
+  renderWatchlistPanel();
+  renderHubIndexes();
 
   modHub.onSessionUpdated((s) => {
     state.settings = { ...state.settings, ...s };

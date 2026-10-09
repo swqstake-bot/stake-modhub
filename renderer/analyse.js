@@ -345,6 +345,29 @@
     el.innerHTML = `Auswahl <strong>${state.picks.length}/${MAX_PICKS}</strong>: ${state.picks.map((u) => esc(u)).join(', ')}`;
   }
 
+  function isWatched(username) {
+    return typeof window.isWatchedUser === 'function' && window.isWatchedUser(username);
+  }
+
+  /** Hub + 👁 Watch buttons for a table row. `u` is attr-escaped, `username` raw. */
+  function actionButtonsHtml(u, username) {
+    const on = isWatched(username);
+    return `<button type="button" class="sm analyse-validate" data-user="${u}" title="Im Hub validieren / Mod Action">Hub</button>
+      <button type="button" class="sm analyse-watch hub-watch-btn${on ? ' is-on' : ''}" data-user="${u}" title="${
+        on ? 'Von der Watchlist entfernen' : 'Auf die Watchlist — neue Nachrichten landen in der Hub Watch-Box'
+      }">👁</button>`;
+  }
+
+  function syncDetailWatchButton() {
+    const btn = $('btnAnalyseWatch');
+    if (!btn) return;
+    const name = state.detailUser?.username || '';
+    const on = !!name && isWatched(name);
+    btn.classList.toggle('is-on', on);
+    btn.textContent = on ? '👁 Auf Watchlist' : '👁 Watchlist';
+    btn.title = on ? 'Von der Watchlist entfernen' : 'Auf die Watchlist — neue Nachrichten landen in der Hub Watch-Box';
+  }
+
   function openHubModModal(name) {
     if (!name) return;
     const user = name.replace(/^@/, '');
@@ -416,6 +439,7 @@
         return `<li><time>${esc(m.time)}</time>${gap}${tag}<span>${esc(m.message)}</span></li>`;
       })
       .join('');
+    syncDetailWatchButton();
   }
 
   function hideDetail() {
@@ -508,7 +532,7 @@
           <td class="num">${r.avgWordsPerMessage ?? '—'}</td>
           <td class="num">${pct(r.lowQualityRatio || 0)}</td>
           <td class="num">${pct(r.replyRatio || 0)}</td>
-          <td><button type="button" class="sm analyse-validate" data-user="${u}">Hub</button></td>
+          <td class="analyse-act">${actionButtonsHtml(u, r.username)}</td>
         </tr>`;
       })
       .join('');
@@ -541,9 +565,7 @@
     const muteCls = r.mutedLocal ? ' analyse-row-muted' : '';
     const u = attrEsc(r.username);
     const match = bucketMatchValue(r, bucket);
-    const act = `<td class="analyse-act">
-            <button type="button" class="sm analyse-validate" data-user="${u}">Hub</button>
-          </td>`;
+    const act = `<td class="analyse-act">${actionButtonsHtml(u, r.username)}</td>`;
     if (bucket === 'toxic') {
       return `<tr class="analyse-row${muteCls}">
           <td class="num">${i + 1}</td>
@@ -814,6 +836,11 @@
     $('btnAnalyseModAction')?.addEventListener('click', () => {
       if (state.detailUser) openHubModModal(state.detailUser.username);
     });
+    $('btnAnalyseWatch')?.addEventListener('click', async () => {
+      const name = state.detailUser?.username;
+      if (!name || typeof window.toggleWatchUser !== 'function') return;
+      await window.toggleWatchUser(name, { source: 'analyse' });
+    });
 
     const panel = $('panel-analyse');
     panel?.addEventListener('change', (e) => {
@@ -837,7 +864,22 @@
         openHubModModal(val.dataset.user);
         return;
       }
+      const watch = e.target.closest('.analyse-watch');
+      if (watch && typeof window.toggleWatchUser === 'function') {
+        void window.toggleWatchUser(watch.dataset.user, { source: 'analyse' });
+      }
     });
+  }
+
+  /** Called from app.js whenever the watchlist changes — refresh 👁 states. */
+  function onWatchlistChanged() {
+    const panel = $('panel-analyse');
+    panel?.querySelectorAll('.analyse-watch').forEach((btn) => {
+      const on = isWatched(btn.dataset.user || '');
+      btn.classList.toggle('is-on', on);
+      btn.title = on ? 'Von der Watchlist entfernen' : 'Auf die Watchlist — neue Nachrichten landen in der Hub Watch-Box';
+    });
+    syncDetailWatchButton();
   }
 
   async function init() {
@@ -863,6 +905,7 @@
   window.AnalysePanel = {
     init,
     refresh: runAnalyse,
+    onWatchlistChanged,
     onTabShow() {
       updateModeUi();
       const site = getAnalyseSite();

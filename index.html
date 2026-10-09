@@ -15,7 +15,7 @@
       <img src="./assets/icon.png" alt="" class="topbar-logo" width="22" height="22" draggable="false" />
       <div>
         <h1>Stake Mod Hub</h1>
-        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.85</span></p>
+        <p class="sub">Electron · ModHub + RH · v<span id="appVersion">0.4.86</span></p>
       </div>
     </div>
     <nav class="site-tabs" id="siteTabs" aria-label="Stake Site">
@@ -48,6 +48,7 @@
     <button class="tab" data-tab="automsg">Automsg</button>
     <button class="tab" data-tab="automute">Automute</button>
     <button class="tab" data-tab="analyse">Analyse</button>
+    <button class="tab" data-tab="watchlist">Watchlist <span id="tabWatchCount" class="tab-count hidden">0</span></button>
     <button class="tab" data-tab="settings">Settings</button>
   </nav>
 
@@ -90,24 +91,36 @@
           <div class="hub-subcols">
             <div class="subcol">
               <div class="subcol-head">
-                <h4 class="subcol-title" title="Wer dich @ erwähnt hat · Doppelklick = Live-Scroll oder API-Chat-Historie">Tagged</h4>
+                <h4 class="subcol-title" title="Wer dich @ erwähnt hat · Doppelklick = Live-Scroll oder API-Chat-Historie">Tagged <span id="tagIndexCount" class="subcol-count">0</span></h4>
                 <button type="button" id="btnClearTagged" class="sm" title="Tagged-Liste leeren">Clear</button>
               </div>
               <div id="tagIndex" class="index-list"></div>
             </div>
             <div class="subcol">
               <div class="subcol-head">
-                <h4 class="subcol-title">Rains</h4>
+                <h4 class="subcol-title">Rains <span id="rainIndexCount" class="subcol-count">0</span></h4>
                 <button type="button" id="btnClearRains" class="sm" title="Rain-Liste leeren">Clear</button>
               </div>
               <div id="rainIndex" class="index-list"></div>
             </div>
             <div class="subcol">
               <div class="subcol-head">
-                <h4 class="subcol-title" title="Live-Heuristik — Doppelklick öffnet API-Chat-Historie">Auffällig</h4>
+                <h4 class="subcol-title" title="Live-Heuristik — Doppelklick öffnet API-Chat-Historie">Auffällig <span id="flaggedIndexCount" class="subcol-count">0</span></h4>
                 <button type="button" id="btnClearFlagged" class="sm" title="Auffälligkeiten-Liste leeren">Clear</button>
               </div>
               <div id="flaggedIndex" class="index-list"></div>
+            </div>
+            <div class="subcol subcol-watch">
+              <div class="subcol-head">
+                <h4 class="subcol-title" title="Nur neue Nachrichten von Usern auf deiner Watchlist · Doppelklick = Live-Scroll · Verwalten im Tab „Watchlist“">
+                  <span class="subcol-eye">👁</span> Watch <span id="watchIndexCount" class="subcol-count">0</span>
+                </h4>
+                <div class="subcol-head-actions">
+                  <button type="button" id="btnOpenWatchlist" class="sm" title="Watchlist verwalten (User entfernen)">Liste</button>
+                  <button type="button" id="btnClearWatch" class="sm" title="Watch-Nachrichten leeren (Watchlist bleibt)">Clear</button>
+                </div>
+              </div>
+              <div id="watchIndex" class="index-list index-list-watch"></div>
             </div>
           </div>
         </div>
@@ -125,9 +138,10 @@
                 <button type="button" id="btnWarn" disabled>Warn</button>
                 <button type="button" id="btnUserHash" disabled>IP Hash</button>
                 <button type="button" id="btnAddVeri2" disabled>Veri2</button>
-                <button type="button" id="btnMutedList" disabled>Muted</button>
                 <button type="button" id="btnChatHistory" disabled title="API-Chat-Historie des validierten Users">History</button>
-                <button type="button" id="btnWarnedList" disabled>Warned</button>
+                <button type="button" id="btnWatchUser" class="hub-watch-btn" disabled title="User beobachten: neue Nachrichten landen in der Watch-Box unten im Hub">👁 Watch</button>
+                <button type="button" id="btnMutedList" disabled title="Lokal gemutete User (Liste)">Muted</button>
+                <button type="button" id="btnWarnedList" disabled title="Lokal gewarnte User (Liste)">Warned</button>
               </div>
               <label class="compact-label">Mute-Zeit <select id="mutePeriod"></select></label>
               <label class="compact-label">Mute-BP <select id="cbMuteBlueprints"><option value="">—</option></select></label>
@@ -533,7 +547,46 @@
           <ul id="analyseDetailMsgs" class="analyse-msg-list"></ul>
           <div class="row-inline analyse-detail-actions">
             <button type="button" id="btnAnalyseModAction" class="sm primary">Mod Action</button>
+            <button type="button" id="btnAnalyseWatch" class="sm hub-watch-btn" title="User auf die Watchlist setzen — neue Nachrichten erscheinen im Hub in der Watch-Box">👁 Watchlist</button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="panel-watchlist" class="panel-view">
+      <div class="panel watchlist-panel">
+        <div class="panel-head">
+          <div class="panel-head-left">
+            <h2>Watchlist</h2>
+            <span id="watchlistSiteHint" class="hint">stake.com</span>
+          </div>
+          <div class="panel-head-actions">
+            <form id="watchlistAddForm" class="watchlist-add-row" autocomplete="off">
+              <input id="watchlistAddInput" type="text" placeholder="Username hinzufügen…" spellcheck="false" />
+              <button type="submit" class="sm primary">+ Watch</button>
+            </form>
+            <button type="button" id="btnWatchlistClearAll" class="sm" title="Alle User von der Watchlist entfernen">Alle entfernen</button>
+          </div>
+        </div>
+        <p class="hint watchlist-hint">
+          Beobachtete User werden im Live-Chat violett markiert, neue Nachrichten landen in der Watch-Box im Hub.
+          Hinzufügen über 👁 Watch im Hub, Rechtsklick im Chat oder aus der Analyse. Die Liste ist pro Site (com / eu) getrennt.
+        </p>
+        <div class="watchlist-table-wrap">
+          <table class="hist-table watchlist-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Seit</th>
+                <th>Quelle</th>
+                <th class="num" title="Nachrichten im aktuellen Live-Chat">Live Msgs</th>
+                <th>Letzte Nachricht</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="watchlistBody"></tbody>
+          </table>
+          <div id="watchlistEmpty" class="hint watchlist-empty hidden">Noch niemand auf der Watchlist.</div>
         </div>
       </div>
     </section>

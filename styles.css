@@ -23,6 +23,10 @@
   --stake-warn-bg: rgba(255, 184, 0, 0.14);
   --stake-danger: #ed1c24;
   --stake-danger-bg: rgba(237, 28, 36, 0.18);
+  /* Watchlist accent (violet — distinct from tagged amber / mod blue / RH red) */
+  --stake-watch: #c084fc;
+  --stake-watch-bg: rgba(192, 132, 252, 0.14);
+  --stake-watch-border: rgba(192, 132, 252, 0.5);
   --stake-radius: 8px;
   --stake-radius-lg: 10px;
   --stake-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -256,6 +260,26 @@ body.site-eu .site-tab[data-site="eu"].active {
   box-shadow: inset 0 -2px 0 var(--stake-primary);
 }
 
+.tab-count {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--stake-watch-bg);
+  color: var(--stake-watch);
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  vertical-align: 1px;
+}
+
+.tab-count.hidden {
+  display: none;
+}
+
 .tab-panels {
   flex: 1;
   min-height: 0;
@@ -297,7 +321,8 @@ body.site-eu .site-tab[data-site="eu"].active {
 
 .hub-left {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+  /* Live chat gets the lion's share; the four index boxes share the bottom strip. */
+  grid-template-rows: auto minmax(0, 1.45fr) minmax(170px, 1fr);
   gap: 8px;
   min-height: 0;
   padding: 10px;
@@ -579,8 +604,12 @@ body.site-eu .site-tab[data-site="eu"].active {
 }
 
 .hub-action-grid {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
+}
+
+.hub-action-grid .hub-watch-btn {
+  grid-column: span 2;
 }
 
 .hub-mod-action-btn {
@@ -2574,11 +2603,70 @@ button:disabled {
 
 .hub-subcols {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   min-height: 0;
   padding-top: 8px;
   border-top: 1px solid var(--stake-border);
+}
+
+.subcol-count {
+  display: inline-block;
+  min-width: 1.5em;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--stake-accent-soft);
+  color: var(--stake-text);
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+  vertical-align: middle;
+}
+
+.subcol-count.is-zero {
+  background: rgba(177, 186, 211, 0.1);
+  color: var(--stake-text-dim);
+}
+
+.subcol-head-actions {
+  display: inline-flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.subcol-eye {
+  font-size: 11px;
+  margin-right: 2px;
+}
+
+.subcol-watch .subcol-title {
+  color: var(--stake-watch);
+}
+
+.subcol-watch .subcol-count:not(.is-zero) {
+  background: var(--stake-watch-bg);
+  color: var(--stake-watch);
+}
+
+.index-list-watch {
+  border-color: var(--stake-watch-border);
+  box-shadow: inset 0 0 0 1px rgba(192, 132, 252, 0.08);
+}
+
+.index-item-watch .index-item-user {
+  color: var(--stake-watch);
+}
+
+.index-item-watch {
+  border-left: 2px solid var(--stake-watch-border);
+}
+
+.index-item-watch:hover {
+  background: var(--stake-watch-bg);
 }
 
 .subcol {
@@ -2801,6 +2889,37 @@ button:disabled {
 .chat-line.mark-mod {
   background: rgba(0, 114, 255, 0.12);
   border-left: 3px solid var(--stake-primary);
+}
+
+/* Watched user — violet accent; tagged/mod marks win when they overlap */
+.chat-line.mark-watch {
+  background: var(--stake-watch-bg);
+  border-left: 3px solid var(--stake-watch);
+  padding-left: 5px;
+}
+
+.chat-line.mark-watch .user {
+  color: var(--stake-watch) !important;
+}
+
+.chat-line.mark-watch .user::before {
+  content: '👁 ';
+  font-size: 0.8em;
+  opacity: 0.85;
+}
+
+.hub-watch-btn.is-on {
+  background: var(--stake-watch-bg);
+  border-color: var(--stake-watch-border);
+  color: var(--stake-watch);
+}
+
+.hub-watch-btn.is-on:hover:not(:disabled) {
+  background: rgba(192, 132, 252, 0.24);
+}
+
+#ctxMenu .ctx-watch.is-on {
+  color: var(--stake-watch);
 }
 
 .chat-line[data-bet] {
@@ -3460,6 +3579,165 @@ button:disabled {
   font-size: 11px;
   color: var(--stake-text-dim);
   max-width: 200px;
+}
+
+/* Link-styled buttons (Analyse user names, Watchlist) */
+button.linklike {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #7ec8ff;
+  font-size: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+button.linklike:hover:not(:disabled) {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.analyse-act .hub-watch-btn {
+  margin-left: 3px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* ───────── Watchlist tab ───────── */
+.watchlist-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+#panel-watchlist.panel-view.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  height: auto;
+}
+
+.watchlist-add-row {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+}
+
+.watchlist-add-row input {
+  width: 200px;
+  margin: 0;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.watchlist-hint {
+  margin: 0 0 10px;
+  max-width: 900px;
+  line-height: 1.5;
+}
+
+.watchlist-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--stake-border);
+  border-radius: var(--stake-radius);
+  background: var(--stake-bg-surface);
+}
+
+.watchlist-table {
+  font-size: 12px;
+}
+
+.watchlist-table th,
+.watchlist-table td {
+  padding: 7px 10px;
+  vertical-align: middle;
+}
+
+.watchlist-table th.num,
+.watchlist-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.watchlist-table tbody tr:hover {
+  background: var(--stake-watch-bg);
+}
+
+.watchlist-user {
+  color: var(--stake-watch);
+}
+
+.watchlist-since {
+  color: var(--stake-text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.watchlist-src {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--stake-border-strong);
+  color: var(--stake-text-muted);
+}
+
+.watchlist-src-analyse {
+  border-color: rgba(110, 231, 168, 0.4);
+  color: #6ee7a8;
+}
+
+.watchlist-src-chat {
+  border-color: rgba(126, 200, 255, 0.4);
+  color: #7ec8ff;
+}
+
+.watchlist-src-hub {
+  border-color: rgba(0, 114, 255, 0.5);
+  color: #9ec9ff;
+}
+
+.watchlist-last {
+  max-width: 460px;
+  color: var(--stake-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watchlist-last-time {
+  color: var(--stake-text-dim);
+  font-size: 11px;
+  margin-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.watchlist-none {
+  color: var(--stake-text-dim);
+}
+
+.watchlist-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.watchlist-actions button + button {
+  margin-left: 4px;
+}
+
+.watchlist-empty {
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 12px;
 }
 
 .analyse-act {

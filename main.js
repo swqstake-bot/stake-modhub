@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, dialog, shell, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, session, dialog, shell, Tray, Menu, nativeImage, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { StakeGraphQL } = require('./lib/stake-graphql');
@@ -487,11 +487,15 @@ function hideMainWindowToTray() {
 function createMainWindow() {
   const appIcon = loadAppIcon();
   const frameless = process.platform === 'win32' || process.platform === 'linux';
+  /* Larger default; clamp to the work area so small displays still fit. */
+  const work = screen.getPrimaryDisplay()?.workAreaSize || { width: 1680, height: 1000 };
+  const winW = Math.min(1680, Math.max(1200, work.width - 40));
+  const winH = Math.min(1000, Math.max(760, work.height - 40));
   mainWin = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 1100,
-    minHeight: 720,
+    width: winW,
+    height: winH,
+    minWidth: 1200,
+    minHeight: 760,
     title: 'Stake Mod Hub',
     icon: appIcon || undefined,
     show: false,

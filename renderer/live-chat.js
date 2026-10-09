@@ -140,7 +140,7 @@
   }
 
   function lineClasses(m) {
-    const { state, isVeri2, isOwnModChatUser } = getCtx();
+    const { state, isVeri2, isOwnModChatUser, isWatched } = getCtx();
     const parts = ['chat-line'];
     if (m.kind === 'tip') parts.push('kind-tip');
     if (m.kind === 'rain') parts.push('kind-rain');
@@ -149,6 +149,7 @@
     if (m.kind === 'bot') parts.push('kind-bot');
     if (m.rhHit) parts.push('rh-hit');
     if (isVeri2(m.username)) parts.push('veri2');
+    if (typeof isWatched === 'function' && isWatched(m.username, m.chatSource)) parts.push('mark-watch');
     if (m.modMention) parts.push('mark-tagged');
     if (state.allmsgUser && m.username.toLowerCase() === state.allmsgUser.toLowerCase()) parts.push('mark-yellow');
     if (state.modMarkUser && m.username.toLowerCase() === state.modMarkUser.toLowerCase()) parts.push('mark-mod');
