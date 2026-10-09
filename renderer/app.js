@@ -145,8 +145,6 @@ function syncSiteTabsUi() {
         ? 'Alles getrennt: Chat-Logs, Analyse, Veri2, HashIP, Blueprints nur für stake.eu'
         : 'Alles getrennt: Chat-Logs, Analyse, Veri2, HashIP, Blueprints nur für stake.com';
   }
-  window.UiShell?.syncConn?.();
-  syncHubUserChip();
 }
 
 function applyHubSettingsToUi() {
@@ -183,12 +181,6 @@ async function setActiveSite(site) {
   const next = site === 'eu' ? 'eu' : 'com';
   if (next === 'eu' && !state.settings?.wsEuEnabled) return;
   if (state.activeSite === next) return;
-  const rhHere = (state.rhSessions || []).some((s) => s.active && (s.site || 'com') === state.activeSite);
-  if (rhHere) {
-    const from = state.activeSite === 'eu' ? 'stake.eu' : 'stake.com';
-    const to = next === 'eu' ? 'stake.eu' : 'stake.com';
-    if (!window.confirm(`Auf ${from} läuft eine Rollhunt. Trotzdem zu ${to} wechseln?`)) return;
-  }
   state.activeSite = next;
   try {
     state.settings = await modHub.saveSettings({ activeSite: next });
@@ -1823,10 +1815,10 @@ function syncWatchButtonUi() {
   const name = state.validatedUser || '';
   const on = !!name && isWatchedUser(name);
   btn.classList.toggle('is-on', on);
-  btn.textContent = on ? 'Nicht beobachten' : 'Beobachten';
+  btn.textContent = on ? '👁 Unwatch' : '👁 Watch';
   btn.title = on
     ? `${name} von der Watchlist entfernen`
-    : 'User beobachten: neue Nachrichten landen in der Leiste unter dem Chat. Taste W.';
+    : 'User beobachten: neue Nachrichten landen in der Watch-Box unten im Hub';
   btn.disabled = !name;
 }
 
@@ -2090,7 +2082,6 @@ function pushChatLine(line) {
 
 function renderChats(opts) {
   LiveChat.renderChats(opts);
-  window.UiShell?.refreshMarkLegend?.();
 }
 
 function renderRhBets() {
@@ -2739,7 +2730,7 @@ function renderIndexList(el, items, onDbl) {
     ? items.map((it, i) => formatIndexItemHtml(it, i)).join('')
     : '<div class="hint index-empty">Noch keine Einträge</div>';
   el.querySelectorAll('.index-item').forEach((node) => {
-    node.addEventListener('click', () => {
+    node.addEventListener('dblclick', () => {
       const i = Number(node.getAttribute('data-i'));
       if (items[i] && onDbl) onDbl(items[i]);
     });
@@ -2879,21 +2870,6 @@ function setUserActionsEnabled(on) {
   });
   /* Watch ist lokal — braucht keinen Login, nur einen validierten User. */
   syncWatchButtonUi();
-  syncHubUserChip();
-}
-
-function syncHubUserChip() {
-  const el = $('hubUserChip');
-  if (!el) return;
-  const name = state.validatedUser;
-  if (!name) {
-    el.textContent = 'Kein User gewählt';
-    el.classList.remove('is-on');
-    return;
-  }
-  const site = getActiveSite() === 'eu' ? 'stake.eu' : 'stake.com';
-  el.textContent = `${name} · ${site}`;
-  el.classList.add('is-on');
 }
 
 function updateLiveStatusUi() {
@@ -2939,7 +2915,6 @@ function updateLiveStatusUi() {
     live.textContent = state.loggedIn ? 'Live' : 'Live: aus';
     debug.textContent = state.loggedIn ? 'Starte Chat…' : '—';
   }
-  window.UiShell?.syncConn?.();
 }
 
 function updateLoginUi() {
@@ -2955,7 +2930,6 @@ function updateLoginUi() {
     live.textContent = 'Live: aus';
   }
   setModActionsEnabled(state.loggedIn);
-  window.UiShell?.syncConn?.();
   syncAutoMsgTimers();
   syncRhAutopostTimer();
   renderHubIndexes();
@@ -3772,7 +3746,6 @@ async function validateAndOpenModAction(username, initialTab = 'mute') {
 }
 
 window.openModAction = openModAction;
-window.scrollToLiveChatUid = scrollToLiveChatUid;
 window.validateAndOpenModAction = validateAndOpenModAction;
 
 async function openPolicyMute() {
@@ -3928,7 +3901,6 @@ function ingestLiveMessageSync(m, { receivedAt, chatSource } = {}) {
     line.watched = true;
     state.watchIndex.unshift(buildWatchIndexEntry(line));
     if (state.watchIndex.length > WATCH_INDEX_MAX) state.watchIndex.length = WATCH_INDEX_MAX;
-    window.UiShell?.onWatchLine?.(line);
   }
 
   const flag = scoreIncomingFlag(line);
@@ -4003,9 +3975,9 @@ function ensureCtxMenu() {
   const menu = document.createElement('div');
   menu.id = 'ctxMenu';
   menu.innerHTML =
-    '<button type="button" data-action="bet">Wette nachschlagen</button>' +
-    '<button type="button" data-action="validate">User prüfen</button>' +
-    '<button type="button" data-action="watch" class="ctx-watch">Beobachten</button>';
+    '<button type="button" data-action="bet">Bet Lookup</button>' +
+    '<button type="button" data-action="validate">Validate User</button>' +
+    '<button type="button" data-action="watch" class="ctx-watch">👁 Watch User</button>';
   document.body.appendChild(menu);
   menu.addEventListener('click', (e) => {
     const action = e.target.closest('button')?.dataset?.action;
@@ -4133,7 +4105,7 @@ function wireHub() {
     const watchBtn = menu.querySelector('[data-action="watch"]');
     if (watchBtn) {
       const on = ctxUser && isWatchedUser(ctxUser, row.classList.contains('chat-source-eu') ? 'eu' : '');
-      watchBtn.textContent = on ? `Nicht beobachten: ${ctxUser}` : `Beobachten: ${ctxUser}`;
+      watchBtn.textContent = on ? `👁 Unwatch ${ctxUser}` : `👁 Watch ${ctxUser}`;
       watchBtn.classList.toggle('is-on', !!on);
       watchBtn.style.display = ctxUser ? '' : 'none';
     }
@@ -4389,7 +4361,7 @@ function wireHub() {
   $('btnShowBrowser')?.addEventListener('click', async () => {
     state.browserVisible = !state.browserVisible;
     await modHub.toggleBrowser(state.browserVisible);
-    $('btnShowBrowser').textContent = state.browserVisible ? 'Browser zu' : 'Browser';
+    $('btnShowBrowser').textContent = state.browserVisible ? 'Browser verbergen' : 'Browser anzeigen';
   });
 
   $('btnHideToTray')?.addEventListener('click', () => {

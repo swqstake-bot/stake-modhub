@@ -364,7 +364,7 @@
     const name = state.detailUser?.username || '';
     const on = !!name && isWatched(name);
     btn.classList.toggle('is-on', on);
-    btn.textContent = on ? 'Nicht beobachten' : 'Beobachten';
+    btn.textContent = on ? '👁 Auf Watchlist' : '👁 Watchlist';
     btn.title = on ? 'Von der Watchlist entfernen' : 'Auf die Watchlist — neue Nachrichten landen in der Hub Watch-Box';
   }
 
@@ -393,7 +393,6 @@
     const box = $('analyseDetail');
     if (!box) return;
     box.classList.remove('hidden');
-    $('panel-analyse')?.querySelector('.analyse-panel')?.classList.add('has-detail');
     $('analyseDetailTitle').textContent = row.username;
     const chips = $('analyseDetailChips');
     chips.innerHTML = (row.chips || [])
@@ -446,7 +445,6 @@
   function hideDetail() {
     state.detailUser = null;
     $('analyseDetail')?.classList.add('hidden');
-    $('panel-analyse')?.querySelector('.analyse-panel')?.classList.remove('has-detail');
   }
 
   function setPick(username, checked) {
@@ -908,11 +906,6 @@
     init,
     refresh: runAnalyse,
     onWatchlistChanged,
-    focusUser(username) {
-      const row = findRow(username);
-      if (row) showDetail(row);
-      return !!row;
-    },
     onTabShow() {
       updateModeUi();
       const site = getAnalyseSite();
