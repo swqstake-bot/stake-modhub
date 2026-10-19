@@ -67,40 +67,65 @@
     return steps[Math.min(index, steps.length - 1)];
   }
 
+  function normalizeReasonText(text) {
+    return String(text || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/ß/g, 'ss').replace(/https?:\/\/\S+|@[\w.-]+/g, ' ')
+      .replace(/(?:->|→)\s*(?:📜\s*)?(?:deutsche\s*chat\s*regeln|chat\s*rules).*$/i, ' ')
+      .replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
   function detectedReasonToViolations(text) {
-    // Our saved checkbox suffix is authoritative if a moderator corrected detection.
-    const savedRules = String(text || '').match(/\| Regeln:\s*(.*)$/s);
-    if (savedRules) text = savedRules[1];
-    // Ignore usernames and rule links in the saved blueprints.
-    const t = String(text || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/https?:\/\/\S+|@[\w.-]+/g, ' ').replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+    // Exact saved checkbox labels are authoritative. Parse each selected rule
+    // separately so e.g. a scam rule cannot suppress a sharing rule beside it.
+    const savedRules = String(text || '').match(/\|\s*Regeln:\s*(.*)$/is);
+    if (savedRules) {
+      return [...new Set(savedRules[1].split(';').flatMap((rule) => {
+        const exact = VIOLATIONS.find((v) => normalizeReasonText(v.label) === normalizeReasonText(rule));
+        return exact ? [exact.id] : detectReasonClause(normalizeReasonText(rule));
+      }))];
+    }
+    // URLs are removed before splitting, including query-string ampersands.
+    return [...new Set(normalizeReasonText(text).split(/[;&+|]/).flatMap(detectReasonClause))];
+  }
+
+  function detectReasonClause(t) {
+    t = t.trim();
     if (!t) return [];
     const ids = new Set();
     const add = (id, test) => { if (test) ids.add(id); };
-    const passive = /passiv\w*\s*(begg|bettel|slotcall)|missed rain|verpasster regen|spenden kommentar|commenting tips/.test(t);
-    const tagSpam = /tag\s*spam|spam\w*\s*tag|nonsense tag|sinnlos\w* tag/.test(t);
-    const socialSpam = /scam|phish|fraud|betrug|telegram|phone\s*number|telefonnummer|spam\w*[^;&|]*social|social[^;&|]*spam/.test(t);
+    const passive = /passiv\w*\s*(?:begg|bettel|slotcall)|\brain\s*talk\b|\bmi+s+ed\s*rain(?:\s*talk)?\b|verpass\w*\s*(?:regen|rain)|spenden\s*kommentar|commenting\s*tips|\bfragen\s*(?:nach|um)\s*(?:regen|rain|rh)\b|\basking\s+(?:for\s+)?(?:rain|rh)\b/.test(t);
+    const tagPattern = /(?:tagg?|mention)\w*\s*spam\w*|spam\w*\s*(?:tagg?|mention)\w*|(?:nonsens(?:e)?|sinnlos\w*)\s*(?:tagg?|mention)\w*/;
+    const tagSpam = tagPattern.test(t);
+    const normalTelegram = /telegram\s*(?:\(\s*)?(?:connect|nur zum vernetzen|zum vernetzen)|(?:sharing|teilen|vernetzen|normal)[^/]*telegram/.test(t);
+    const socialSpam = /scam|phish|fraud|betrug|phone\s*(?:number|nr)|telefon\s*(?:nummer|nr)|spam\w*[^/]*social|social[^/]*spam/.test(t) || (/telegram/.test(t) && !normalTelegram);
     add('passive_begging', passive);
-    add('begging', /begg|bettel|gebettel|loan|borrow|lend|leihen|asking for rain/.test(t.replace(/passiv\w*\s*(begg\w*|bettel\w*)/g, '')));
+    add('begging', /begg|bettel|gebettel|\bloan\b|\bborrow\w*|\blend\w*|leihen/.test(t.replace(/passiv\w*\s*(begg\w*|bettel\w*)/g, '')));
     add('tag_spamming', tagSpam);
-    const spamText = t.replace(/tag\s*spam\w*|spam\w*\s*tag\w*|nonsense tag\w*/g, '');
-    add('caps', /\bcaps\b/.test(t));
-    add('spam', !socialSpam && /\bspam\w*/.test(spamText));
-    add('chat_abuse', /chat abuse/.test(t));
-    // Older mute notes also use mixed wording such as "low Qualität Chat / Spam".
-    add('low_quality', /low\s*(?:quality|qualitat)|schlechte\w* chat\s*qualitat|nonsense chat/.test(t));
-    add('wrong_language', /wrong lang|falsche sprache/.test(t));
+    const spamText = t.replace(new RegExp(tagPattern.source, 'g'), '');
+    add('caps', /\bcaps(?:lock)?\b|gross\s*schreibung/.test(t));
+    add('spam', !socialSpam && /\bspam\w*|\bflood\w*/.test(spamText));
+    add('chat_abuse', /chat\s*(?:abuse|missbrauch)/.test(t));
+    // Includes real old notes: low Qualität, Low Qualli, Low Quallity, chat quality.
+    add('low_quality', /\b(?:low|poor|bad)\s*(?:chat\s*)?qual{1,2}(?:ity|itat|itaet|i)\b|schlechte\w*\s*chat\s*qualit(?:at|aet)|nonsens(?:e)?\s*(?:im\s*)?chat/.test(t) || /^(?:(?:muted|warnung|warning)(?:\s+\d+\s+\w+)?\s*!?\s*)?chat\s*(?:quality|qualitat|qualitaet)$/.test(t));
+    add('wrong_language', /wrong\s*(?:chat\s*)?lang|falsche?\s*sprache|fremdsprache/.test(t));
     add('scam_social', socialSpam);
-    add('telegram_connect', !socialSpam && /social|sozial|twitter|instagram|wallet|drop\s*code|sharing[^;&|]*codes|codes? (teilen|sharing)|kontaktversuch|personal contact/.test(t));
-    add('selling_accounts', /sell\w*[^;&|]*acc|acc\w*[^;&|]*(sell|verkauf)|account transfer|resell|trading account/.test(t));
-    add('racism_hate', /racis|hate speech|hatespeech|slur|hassrede|rassismus|toxic|toxisch|beleid\w*|rightist extremist/.test(t));
+    add('telegram_connect', !socialSpam && (normalTelegram || /social|sozial|twitter|instagram|wallet|drop\s*code|sharing[^/]*codes|codes?\s*(?:teilen|sharing)|kontakt(?:versuch|aufnahme)|personal contact/.test(t)));
+    add('selling_accounts', /(?:sell\w*|trad(?:e|ing)|resell\w*|verkauf\w*)\s*(?:stake\s*)?(?:ac+ounts?|acc\b|kont[oe]n?)|(?:ac+ounts?|\bacc|kont[oe]n?)\s*(?:selling|sell|trading|trade|sale|verkauf\w*|handel\w*|transfer)/.test(t));
+    add('racism_hate', /raci(?:s|al)|rassis|\bhate\b|hatespeech|slur|\bhass\b|hassrede|toxic|toxisch|beleid\w*|insult|harass|unangemessen|inappropriate\s*behavio[u]?r|rightist extremist|rechtsextrem/.test(t));
     add('chat_jumping', /chat\s*jump/.test(t));
-    add('suicidal_addiction', /suicid|suizid|addiction|sucht|selbstmord/.test(t));
+    add('suicidal_addiction', /suicid|suizid|addict|\bsucht\b|spielsucht|selbstmord/.test(t));
     add('advertising_streamers', /streamer/.test(t));
-    add('politics_religion', /politic|politik|religio/.test(t));
-    add('other_casinos', /other casinos?|anderen? casinos?|fremd\w* casinos?/.test(t));
-    add('chat_bot', /chat\s*bot/.test(t));
+    add('politics_religion', /politic|politik|politisch|religio/.test(t));
+    add('other_casinos', /(?:other|another)\s*casinos?|ander(?:e|en|es|er)\s*casinos?|fremd\w*\s*casinos?/.test(t));
+    add('chat_bot', /chat\s*bot|\bbot\s*(?:usage|using|nutzung)/.test(t));
     return [...ids];
+  }
+
+  function classifyHistoricalReason(text) {
+    const categoryIds = detectedReasonsToCategories(text);
+    if (categoryIds.length) return { status: 'matched', categoryIds };
+    const voluntary = /user\s*wish|userwunsch|nutzerwunsch|auf eigenen wunsch/.test(normalizeReasonText(text));
+    return { status: voluntary ? 'voluntary' : 'manual', categoryIds };
   }
 
   function categoriesForViolations(ids) {
@@ -121,11 +146,22 @@
   }
 
   function historyDurationMinutes(mute) {
+    if (mute.expireAt === null) return 0;
     const start = Date.parse(mute.createdAt);
     if (!Number.isFinite(start)) return null;
-    if (mute.expireAt === null) return 0;
     const end = Date.parse(mute.expireAt);
     if (!Number.isFinite(end) || end <= start) return null;
+    // Old "1/2/3 months" timers may be calendar months (28–31 days),
+    // including month-end clamping. Map these back to the policy's month steps.
+    const from = new Date(start);
+    for (const months of [1, 2, 3, 6, 12]) {
+      const until = new Date(start);
+      until.setUTCDate(1);
+      until.setUTCMonth(until.getUTCMonth() + months);
+      const lastDay = new Date(Date.UTC(until.getUTCFullYear(), until.getUTCMonth() + 1, 0)).getUTCDate();
+      until.setUTCDate(Math.min(from.getUTCDate(), lastDay));
+      if (Math.abs(end - until.getTime()) <= 60000) return months === 12 ? 525600 : months * MONTH;
+    }
     return Math.round((end - start) / 60000);
   }
 
@@ -152,7 +188,9 @@
     const suggestions = [...new Set(categoryIds)].map((id) => getCategorySuggestion(muteList, id));
     const known = suggestions.filter((s) => s.minutes != null);
     const longest = known.reduce((best, s) => !best || s.minutes === 0 || (best.minutes !== 0 && s.minutes > best.minutes) ? s : best, null);
-    return { suggestions, minutes: longest?.minutes ?? null, categoryId: longest?.categoryId ?? null };
+    const unclassifiedCount = (Array.isArray(muteList) ? muteList : [])
+      .filter((m) => classifyHistoricalReason(m.message).status === 'manual').length;
+    return { suggestions, minutes: longest?.minutes ?? null, categoryId: longest?.categoryId ?? null, unclassifiedCount };
   }
 
   function buildMuteMessage(message, violationIds) {
@@ -189,6 +227,6 @@
     POLICY_CATEGORIES, VIOLATIONS, DURATION_OPTIONS, minutesToLabel, minutesToDurationString,
     getSuggestedMinutes, detectedReasonToViolations, categoriesForViolations,
     detectedReasonsToCategories, detectedReasonToCategory, countStrikesInCategory,
-    historyDurationMinutes, getCategorySuggestion, getMuteSuggestion, buildMuteMessage, buildMuteChatText
+    classifyHistoricalReason, historyDurationMinutes, getCategorySuggestion, getMuteSuggestion, buildMuteMessage, buildMuteChatText
   };
 })(typeof window !== 'undefined' ? window : global);

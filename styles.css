@@ -3142,6 +3142,9 @@ button:disabled {
 #policyViolations input, #policyBotLabel input { width: auto; flex: 0 0 auto; }
 .policy-group-note, .policy-notes-preview { font-size: 11px; color: #b1bad3; line-height: 1.4; margin: 8px 0 14px; overflow-wrap: anywhere; }
 .policy-breakdown p { margin: 5px 0 10px; padding-left: 8px; border-left: 3px solid var(--stake-border-strong); font-size: 12px; }
+#policySuggestion.policy-review-warning, .policy-history-review { color: #ffd27f; }
+.policy-history-review, .policy-history-note { display: block; margin-top: 4px; font-size: 10px; }
+.policy-history-note { color: #b1bad3; }
 @media (max-width: 480px) { #policyViolations { grid-template-columns: 1fr; } }
 
 .stake-mod-panel {

@@ -3616,6 +3616,11 @@ function updatePolicySuggestion() {
     ? 'Mute-Historie nicht verfügbar. Dauer manuell prüfen und auswählen.'
     : result.minutes != null ? `Vorschlag: ${Policy.minutesToLabel(result.minutes)} · längste zutreffende Dauer`
       : 'Verstöße anhaken oder Dauer manuell auswählen.';
+  const reviewHistory = state.muteHistoryAvailable && result.unclassifiedCount > 0;
+  $('policySuggestion').classList.toggle('policy-review-warning', reviewHistory);
+  if (reviewHistory) {
+    $('policySuggestion').textContent += ` · ${result.unclassifiedCount} alte Mutes ohne eindeutige Kategorie: Historie prüfen. Der Vorschlag berücksichtigt nur zugeordnete Gründe.`;
+  }
   $('policyBreakdown').innerHTML = state.muteHistoryAvailable ? result.suggestions.map((s) => {
     const category = Policy.POLICY_CATEGORIES[s.categoryId];
     return `<p${category.color ? ` style="border-color:${category.color}"` : ''}>${esc(category.label)}: <strong>${esc(Policy.minutesToLabel(s.minutes))}</strong> · ${s.strikes} frühere Mutes</p>`;

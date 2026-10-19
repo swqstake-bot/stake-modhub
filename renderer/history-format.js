@@ -106,13 +106,18 @@
     const rows = list
       .map((m) => {
         const grund = m.message || '—';
+        const classification = window.StakeModPolicy?.classifyHistoricalReason?.(m.message);
+        const note = classification?.status === 'manual'
+          ? '<span class="policy-history-review">Kategorie unklar · manuell prüfen</span>'
+          : classification?.status === 'voluntary'
+            ? '<span class="policy-history-note">Auf Nutzerwunsch · kein Regelverstoß</span>' : '';
         const mod = m.authUser?.name || '—';
         const d = m.createdAt ? new Date(m.createdAt) : null;
         const ts = d
           ? `${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} ${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`
           : '—';
         const duration = fmtDur ? fmtDur(m.createdAt, m.expireAt) : '—';
-        return `<tr><td>${esc(grund)}</td><td>${esc(mod)}</td><td>${esc(duration)}</td><td>${esc(ts)}</td></tr>`;
+        return `<tr><td>${esc(grund)}${note}</td><td>${esc(mod)}</td><td>${esc(duration)}</td><td>${esc(ts)}</td></tr>`;
       })
       .join('');
     return `<table class="stake-mod-hist-table"><thead><tr><th>Grund</th><th>Stummgeschaltet von</th><th>Dauer</th><th>Erstellt am</th></tr></thead><tbody>${rows}</tbody></table>`;
