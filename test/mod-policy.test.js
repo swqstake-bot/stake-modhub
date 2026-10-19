@@ -37,6 +37,25 @@ test('Low Quality and Wrong Language retain independent history', () => {
   assert.deepEqual(ids('Nonsense Taggs'), ['begging']);
 });
 
+test('screenshot regression: old mixed-language Low Quality / Spam mutes advance from 1 day to 2 days', () => {
+  const history = [
+    mute('low Qualität Chat / Spam', 1440, '2026-10-02T20:41:00Z'),
+    mute('low Qualität Chat / Spam', 10, '2026-09-30T20:22:00Z')
+  ];
+  const suggestion = P.getCategorySuggestion(history, 'low_quality');
+  assert.equal(suggestion.strikes, 2);
+  assert.equal(suggestion.minutes, 2880);
+  assert.equal(P.getCategorySuggestion(history, 'minor_spam_caps').strikes, 2);
+});
+
+test('legacy German, English and mixed-language low-quality reasons use the same category', () => {
+  for (const reason of ['Low Quality Chat', 'low Qualität Chat', 'LOW QUALITÄT CHAT', 'Sehr schlechte Chat-Qualität', 'low Qualität Chat / Spam']) {
+    assert.ok(ids(reason).includes('low_quality'), reason);
+  }
+  assert.equal(P.countStrikesInCategory([{ message: 'low Qualität Chat / Spam' }], 'low_quality'), 1);
+  assert.equal(P.getMuteSuggestion([mute('low Qualität Chat / Spam', 10080)], ['low_quality']).minutes, 10080);
+});
+
 test('both multi-rule examples use the longest applicable duration', () => {
   assert.equal(P.getMuteSuggestion([], ids('Chat jumping & Begging')).minutes, 1440);
   assert.equal(P.getMuteSuggestion([mute('Passive begging', 7200)], ids('Chat jumping & Begging')).minutes, 10080);

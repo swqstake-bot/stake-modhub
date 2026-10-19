@@ -87,7 +87,8 @@
     add('caps', /\bcaps\b/.test(t));
     add('spam', !socialSpam && /\bspam\w*/.test(spamText));
     add('chat_abuse', /chat abuse/.test(t));
-    add('low_quality', /low\s*quality|schlechte\w* chat\s*qualitat|nonsense chat/.test(t));
+    // Older mute notes also use mixed wording such as "low Qualität Chat / Spam".
+    add('low_quality', /low\s*(?:quality|qualitat)|schlechte\w* chat\s*qualitat|nonsense chat/.test(t));
     add('wrong_language', /wrong lang|falsche sprache/.test(t));
     add('scam_social', socialSpam);
     add('telegram_connect', !socialSpam && /social|sozial|twitter|instagram|wallet|drop\s*code|sharing[^;&|]*codes|codes? (teilen|sharing)|kontaktversuch|personal contact/.test(t));
