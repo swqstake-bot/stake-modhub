@@ -115,12 +115,22 @@ test('every suggested timer maps exactly to an available select option', () => {
 
 test('selected violations are saved together and corrected checkboxes control later history', () => {
   const message = P.buildMuteMessage('Muted 1 month ! Chat jumping & Begging', ['begging', 'tag_spamming']);
-  assert.match(message, /Regeln: Begging; Tag Spamming/);
+  assert.match(message, /\| Begging; Tag Spamming$/);
   assert.doesNotMatch(message, /1 month/);
   assert.deepEqual(ids(message), ['begging']);
   const corrected = P.buildMuteMessage(message, ['caps']);
   assert.deepEqual(ids(corrected), ['minor_spam_caps']);
-  assert.equal((corrected.match(/Regeln:/g) || []).length, 1);
+  assert.doesNotMatch(corrected, /Regeln:/i);
+});
+
+test('mute notes show the selected reasons without the Regeln prefix and preserve extra notes', () => {
+  assert.equal(P.buildMuteMessage('', ['low_quality']), 'Low Quality Chat');
+  assert.equal(P.buildMuteMessage('Zusatznotiz', ['low_quality']), 'Zusatznotiz | Low Quality Chat');
+  assert.equal(P.buildMuteMessage('Regeln: Low Quality Chat', ['caps']), 'Caps');
+  assert.equal(P.buildMuteMessage('Zusatznotiz | Regeln: Low Quality Chat', ['caps']), 'Zusatznotiz | Caps');
+  assert.equal(P.buildMuteMessage('Zusatznotiz | Low Quality Chat', ['caps']), 'Zusatznotiz | Caps');
+  assert.deepEqual(ids('Scam in einer Zusatznotiz | Low Quality Chat'), ['low_quality']);
+  assert.deepEqual(ids('Scam in einer Zusatznotiz | Regeln: Low Quality Chat'), ['low_quality']);
 });
 
 test('outgoing mute blueprint contains the user, all selected reasons and German chat rules', () => {
@@ -133,4 +143,5 @@ test('outgoing mute blueprint contains the user, all selected reasons and German
 test('manual mute reason remains available when no violation was checked', () => {
   const text = P.buildMuteChatText('Tester', [], 'Eigener Mute-Grund');
   assert.match(text, /^@Tester Muted! Eigener Mute-Grund -> 📜Deutsche Chatregeln📜 https:/);
+  assert.match(P.buildMuteChatText('Tester', [], 'Low Quality Chat'), /^@Tester Muted! Low Quality Chat ->/);
 });

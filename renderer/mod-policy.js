@@ -77,15 +77,30 @@
   function detectedReasonToViolations(text) {
     // Exact saved checkbox labels are authoritative. Parse each selected rule
     // separately so e.g. a scam rule cannot suppress a sharing rule beside it.
-    const savedRules = String(text || '').match(/\|\s*Regeln:\s*(.*)$/is);
+    const savedRules = savedMuteMessageParts(text);
     if (savedRules) {
-      return [...new Set(savedRules[1].split(';').flatMap((rule) => {
+      return [...new Set(savedRules.rules.split(';').flatMap((rule) => {
         const exact = VIOLATIONS.find((v) => normalizeReasonText(v.label) === normalizeReasonText(rule));
         return exact ? [exact.id] : detectReasonClause(normalizeReasonText(rule));
       }))];
     }
     // URLs are removed before splitting, including query-string ampersands.
     return [...new Set(normalizeReasonText(text).split(/[;&+|]/).flatMap(detectReasonClause))];
+  }
+
+  function savedMuteMessageParts(message) {
+    const text = String(message || '').trim();
+    // Keep reading notes saved by earlier versions with the explicit prefix.
+    const old = text.match(/^(?:(.*?)\s*\|\s*)?Regeln:\s*(.*)$/is);
+    if (old) return { note: (old[1] || '').trim(), rules: old[2] };
+    // New notes end in the exact selected labels, without a visible prefix.
+    const separator = text.lastIndexOf('|');
+    const rules = (separator < 0 ? text : text.slice(separator + 1)).trim();
+    const labels = rules.split(';').map((rule) => rule.trim());
+    if (labels.every((rule) => VIOLATIONS.some((v) => normalizeReasonText(v.label) === normalizeReasonText(rule)))) {
+      return { note: separator < 0 ? '' : text.slice(0, separator).trim(), rules };
+    }
+    return null;
   }
 
   function detectReasonClause(t) {
@@ -196,9 +211,10 @@
   function buildMuteMessage(message, violationIds) {
     const labels = VIOLATIONS.filter((v) => violationIds.includes(v.id)).map((v) => v.label);
     // Replace our own rules suffix so edited checkbox selections cannot leave stale rules.
-    const base = String(message || '').replace(/\s*\| Regeln:.*$/s, '')
+    const saved = savedMuteMessageParts(message);
+    const base = (saved ? saved.note : String(message || ''))
       .replace(/^Muted\s+\d+\s*(minutes?|hours?|days?|weeks?|months?|years?)\s*!?/i, 'Muted!').trim();
-    return labels.length ? [base, 'Regeln: ' + labels.join('; ')].filter(Boolean).join(' | ') : base;
+    return labels.length ? [base, labels.join('; ')].filter(Boolean).join(' | ') : base;
   }
 
   function buildMuteChatText(username, violationIds, reason, rulesLink) {
@@ -215,7 +231,9 @@
     };
     const labels = VIOLATIONS.filter((v) => violationIds.includes(v.id)).map((v) => chatLabels[v.id] || v.label);
     // Private extra notes stay in mute history when checkbox reasons are available.
-    const fallback = buildMuteMessage(reason, []).replace(/^@[\w.-]+\s*/, '').replace(/^Muted!\s*/i, '')
+    const saved = savedMuteMessageParts(reason);
+    const manualReason = saved ? [saved.note, saved.rules].filter(Boolean).join(' | ') : String(reason || '');
+    const fallback = manualReason.replace(/^@[\w.-]+\s*/, '').replace(/^Muted!\s*/i, '')
       .replace(/\s*[-→]+>?.*Deutsche Chatregeln.*$/i, '').trim();
     const body = labels.join('; ') || fallback;
     const user = String(username || '').replace(/^@+/, '').trim();
