@@ -1108,7 +1108,7 @@ function registerIpc() {
   ipcMain.handle('modhub-mute-history', async (_e, { name, site } = {}) => {
     try {
       const client = gqlClientForSite(site === 'eu' ? 'eu' : 'com');
-      return { ok: true, data: await client.getCommunityUser(name) };
+      return { ok: true, data: await client.getMuteHistory(name) };
     } catch (e) {
       return { ok: false, error: e.message };
     }

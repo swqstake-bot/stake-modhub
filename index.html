@@ -814,26 +814,27 @@
 
       <div class="stake-mod-body">
         <div id="modTabMute" class="stake-mod-panel active" data-mod-panel="mute">
+          <fieldset class="policy-violations"><legend>Verstöße auswählen</legend><div id="policyViolations"></div></fieldset>
+          <p class="policy-group-note">Gleiche Farbe = gemeinsame Eskalation. Bei mehreren Verstößen gilt die längste Dauer.</p>
+          <div id="policyBreakdown" class="policy-breakdown"></div>
+          <label id="policyBotLabel" class="hidden"><input id="policyBotConfirmed" type="checkbox" /> Chat Bot sicher nachgewiesen (100 %). Sonst Low Quality Chat auswählen.</label>
           <label class="stake-mod-field">
             <span class="stake-mod-label">Läuft ab</span>
             <select id="policyDuration"></select>
           </label>
           <label class="stake-mod-field">
-            <span class="stake-mod-label">Beschreibung <em class="req">*</em></span>
-            <input id="policyMuteMsg" type="text" autocomplete="off" placeholder="z. B. low quality chat, begging…" />
+            <span class="stake-mod-label">Zusätzliche Notiz</span>
+            <input id="policyMuteMsg" type="text" autocomplete="off" placeholder="Optionaler Zusatz zu den angehakten Verstößen" />
           </label>
-          <p class="stake-mod-field-note">Mute-Grund in der Historie — nicht die Chat-Nachricht an den User (dafür Mute-Text im Hub).</p>
+          <p class="stake-mod-field-note">Alle angehakten Verstöße werden als Mute-Grund gespeichert. Ohne Häkchen den Grund hier eingeben.</p>
           <p id="policySuggestion" class="stake-mod-hint"></p>
-          <p class="stake-mod-field-note"><a id="policyDocLink" href="https://docs.google.com/document/d/1hKij1JV3h7WFrqfbT-lEVYRiTj-crGfjeC46onu7ck4/edit" target="_blank" rel="noopener">Mute-Policy 2026 (Google Doc)</a></p>
+          <p id="policyNotesPreview" class="policy-notes-preview"></p>
+          <p class="stake-mod-field-note"><a id="policyDocLink" href="https://docs.google.com/document/d/1BtvltJcw9UrGdrTnmyHkJKqIopgrkaY6FEMJYF0Pq_8/edit" target="_blank" rel="noopener">Mute Timers 2026 (Google Doc)</a></p>
           <details class="stake-mod-advanced">
             <summary>Policy-Vorschlag (optional)</summary>
             <label class="stake-mod-field compact">
               <span class="stake-mod-label">Keyword / Grund</span>
               <input id="policyReason" type="text" placeholder="z. B. begging, toxic…" />
-            </label>
-            <label class="stake-mod-field compact">
-              <span class="stake-mod-label">Kategorie</span>
-              <select id="policyCategory"></select>
             </label>
           </details>
           <button type="button" id="btnPolicyApply" class="stake-mod-submit">Benutzer stummschalten</button>

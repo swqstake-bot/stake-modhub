@@ -73,6 +73,7 @@ const state = {
   chatHistoryLimit: 200,
   chatHistoryHighlight: '',
   muteHistoryCache: [],
+  muteHistoryAvailable: false,
   bets: [],
   betByKey: {},
   selectedBetKey: null,
@@ -3571,43 +3572,56 @@ function renderPolicyMuteHistory(list) {
 }
 
 function initPolicyModal() {
-  const cats = Policy.POLICY_CATEGORIES || {};
-  $('policyCategory').innerHTML = Object.values(cats)
-    .map((c) => `<option value="${c.id}">${esc(c.label)}</option>`)
+  $('policyViolations').innerHTML = (Policy.VIOLATIONS || [])
+    .map((v) => {
+      const color = Policy.POLICY_CATEGORIES[v.categoryId]?.color;
+      return `<label${color ? ` style="border-color:${color}"` : ''}><input type="checkbox" value="${v.id}" />${esc(v.label)}</label>`;
+    })
     .join('');
   $('policyDuration').innerHTML = (Policy.DURATION_OPTIONS || C.MUTE_PERIODS || [])
     .map((d) => `<option value="${d}">${d}</option>`)
     .join('');
 }
 
+function selectedPolicyViolations() {
+  return Array.from($('policyViolations').querySelectorAll('input:checked')).map((el) => el.value);
+}
+
+function detectPolicyViolations() {
+  const detected = Policy.detectedReasonToViolations($('policyReason').value);
+  for (const el of $('policyViolations').querySelectorAll('input')) el.checked = detected.includes(el.value);
+  updatePolicySuggestion();
+}
+
+function updatePolicyNotes() {
+  const message = Policy.buildMuteMessage($('policyMuteMsg').value, selectedPolicyViolations());
+  $('policyNotesPreview').textContent = message ? `Wird gespeichert: ${message}` : '';
+  updatePolicyApplyState();
+}
+
+function updatePolicyApplyState() {
+  const ids = selectedPolicyViolations();
+  const message = Policy.buildMuteMessage($('policyMuteMsg').value, ids);
+  $('btnPolicyApply').disabled = !state.policyPending || !$('policyDuration').value || !message ||
+    (ids.includes('chat_bot') && !$('policyBotConfirmed').checked);
+}
+
 function updatePolicySuggestion() {
-  const reason = ($('policyMuteMsg')?.value || $('policyReason')?.value || '').trim();
-  const cat = Policy.detectedReasonToCategory?.(reason);
-  const catEl = $('policyCategory');
-  if (cat && catEl) catEl.value = cat;
-  const categoryId = catEl?.value || 'custom';
-  const strikes = Policy.countStrikesInCategory?.(state.muteHistoryCache, categoryId) || 0;
-  const mins = Policy.getSuggestedMinutes?.(categoryId, strikes);
-  const label = mins != null ? Policy.minutesToLabel?.(mins) : 'manuell';
-  const catHint = Policy.getCategoryHint?.(categoryId) || '';
-  const hint = $('policySuggestion');
-  if (hint) {
-    hint.textContent =
-      mins != null
-        ? `Policy-Vorschlag: ${label} (Strike ${strikes + 1})${catHint ? ` — ${catHint}` : ''}`
-        : catHint || 'Dauer manuell wählen';
-  }
-  const dur = Policy.minutesToDurationString?.(mins);
-  if (dur) {
-    const sel = $('policyDuration');
-    const opt = Array.from(sel.options).find((o) => o.value === dur);
-    if (opt) sel.value = dur;
-    else if (mins && C.MUTE_PERIODS) {
-      const approx = mins < 60 ? `${mins} minutes` : mins < 1440 ? `${Math.round(mins / 60)} hours` : `${Math.round(mins / 1440)} days`;
-      const o2 = Array.from(sel.options).find((o) => o.value === approx);
-      if (o2) sel.value = approx;
-    }
-  }
+  const ids = selectedPolicyViolations();
+  const result = Policy.getMuteSuggestion(state.muteHistoryCache, Policy.categoriesForViolations(ids));
+  const botSelected = ids.includes('chat_bot');
+  $('policyBotLabel').classList.toggle('hidden', !botSelected);
+  if (!botSelected) $('policyBotConfirmed').checked = false;
+  $('policySuggestion').textContent = !state.muteHistoryAvailable
+    ? 'Mute-Historie nicht verfügbar. Dauer manuell prüfen und auswählen.'
+    : result.minutes != null ? `Vorschlag: ${Policy.minutesToLabel(result.minutes)} · längste zutreffende Dauer`
+      : 'Verstöße anhaken oder Dauer manuell auswählen.';
+  $('policyBreakdown').innerHTML = state.muteHistoryAvailable ? result.suggestions.map((s) => {
+    const category = Policy.POLICY_CATEGORIES[s.categoryId];
+    return `<p${category.color ? ` style="border-color:${category.color}"` : ''}>${esc(category.label)}: <strong>${esc(Policy.minutesToLabel(s.minutes))}</strong> · ${s.strikes} frühere Mutes</p>`;
+  }).join('') : '';
+  $('policyDuration').value = state.muteHistoryAvailable ? Policy.minutesToDurationString(result.minutes) || '' : '';
+  updatePolicyNotes();
 }
 
 async function openFlaggedChatHistory(item) {
@@ -3685,17 +3699,33 @@ async function loadPolicyTipsTab() {
 
 async function openModAction(initialTab = 'mute') {
   if (!state.validatedUserId) return;
-  state.policyPending = { userId: state.validatedUserId, username: state.validatedUser };
+  const pending = { userId: state.validatedUserId, username: state.validatedUser, site: getActiveSite() };
+  state.policyPending = pending;
+  state.muteHistoryCache = [];
+  state.muteHistoryAvailable = false;
+  $('policyBotConfirmed').checked = false;
   const v2 = isVeri2(state.validatedUser) ? ' ★' : '';
   $('policyUserName').textContent = `${state.validatedUser}${v2}`;
   $('policyReason').value = '';
   $('policyMuteMsg').value = '';
-  const hist = await modHub.muteHistory(state.validatedUser, { site: getActiveSite() });
+  detectPolicyViolations();
+  renderPolicyMuteHistory([]);
+  switchModTab(initialTab);
+  $('mutePolicyModal').classList.remove('hidden');
+  $('policySuggestion').textContent = 'Lade Mute-Historie…';
+  let hist;
+  try {
+    hist = await modHub.muteHistory(pending.username, { site: pending.site });
+  } catch (e) {
+    hist = { ok: false, error: e.message };
+  }
+  if (state.policyPending !== pending) return;
   const user = hist.ok ? hist.data?.user : null;
   const hash = user?.hashedIp || state.validatedUserHashedIp || '';
   $('policyUserHash').textContent = hash ? `Hashed IP: ${hash}` : 'Hashed IP: —';
   if (user?.hashedIp) state.validatedUserHashedIp = user.hashedIp;
   state.muteHistoryCache = user?.community?.muteList || [];
+  state.muteHistoryAvailable = Array.isArray(user?.community?.muteList);
   renderPolicyMuteHistory(state.muteHistoryCache);
   updatePolicySuggestion();
   switchModTab(initialTab);
@@ -3753,9 +3783,12 @@ async function openPolicyMute() {
 }
 
 async function applyPolicyMute() {
-  if (!state.policyPending) return;
-  const expire = $('policyDuration').value || $('mutePeriod').value;
-  const message = ($('policyMuteMsg')?.value || '').trim();
+  if (!state.policyPending || $('btnPolicyApply').disabled) return;
+  const pending = state.policyPending;
+  const expire = $('policyDuration').value;
+  const violations = selectedPolicyViolations();
+  const message = Policy.buildMuteMessage($('policyMuteMsg').value, violations);
+  const chatText = Policy.buildMuteChatText(pending.username, violations, $('policyMuteMsg').value, C.RULE_POST_LINK);
   if (!message) {
     $('policySuggestion').textContent = 'Beschreibung (Mute-Grund) ist erforderlich.';
     $('policyMuteMsg')?.focus();
@@ -3763,17 +3796,22 @@ async function applyPolicyMute() {
   }
   const btn = $('btnPolicyApply');
   if (btn) btn.disabled = true;
-  const res = await modHub.muteUser({
-    userId: state.policyPending.userId,
-    expire,
-    message,
-    site: getActiveSite()
-  });
-  if (btn) btn.disabled = false;
-  $('validateStatus').textContent = res.ok ? `Gemutet: ${state.policyPending.username}` : `Fehler: ${res.error}`;
-  if (res.ok) {
-    closePolicyMuteModal();
-    await refreshMutedWarnedSets();
+  try {
+    const res = await modHub.muteUser({ userId: pending.userId, expire, message, site: pending.site });
+    $('validateStatus').textContent = res.ok ? `Gemutet: ${pending.username}` : `Fehler: ${res.error}`;
+    if (res.ok) {
+      $('mutePeriod').value = expire;
+      $('muteMessage').value = chatText;
+      $('cbMuteBlueprints').value = '';
+      if (state.policyPending === pending) closePolicyMuteModal();
+      await refreshMutedWarnedSets();
+    } else {
+      $('policySuggestion').textContent = `Fehler: ${res.error}`;
+    }
+  } catch (e) {
+    $('policySuggestion').textContent = `Fehler: ${e.message}`;
+  } finally {
+    updatePolicyApplyState();
   }
 }
 
@@ -4247,14 +4285,18 @@ function wireHub() {
     });
   });
   $('btnChatHistoryMore')?.addEventListener('click', () => loadPolicyChatTab(true));
-  $('policyReason')?.addEventListener('input', updatePolicySuggestion);
+  $('policyReason')?.addEventListener('input', detectPolicyViolations);
   $('policyMuteMsg')?.addEventListener('input', () => {
-    if ($('policyReason') && $('policyMuteMsg')?.value.trim()) {
+    if (!selectedPolicyViolations().length) {
       $('policyReason').value = $('policyMuteMsg').value;
+      detectPolicyViolations();
+    } else {
+      updatePolicyNotes();
     }
-    updatePolicySuggestion();
   });
-  $('policyCategory')?.addEventListener('change', updatePolicySuggestion);
+  $('policyViolations')?.addEventListener('change', updatePolicySuggestion);
+  $('policyDuration')?.addEventListener('change', updatePolicyApplyState);
+  $('policyBotConfirmed')?.addEventListener('change', updatePolicyApplyState);
   $('policyMuteMsg')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
