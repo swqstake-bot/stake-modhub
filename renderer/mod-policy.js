@@ -221,7 +221,7 @@
     const chatLabels = {
       passive_begging: 'Passives Betteln im Chat', begging: 'Betteln im Chat',
       tag_spamming: 'Tag-Spamming', caps: 'Caps im Chat', spam: 'Spam im Chat',
-      chat_abuse: 'Chat-Missbrauch', low_quality: 'Sehr schlechte Chat-Qualität',
+      chat_abuse: 'Chat-Missbrauch', low_quality: 'Low Quality Chat-Talk/Spam',
       wrong_language: 'Falsche Sprache im Chat', scam_social: 'Scam-Links / Social-Spam / unerlaubte Kontaktdaten',
       telegram_connect: 'Teilen von Socials / Codes / Wallet', selling_accounts: 'Account-Verkauf',
       racism_hate: 'Rassismus / Hate Speech / toxisches Verhalten', chat_jumping: 'Chat Jumping',
@@ -229,7 +229,8 @@
       politics_religion: 'Politik / Religion im Chat', other_casinos: 'Nennen oder Bewerben anderer Casinos',
       chat_bot: 'Chat-Bot-Nutzung'
     };
-    const labels = VIOLATIONS.filter((v) => violationIds.includes(v.id)).map((v) => chatLabels[v.id] || v.label);
+    const labels = VIOLATIONS.filter((v) => violationIds.includes(v.id) &&
+      !(v.id === 'spam' && violationIds.includes('low_quality'))).map((v) => chatLabels[v.id] || v.label);
     // Private extra notes stay in mute history when checkbox reasons are available.
     const saved = savedMuteMessageParts(reason);
     const manualReason = saved ? [saved.note, saved.rules].filter(Boolean).join(' | ') : String(reason || '');
@@ -238,7 +239,8 @@
     const body = labels.join('; ') || fallback;
     const user = String(username || '').replace(/^@+/, '').trim();
     const link = rulesLink || 'https://stakecommunity.com/topic/119796-deutsche-chat-regeln/#comment-2423075';
-    return `${user ? '@' + user + ' ' : ''}Muted! ${body} -> 📜Deutsche Chatregeln📜 ${link}`;
+    const arrow = violationIds.includes('low_quality') ? '->' : ' ->';
+    return `${user ? '@' + user + ' ' : ''}Muted! ${body}${arrow} 📜Deutsche Chatregeln📜 ${link}`;
   }
 
   global.StakeModPolicy = {
