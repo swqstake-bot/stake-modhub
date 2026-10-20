@@ -3071,6 +3071,12 @@ button:disabled {
   color: #6b7c8f;
 }
 
+.stake-mod-last-rain {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #b1bad3;
+}
+
 .stake-mod-tabs {
   display: flex;
   gap: 0;

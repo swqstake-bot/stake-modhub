@@ -3711,6 +3711,8 @@ async function openModAction(initialTab = 'mute') {
   $('policyBotConfirmed').checked = false;
   const v2 = isVeri2(state.validatedUser) ? ' ★' : '';
   $('policyUserName').textContent = `${state.validatedUser}${v2}`;
+  $('policyUserHash').textContent = 'Hashed IP: —';
+  $('policyUserLastRain').textContent = 'Letzter Rain-Empfang: Lade…';
   $('policyReason').value = '';
   $('policyMuteMsg').value = '';
   detectPolicyViolations();
@@ -3726,6 +3728,7 @@ async function openModAction(initialTab = 'mute') {
   }
   if (state.policyPending !== pending) return;
   const user = hist.ok ? hist.data?.user : null;
+  $('policyUserLastRain').textContent = `Letzter Rain-Empfang: ${window.HistoryFormat.formatLastRain(user?.community?.lastRain)}`;
   const hash = user?.hashedIp || state.validatedUserHashedIp || '';
   $('policyUserHash').textContent = hash ? `Hashed IP: ${hash}` : 'Hashed IP: —';
   if (user?.hashedIp) state.validatedUserHashedIp = user.hashedIp;

@@ -163,7 +163,19 @@
   </div>`;
   }
 
+  function formatLastRain(value) {
+    if (value === null) return 'Kein Rain verzeichnet';
+    if (typeof value !== 'string' || !value.trim()) return 'Nicht verfügbar';
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return 'Nicht verfügbar';
+    return date.toLocaleString('de-DE', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  }
+
   window.HistoryFormat = {
+    formatLastRain,
     chatHistoryItemText,
     normHistMatchText,
     messageMatchesHighlight,
