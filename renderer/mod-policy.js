@@ -7,7 +7,7 @@
   const STANDARD = [10, 60, 240, DAY, 2 * DAY, 3 * DAY, 5 * DAY, 7 * DAY];
   // Zero represents permanent. null represents a manual decision.
   const POLICY_CATEGORIES = {
-    begging: { id: 'begging', label: 'Passive Begging / Begging / Tag Spamming', minutes: STANDARD, color: '#e06666' },
+    begging: { id: 'begging', label: 'Passive Begging / Begging / Tag Spamming / Missed Raintalk', minutes: STANDARD, color: '#e06666' },
     minor_spam_caps: { id: 'minor_spam_caps', label: 'Caps / Spam / Chat Abuse', minutes: STANDARD, color: '#6d9eeb' },
     low_quality: { id: 'low_quality', label: 'Low Quality Chat', minutes: STANDARD, color: '#93c47d' },
     wrong_language: { id: 'wrong_language', label: 'Wrong Language / Falsche Sprache', minutes: STANDARD },
@@ -28,6 +28,7 @@
     { id: 'passive_begging', label: 'Passive Begging', categoryId: 'begging' },
     { id: 'begging', label: 'Begging', categoryId: 'begging' },
     { id: 'tag_spamming', label: 'Tag Spamming', categoryId: 'begging' },
+    { id: 'missed_raintalk', label: 'Missed Raintalk', categoryId: 'begging' },
     { id: 'caps', label: 'Caps', categoryId: 'minor_spam_caps' },
     { id: 'spam', label: 'Spam', categoryId: 'minor_spam_caps' },
     { id: 'chat_abuse', label: 'Chat Abuse', categoryId: 'minor_spam_caps' },
@@ -108,7 +109,8 @@
     if (!t) return [];
     const ids = new Set();
     const add = (id, test) => { if (test) ids.add(id); };
-    const passive = /passiv\w*\s*(?:begg|bettel|slotcall)|\brain\s*talk\b|\bmi+s+ed\s*rain(?:\s*talk)?\b|verpass\w*\s*(?:regen|rain)|spenden\s*kommentar|commenting\s*tips|\bfragen\s*(?:nach|um)\s*(?:regen|rain|rh)\b|\basking\s+(?:for\s+)?(?:rain|rh)\b/.test(t);
+    const missedRain = /\bmi+s+ed\s*rain(?:\s*talk)?\b|verpass\w*\s*(?:regen|rain)/.test(t);
+    const passive = /passiv\w*\s*(?:begg|bettel|slotcall)|spenden\s*kommentar|commenting\s*tips|\bfragen\s*(?:nach|um)\s*(?:regen|rain|rh)\b|\basking\s+(?:for\s+)?(?:rain|rh)\b/.test(t) || (!missedRain && /\brain\s*talk\b/.test(t));
     const tagPattern = /(?:tagg?|mention)\w*\s*spam\w*|spam\w*\s*(?:tagg?|mention)\w*|(?:nonsens(?:e)?|sinnlos\w*)\s*(?:tagg?|mention)\w*/;
     const tagSpam = tagPattern.test(t);
     const normalTelegram = /telegram\s*(?:\(\s*)?(?:connect|nur zum vernetzen|zum vernetzen)|(?:sharing|teilen|vernetzen|normal)[^/]*telegram/.test(t);
@@ -116,6 +118,7 @@
     add('passive_begging', passive);
     add('begging', /begg|bettel|gebettel|\bloan\b|\bborrow\w*|\blend\w*|leihen/.test(t.replace(/passiv\w*\s*(begg\w*|bettel\w*)/g, '')));
     add('tag_spamming', tagSpam);
+    add('missed_raintalk', missedRain);
     const spamText = t.replace(new RegExp(tagPattern.source, 'g'), '');
     add('caps', /\bcaps(?:lock)?\b|gross\s*schreibung/.test(t));
     add('spam', !socialSpam && /\bspam\w*|\bflood\w*/.test(spamText));
@@ -220,7 +223,7 @@
   function buildMuteChatText(username, violationIds, reason, rulesLink) {
     const chatLabels = {
       passive_begging: 'Passives Betteln im Chat', begging: 'Betteln im Chat',
-      tag_spamming: 'Tag-Spamming', caps: 'Caps im Chat', spam: 'Spam im Chat',
+      tag_spamming: 'Tag-Spamming', missed_raintalk: 'Missed Raintalk', caps: 'Caps im Chat', spam: 'Spam im Chat',
       chat_abuse: 'Chat-Missbrauch', low_quality: 'Low Quality Chat-Talk/Spam',
       wrong_language: 'Falsche Sprache im Chat', scam_social: 'Scam-Links / Social-Spam / unerlaubte Kontaktdaten',
       telegram_connect: 'Teilen von Socials / Codes / Wallet', selling_accounts: 'Account-Verkauf',

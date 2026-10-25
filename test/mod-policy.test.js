@@ -24,6 +24,25 @@ test('Mladen example: one 1-day passive begging mute advances begging and tag sp
   assert.equal(P.getMuteSuggestion(history, ids('Tag Spamming')).minutes, 2880);
 });
 
+test('Missed Raintalk is selectable and shares every escalation step with begging and tag spam', () => {
+  assert.equal(P.VIOLATIONS.find(v => v.id === 'missed_raintalk').categoryId, 'begging');
+  for (const reason of ['Missed Raintalk', 'missed rain talk', 'miissed raintalk', 'Missed Rain', 'verpasster Regen Kommentar']) {
+    assert.deepEqual(Array.from(P.detectedReasonToViolations(reason)), ['missed_raintalk']);
+    assert.deepEqual(ids(reason), ['begging']);
+  }
+  const steps = Array.from(P.POLICY_CATEGORIES.begging.minutes);
+  for (const reason of ['Passive Begging', 'Begging', 'Tag Spamming', 'Missed Raintalk']) {
+    for (const [i, minutes] of steps.entries()) {
+      const history = [mute(reason, minutes)];
+      assert.equal(P.getMuteSuggestion(history, P.categoriesForViolations(['missed_raintalk'])).minutes, steps[Math.min(i + 1, steps.length - 1)]);
+      assert.equal(P.getMuteSuggestion([mute('Missed Raintalk', minutes)], ids(reason)).minutes, steps[Math.min(i + 1, steps.length - 1)]);
+    }
+  }
+  assert.equal(P.buildMuteMessage('', ['missed_raintalk']), 'Missed Raintalk');
+  assert.equal(P.buildMuteChatText('Tester', ['missed_raintalk'], '', 'https://example.test/rules'),
+    '@Tester Muted! Missed Raintalk -> 📜Deutsche Chatregeln📜 https://example.test/rules');
+});
+
 test('several violations of the same color count as one strike per historical mute', () => {
   const history = [mute('Caps & Spam & Chat Abuse', 10), mute('Begging & Tag Spamming', 10)];
   assert.equal(P.countStrikesInCategory(history, 'minor_spam_caps'), 1);
