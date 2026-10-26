@@ -479,7 +479,7 @@ async function refreshMutedWarnedSets(opts = {}) {
 
 function retagModMentions() {
   for (const line of state.chatLines) {
-    line.modMention = isMentionOfMod(line.message);
+    line.modMention = isTaggedForMod(line);
   }
   state.tagged = state.chatLines
     .filter((l) => l.modMention)
@@ -2033,6 +2033,12 @@ function isOwnModChatUser(username) {
   const mod = stripAt(state.modUser);
   const u = stripAt(username);
   return Boolean(mod && u && mod.toLowerCase() === u.toLowerCase());
+}
+
+function isTaggedForMod(line) {
+  if (isMentionOfMod(line.message)) return true;
+  const repliedUser = stripAt(String(line.reply?.username || '').trim()).toLowerCase();
+  return Boolean(repliedUser && getMentionWatchTerms().some((term) => term.toLowerCase() === repliedUser));
 }
 
 function toUsd(amount, currency) {
@@ -3927,7 +3933,7 @@ function ingestLiveMessageSync(m, { receivedAt, chatSource } = {}) {
   if (m.replyChatMessageId) line.replyChatMessageId = String(m.replyChatMessageId);
   resolveChatReply(line);
   rememberChatMessageById(line);
-  line.modMention = isMentionOfMod(line.message);
+  line.modMention = isTaggedForMod(line);
   pushChatLine(line);
 
   if (line.modMention) {
