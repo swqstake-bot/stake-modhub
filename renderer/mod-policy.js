@@ -20,7 +20,8 @@
     advertising_streamers: { id: 'advertising_streamers', label: 'Streamer-Werbung', minutes: [DAY, 7 * DAY] },
     politics_religion: { id: 'politics_religion', label: 'Politik / Religion', minutes: [DAY, 7 * DAY] },
     other_casinos: { id: 'other_casinos', label: 'Andere Casinos erwähnen / bewerben', minutes: [DAY, 7 * DAY, 14 * DAY, MONTH, 2 * MONTH, 3 * MONTH, 6 * MONTH] },
-    chat_bot: { id: 'chat_bot', label: 'Chat Bot (nur bei sicherem Nachweis)', minutes: [DAY, 6 * MONTH, 0] }
+    chat_bot: { id: 'chat_bot', label: 'Chat Bot (nur bei sicherem Nachweis)', minutes: [DAY, 6 * MONTH, 0] },
+    fake_information: { id: 'fake_information', label: 'Sharing fake information / Falschinformationen', minutes: [60, 240, DAY, 7 * DAY, MONTH] }
   };
 
   // Violations remain separate checkboxes; categoryId controls shared history.
@@ -136,6 +137,7 @@
     add('politics_religion', /politic|politik|politisch|religio/.test(t));
     add('other_casinos', /(?:other|another)\s*casinos?|ander(?:e|en|es|er)\s*casinos?|fremd\w*\s*casinos?/.test(t));
     add('chat_bot', /chat\s*bot|\bbot\s*(?:usage|using|nutzung)/.test(t));
+    add('fake_information', /\b(?:fake|false)\s*(?:info(?:rmation)?s?)\b|\b(?:misinformation|disinformation)\b|\bfalschinformationen?\b|\bfalsch\w*\s+informationen?\b/.test(t));
     return [...ids];
   }
 
@@ -230,7 +232,7 @@
       racism_hate: 'Rassismus / Hate Speech / toxisches Verhalten', chat_jumping: 'Chat Jumping',
       suicidal_addiction: 'Suizid- / Suchtthematik', advertising_streamers: 'Streamer-Werbung',
       politics_religion: 'Politik / Religion im Chat', other_casinos: 'Nennen oder Bewerben anderer Casinos',
-      chat_bot: 'Chat-Bot-Nutzung'
+      chat_bot: 'Chat-Bot-Nutzung', fake_information: 'Verbreiten von Falschinformationen'
     };
     const labels = VIOLATIONS.filter((v) => violationIds.includes(v.id) &&
       !(v.id === 'spam' && violationIds.includes('low_quality'))).map((v) => chatLabels[v.id] || v.label);

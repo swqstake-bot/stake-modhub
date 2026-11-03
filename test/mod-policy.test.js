@@ -104,7 +104,8 @@ test('new categories follow the source timers, including permanent final steps',
     selling_accounts: [43200, 129600, 259200, 0], racism_hate: [1440, 43200, 129600, 259200, 0],
     chat_jumping: [1440, 10080, 43200], suicidal_addiction: [43200],
     advertising_streamers: [1440, 10080], politics_religion: [1440, 10080],
-    other_casinos: [1440, 10080, 20160, 43200, 86400, 129600, 259200], chat_bot: [1440, 259200, 0]
+    other_casinos: [1440, 10080, 20160, 43200, 86400, 129600, 259200], chat_bot: [1440, 259200, 0],
+    fake_information: [60, 240, 1440, 10080, 43200]
   };
   for (const [id, steps] of Object.entries(expected)) {
     assert.deepEqual(Array.from(P.POLICY_CATEGORIES[id].minutes), steps, id);
@@ -163,4 +164,27 @@ test('manual mute reason remains available when no violation was checked', () =>
   const text = P.buildMuteChatText('Tester', [], 'Eigener Mute-Grund');
   assert.match(text, /^@Tester Muted! Eigener Mute-Grund -> 📜Deutsche Chatregeln📜 https:/);
   assert.match(P.buildMuteChatText('Tester', [], 'Low Quality Chat'), /^@Tester Muted! Low Quality Chat ->/);
+});
+
+test('fake information uses its own history and the November source ladder', () => {
+  const category = 'fake_information';
+  assert.equal(P.VIOLATIONS.find(v => v.id === category).categoryId, category);
+  for (const reason of ['Sharing fake information', 'fake info', 'False information',
+    'Misinformation', 'Falschinformationen', 'Verbreiten falscher Informationen']) {
+    assert.deepEqual(ids(reason), [category], reason);
+    for (const [previous, next] of [[60, 240], [240, 1440], [1440, 10080], [10080, 43200], [43200, 43200]]) {
+      assert.equal(P.getMuteSuggestion([mute(reason, previous)], [category]).minutes, next, reason);
+    }
+  }
+  assert.equal(P.getMuteSuggestion([mute('Begging', 1440)], [category]).minutes, 60);
+  assert.equal(P.getMuteSuggestion([mute('Sharing fake information', 43200)], ['begging']).minutes, 10);
+  assert.equal(P.getMuteSuggestion([mute('Sharing fake information', 240)], [category, 'chat_jumping']).minutes, 1440);
+  const note = P.buildMuteMessage('', [category, 'chat_jumping']);
+  assert.deepEqual(ids(note), ['chat_jumping', category]);
+  assert.match(note, /Sharing fake information/);
+  const chat = P.buildMuteChatText('Tester', [category], 'Private evidence', 'https://example.test/rules');
+  assert.equal(chat, '@Tester Muted! Verbreiten von Falschinformationen -> 📜Deutsche Chatregeln📜 https://example.test/rules');
+  assert.deepEqual(ids(chat), [category]);
+  assert.deepEqual(ids('Falsche Sprache'), ['wrong_language']);
+  assert.deepEqual(ids('Information zum Rain'), []);
 });
