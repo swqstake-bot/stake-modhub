@@ -43,7 +43,7 @@ const aliases = {
   chat_bot: ['Chat Bot', 'Chat-Bot Using', 'Chatbot', 'Bot usage', 'Chat-Bot-Nutzung']
 };
 const nextAfterFirst = {
-  begging: [1440, 2880], minor_spam_caps: [1440, 2880], low_quality: [1440, 2880], wrong_language: [1440, 2880],
+  begging: [1440, 2880], minor_spam_caps: [1440, 2880], low_quality: [1440, 60], wrong_language: [1440, 2880],
   scam_social: [1440, 259200], telegram_connect: [1440, 10080], selling_accounts: [43200, 129600],
   racism_hate: [1440, 43200], chat_jumping: [1440, 10080], suicidal_addiction: [43200, 43200],
   advertising_streamers: [1440, 10080], politics_religion: [1440, 10080], other_casinos: [1440, 10080], chat_bot: [1440, 259200]
@@ -125,7 +125,8 @@ test('historical next steps and repeat caps are correct across every policy ladd
   for (const [category, steps] of Object.entries(ladders)) {
     for (let i = 0; i < steps.length - 1; i++) {
       const previous = mute(aliases[category][0], steps[i]);
-      assert.equal(P.getCategorySuggestion([previous], category).minutes, steps[i + 1], `${category}: after ${steps[i]}`);
+      const history = category === 'low_quality' ? steps.slice(0, i + 1).map(minutes => mute(aliases[category][0], minutes)) : [previous];
+      assert.equal(P.getCategorySuggestion(history, category).minutes, steps[i + 1], `${category}: after ${steps[i]}`);
     }
   }
   assert.equal(P.getCategorySuggestion([{ message: 'Scam', expireAt: null }], 'scam_social').minutes, 0);

@@ -190,13 +190,15 @@
     if (!steps) return { categoryId, strikes: 0, minutes: null };
     const history = (Array.isArray(muteList) ? muteList : [])
       .filter((m) => detectedReasonsToCategories(m.message).includes(categoryId));
-    // Advance from the latest actual duration. Use strike count only when
-    // historical dates are missing, including histories from older policies.
-    const latest = history.slice().sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0))[0];
+    const latest = history.sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0))[0];
     let index = history.length;
     if (latest) {
       const previous = historyDurationMinutes(latest);
-      if (previous != null) {
+      if (categoryId === 'low_quality') {
+        // Count visible Low Quality mutes unless the latest already reached the cap.
+        if (previous === steps.at(-1)) index = steps.length - 1;
+      } else if (previous != null) {
+        // Other categories continue from the latest actual duration.
         const next = previous === 0 ? steps.length - 1 : steps.findIndex((n) => n === 0 || n > previous + 1);
         index = next < 0 ? steps.length - 1 : next;
       }

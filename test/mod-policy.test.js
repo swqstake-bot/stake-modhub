@@ -56,15 +56,43 @@ test('Low Quality and Wrong Language retain independent history', () => {
   assert.deepEqual(ids('Nonsense Taggs'), ['begging']);
 });
 
-test('screenshot regression: old mixed-language Low Quality / Spam mutes advance from 1 day to 2 days', () => {
+test('Low Quality Chat escalation excludes the entire begging group', () => {
+  const lowQuality = P.categoriesForViolations(['low_quality']);
+  assert.deepEqual(Array.from(lowQuality), ['low_quality']);
+  const beggingHistory = ['Begging', 'Passive Begging', 'Tag Spamming', 'Missed Raintalk']
+    .map(reason => mute(reason, 7200));
+  const first = P.getMuteSuggestion(beggingHistory, lowQuality);
+  assert.equal(first.minutes, 10);
+  assert.equal(first.suggestions[0].strikes, 0);
+
+  const history = [...beggingHistory, mute('Low Quality Chat', 10, '2026-09-30T12:00:00Z')];
+  const next = P.getMuteSuggestion(history, lowQuality);
+  assert.equal(next.minutes, 60);
+  assert.equal(next.suggestions[0].strikes, 1);
+
+  const combined = P.getMuteSuggestion(history, P.categoriesForViolations(['low_quality', 'begging']));
+  assert.equal(combined.suggestions.find(s => s.categoryId === 'low_quality').minutes, 60);
+  assert.equal(combined.minutes, 10080);
+});
+
+test('Low Quality counts the two visible mutes even when the latest was 5 days', () => {
   const history = [
-    mute('low Qualität Chat / Spam', 1440, '2026-10-02T20:41:00Z'),
-    mute('low Qualität Chat / Spam', 10, '2026-09-30T20:22:00Z')
+    mute('begging', 2100, '2026-10-14T22:43:00Z'),
+    mute('Low Quality / Spam', 7200, '2026-09-02T22:56:00Z'),
+    mute('begging', 10080, '2026-08-21T23:16:00Z'),
+    mute('low Qualität Chat / Spam', 30, '2026-08-15T00:42:00Z')
   ];
   const suggestion = P.getCategorySuggestion(history, 'low_quality');
   assert.equal(suggestion.strikes, 2);
-  assert.equal(suggestion.minutes, 2880);
+  assert.equal(suggestion.minutes, 240);
   assert.equal(P.getCategorySuggestion(history, 'minor_spam_caps').strikes, 2);
+});
+
+test('only the latest Low Quality mute can preserve the 7-day cap', () => {
+  const capped = mute('Low Quality Chat', 10080, '2026-11-03T09:43:00Z');
+  assert.equal(P.getCategorySuggestion([capped], 'low_quality').minutes, 10080);
+  const later = mute('Low Quality Chat', 7200, '2026-11-05T09:43:00Z');
+  assert.equal(P.getCategorySuggestion([capped, later], 'low_quality').minutes, 240);
 });
 
 test('legacy German, English and mixed-language low-quality reasons use the same category', () => {
